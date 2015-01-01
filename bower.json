@@ -1,0 +1,32 @@
+{
+  "name": "regular-state",
+  "version": "0.0.1",
+  "main": "restate.js",
+  "description": "an SPA(single page application) foundation for regularjs that powerd by stateman",
+  "keywords": [
+    "router",
+    "state",
+    "spa"
+  ],
+  "authors": "@leeluolee <87399126@163.com>",
+  "license": "MIT",
+  "ignore": [
+    ".*",
+    "node_modules",
+    "bin",
+    "test",
+    "gulpfile.js",
+    "*.json",
+    "*.md"
+  ],
+  "devDependencies": {
+    "requirejs-regular": "~0.1.2",
+    "regularjs": "~0.2.14",
+    "jquery": "~2.1.3",
+    "bootstrap": "~3.3.1",
+    "requirejs": "~2.1.15"
+  },
+  "dependencies": {
+    "stateman": "~0.1.5"
+  }
+}

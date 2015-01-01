@@ -1,0 +1,11 @@
+*node_modules*
+bower_components
+*sublime*
+npm-debug.log
+*/tmp/*
+test/tmp/*
+test/coverage/*
+coverage*
+out/*
+
+

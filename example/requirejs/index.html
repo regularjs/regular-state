@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>regularjs restate demo</title>
+  <link rel="stylesheet" href="../../bower_components/bootstrap/dist/css/bootstrap.css">
+  <link rel="stylesheet" href="./dashboard.css">
+  <style>
+  </style>
+</head>
+<body>
+
+<div class="g-mn" id="app"></div>
+
+
+<script>
+  // Use ?debug to open the debug mode 
+  window.require = {
+      baseUrl: "./",
+      deps: ['index']
+  };
+  if (!/(\?|&)debug($|&)/.test(location.search)) {
+    require.deps = ["index-min"]
+  }
+</script>
+<script src="../../bower_components/requirejs/require.js"></script>
+</body>
+</html>

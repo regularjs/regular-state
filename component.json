@@ -1,0 +1,14 @@
+{
+  "name": "regular-state",
+  "version": "0.1.5",
+  "main": "restate.js",
+  "description": "an SPA(single page application) foundation for regularjs that powerd by stateman",
+  "keywords": [
+    "router",
+    "state",
+    "spa"
+  ],
+  "scripts": [
+    "restate.js"
+  ]
+}
