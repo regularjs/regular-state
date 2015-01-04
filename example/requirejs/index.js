@@ -3,7 +3,7 @@ require.config({
     paths : {
         "rgl": '../bower_components/requirejs-regular/rgl',
         "regularjs": '../bower_components/regularjs/dist/regular',
-        "restate": '',
+        "restate": 'https://rawgit.com/regularjs/regular-state/master/restate',
         "stateman": '../bower_components/stateman/stateman'
     },
     rgl: {
