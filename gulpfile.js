@@ -21,7 +21,7 @@ var wpConfig = {
 
 gulp.task('jshint', function(){
       // jshint
-  gulp.src(['src/**/*.js'])
+  gulp.src(['restate.jsi'])
     .pipe(jshint())
     .pipe(jshint.reporter('default'))
 
@@ -63,7 +63,17 @@ gulp.task('server', ['build'], shell.task([
 ]))
 
 
+var  deploy = require("gulp-gh-pages");
 
+gulp.task('deploy', function () {
+  gulp.src("example/**/*.*")
+    .pipe(deploy({
+      remoteUrl: "git@github.com:regularjs/regular-state"
+    }))
+    .on("error", function(err){
+      console.log(err)
+    })
+});
 
 function wrap(fn){
   return through.obj(fn);

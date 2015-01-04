@@ -1,0 +1,25 @@
+{
+  "name": "restate-example",
+  "private": true,
+  "authors": "@leeluolee <87399126@163.com>",
+  "license": "MIT",
+  "ignore": [
+    ".*",
+    "node_modules",
+    "bin",
+    "test",
+    "gulpfile.js",
+    "*.json",
+    "*.md"
+  ],
+  "devDependencies": {
+    "requirejs-regular": "regularjs/requirejs-regular#master",
+    "regularjs": "regularjs/regular#master",
+    "jquery": "~2.1.3",
+    "bootstrap": "~3.3.1",
+    "requirejs": "~2.1.15",
+    "stateman": "~0.1.5"
+  },
+  "dependencies": {
+  }
+}

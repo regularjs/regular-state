@@ -1,10 +1,10 @@
 
 require.config({
     paths : {
-        "rgl": '../../bower_components/requirejs-regular/rgl',
-        "regularjs": '../../bower_components/regularjs/dist/regular',
-        "restate": '../../restate',
-        "stateman": '../../bower_components/stateman/stateman'
+        "rgl": '../bower_components/requirejs-regular/rgl',
+        "regularjs": '../bower_components/regularjs/dist/regular',
+        "restate": '',
+        "stateman": '../bower_components/stateman/stateman'
     },
     rgl: {
       BEGIN: '{',
@@ -15,17 +15,22 @@ require.config({
 
 require([
   'restate',
+  'regularjs',
   "./module/app.js",
-  "./module/blog.js"
-  // "./module/blog.detail.js",
+  "./module/blog.js",
+  "./module/chat.js",
+  "rgl!./module/index.html",
   // "./module/blog.list.js",
   // "./module/blog.tag.js",
   // "./module/blog.category.js",
   // "./module/user.js",
 ], function(
     restate,
+    Regular,
     Application,
-    Blog
+    Blog,
+    Chat,
+    Index
     // BlogDetail,
     // BlogList,
     // BlogTag,
@@ -33,18 +38,21 @@ require([
     // User
   ){
 
-  var stateman = restate({view: document.getElementById("#app")});
+  var stateman = restate({view: document.getElementById("#app"), Component: Regular});
+
 
   stateman
-    .state("app", Application)
+    .state("app", Application, "")
+    .state("app.index", Index, { url: ""})
     .state("app.blog", Blog)
+    .state("app.chat", Chat)
     // .state("app.blog.detail", BlogDetail)
     // .state("app.blog.list", BlogList)
     // .state("app.blog.tag", BlogTag)
     // .state("app.blog.category", BlogCategory)
     // .state("app.user", User)
     .on("notfound", function(){
-      this.go("app", {replace: true})
+      this.go("app.index", {replace: true})
     })
     .start({ prefix: "!" })
 

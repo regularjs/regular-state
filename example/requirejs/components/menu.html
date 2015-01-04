@@ -1,6 +1,5 @@
 <ul class="nav nav-sidebar">
-  <li class='active'><a href="#">Home</a></li>
-  <li><a href="#">User</a></li>
-  <li><a href="#">Contact</a></li>
-  <li><a href="#">Blog</a></li>
+  {#list menus as menu}
+    <li class={state.is(menu.state)?'active':''}><a href="#!{menu.url}">{menu.name}</a></li>
+  {/list}
 </ul>

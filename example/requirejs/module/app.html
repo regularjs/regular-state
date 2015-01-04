@@ -10,23 +10,23 @@
       <span class="navbar-brand" href="#">theme from <a href="http://getbootstrap.com/examples/dashboard/">[bootstrap]</a> </span>
     </div>
     <div id="navbar" class="navbar-collapse collapse">
+      {#if !this.$state.username}
       <form class="navbar-form navbar-right">
-        <input type="text" class="form-control" placeholder="User name">
-        <input type="text" class="form-control" placeholder="Password...">
-        <button class="btn btn-primary">Login</button>
+        <input type="text" class="form-control" placeholder="User name" r-model='username'>
+        <input type="text" class="form-control" placeholder="Password..." r-model='password'>
+        <a href="javascript:;"class="btn btn-primary" on-click={this.login()} ref1={2}>Login</a>
       </form>
+      {#else}
+      <div class="navbar-brand navbar-right">Welcome, {username}</div>
+      {/if}
     </div>
   </div>
 </nav>
 <div class="container-fluid">
   <div class="row">
     <div class="col-sm-3 col-md-2 sidebar">
-      <ul class="nav nav-sidebar">
-        <li class='active'><a href="#">Home</a></li>
-        <li><a href="#">User</a></li>
-        <li><a href="#">Contact</a></li>
-        <li><a href="#">Blog</a></li>
-      </ul>
+      <app-menu menus={menus} state={@(this.$state)}></app-menu>
+      
     </div>
     <div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main" ref=view ></div>
   </div>

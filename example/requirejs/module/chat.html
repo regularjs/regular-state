@@ -1,0 +1,21 @@
+<div class="panel panel-primary">
+  <div class="panel-heading">
+    <h3 class="panel-title">Chat Room <span class="badge">{messages.length}</span></h3>
+  </div>
+  <div class="panel-body">
+  <div class="message-list">
+  {#list messages as message}
+  <div class="media">
+    <a class="media-left" href="#">
+      <img  src="http://www.gravatar.com/avatar/205e460b479e2e5b48aec07710c08d10"  style="width: 64px; height: 64px;">
+    </a>
+    <div class="media-body">
+      <h4 class="media-heading">@{message.user.name}</h4>
+      {message.content}
+    </div>
+  </div>
+  {/list}
+    </div>
+  </div>
+</div>
+

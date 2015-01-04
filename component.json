@@ -10,5 +10,9 @@
   ],
   "scripts": [
     "restate.js"
-  ]
+  ],
+  "dependencies": {
+    "leeluolee/stateman": "^0.1.4"
+  },
+
 }
