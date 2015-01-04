@@ -79,10 +79,10 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	  var restate = function(option){
 	    option = option || {};
-	    var stateman = option.stateman || StateMan(option);
+	    var stateman = option.stateman || new StateMan(option);
 	    var preStae = stateman.state;
 	    var BaseComponent = option.Component;
-	    var view = option.view || document.body;
+	    var globalView = option.view || document.body;
 
 	    var filters = {
 	      encode: function(value, param){
@@ -116,22 +116,28 @@ return /******/ (function(modules) { // webpackBootstrap
 	        var state = {
 	          component: null,
 	          enter: function( step ){
-	            var data = {
-	              $param: step.param
-	            }
-	            var component = this.component;
-	            var noComponent = !component;
+	            var data = { $param: step.param },
+	              component = this.component,
+	              noComponent = !component, 
+	              view;
 
 	            if(noComponent){
+
 	              component = this.component = new Component({
 	                data: data,
 	                $state: stateman
-
 	              });
+
 	            }
+
 	            _.extend(component.data, data, true);
-	            var parent = this.parent;
-	            component.$inject( parent.component? parent.component.$refs.view: view)
+
+	            var parent = this.parent, view;
+	            if(parent.component){
+	              var view = parent.component.$refs.view;
+	              if(!view) throw this.parent.name + "should have a element with [ref=view]";
+	            }
+	            component.$inject( view || globalView )
 	            component.enter && component.enter(step);
 	            component.$mute(false);
 	            if(noComponent) component.$update();

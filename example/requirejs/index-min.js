@@ -4885,7 +4885,7 @@ if (typeof exports == 'object') {
 }})();
 define('rgl',{load: function(id){throw new Error("Dynamic load not allowed: " + id);}});
 
-define("rgl!module/app.html", function(){ return [{"type":"element","tag":"nav","attrs":[{"type":"attribute","name":"class","value":"navbar navbar-inverse navbar-fixed-top"}],"children":[{"type":"text","text":"\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"container-fluid"}],"children":[{"type":"text","text":"\n    "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"navbar-header"}],"children":[{"type":"text","text":"\n      "},{"type":"element","tag":"button","attrs":[{"type":"attribute","name":"type","value":"button"},{"type":"attribute","name":"class","value":"navbar-toggle collapsed"},{"type":"attribute","name":"data-toggle","value":"collapse"},{"type":"attribute","name":"data-target","value":"#navbar"},{"type":"attribute","name":"aria-expanded","value":"false"},{"type":"attribute","name":"aria-controls","value":"navbar"}],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"sr-only"}],"children":[{"type":"text","text":"Toggle navigation"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"icon-bar"}],"children":[]},{"type":"text","text":"\n        "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"icon-bar"}],"children":[]},{"type":"text","text":"\n        "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"icon-bar"}],"children":[]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n      "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"navbar-brand"},{"type":"attribute","name":"href","value":"#"}],"children":[{"type":"text","text":"theme from "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"http://getbootstrap.com/examples/dashboard/"}],"children":[{"type":"text","text":"[bootstrap]"}]},{"type":"text","text":" "}]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n    "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"id","value":"navbar"},{"type":"attribute","name":"class","value":"navbar-collapse collapse"}],"children":[{"type":"text","text":"\n      "},{"type":"if","test":{"type":"expression","body":"(!_c_['$state']['username'])","constant":false,"setbody":false},"consequent":[{"type":"text","text":"\n      "},{"type":"element","tag":"form","attrs":[{"type":"attribute","name":"class","value":"navbar-form navbar-right"}],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"input","attrs":[{"type":"attribute","name":"type","value":"text"},{"type":"attribute","name":"class","value":"form-control"},{"type":"attribute","name":"placeholder","value":"User name"},{"type":"attribute","name":"r-model","value":"username"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"input","attrs":[{"type":"attribute","name":"type","value":"text"},{"type":"attribute","name":"class","value":"form-control"},{"type":"attribute","name":"placeholder","value":"Password..."},{"type":"attribute","name":"r-model","value":"password"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"javascript:;"},{"type":"attribute","name":"class","value":"btn btn-primary"},{"type":"attribute","name":"on-click","value":{"type":"expression","body":"_c_['login']()","constant":false,"setbody":false}},{"type":"attribute","name":"ref1","value":{"type":"expression","body":"2","constant":true,"setbody":false}}],"children":[{"type":"text","text":"Login"}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n      "}],"alternate":[{"type":"text","text":"\n      "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"navbar-brand navbar-right"}],"children":[{"type":"text","text":"Welcome, "},{"type":"expression","body":"_c_._sg_('username', _d_)","constant":false,"setbody":"_c_._ss_('username',_p_,_d_, '=')"}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n"}]},{"type":"text","text":"\n"},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"container-fluid"}],"children":[{"type":"text","text":"\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"row"}],"children":[{"type":"text","text":"\n    "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"col-sm-3 col-md-2 sidebar"}],"children":[{"type":"text","text":"\n      "},{"type":"element","tag":"app-menu","attrs":[{"type":"attribute","name":"menus","value":{"type":"expression","body":"_c_._sg_('menus', _d_)","constant":false,"setbody":"_c_._ss_('menus',_p_,_d_, '=')"}},{"type":"attribute","name":"state","value":{"type":"expression","body":"_c_['$state']","constant":false,"setbody":"_c_['$state']=_p_","once":true}}],"children":[]},{"type":"text","text":"\n      \n    "}]},{"type":"text","text":"\n    "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main"},{"type":"attribute","name":"ref","value":"view"}],"children":[]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n"}]}] });
+define("rgl!module/app.html", function(){ return [{"type":"element","tag":"nav","attrs":[{"type":"attribute","name":"class","value":"navbar navbar-inverse navbar-fixed-top"}],"children":[{"type":"text","text":"\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"container-fluid"}],"children":[{"type":"text","text":"\n    "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"navbar-header"}],"children":[{"type":"text","text":"\n      "},{"type":"element","tag":"button","attrs":[{"type":"attribute","name":"type","value":"button"},{"type":"attribute","name":"class","value":"navbar-toggle collapsed"},{"type":"attribute","name":"data-toggle","value":"collapse"},{"type":"attribute","name":"data-target","value":"#navbar"},{"type":"attribute","name":"aria-expanded","value":"false"},{"type":"attribute","name":"aria-controls","value":"navbar"}],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"sr-only"}],"children":[{"type":"text","text":"Toggle navigation"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"icon-bar"}],"children":[]},{"type":"text","text":"\n        "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"icon-bar"}],"children":[]},{"type":"text","text":"\n        "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"icon-bar"}],"children":[]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n      "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"navbar-brand"},{"type":"attribute","name":"href","value":"#"}],"children":[{"type":"text","text":"theme from "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"http://getbootstrap.com/examples/dashboard/"}],"children":[{"type":"text","text":"[bootstrap]"}]},{"type":"text","text":" "}]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n    "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"id","value":"navbar"},{"type":"attribute","name":"class","value":"navbar-collapse collapse"}],"children":[{"type":"text","text":"\n      "},{"type":"if","test":{"type":"expression","body":"(!_c_['$state']['username'])","constant":false,"setbody":false},"consequent":[{"type":"text","text":"\n      "},{"type":"element","tag":"form","attrs":[{"type":"attribute","name":"class","value":"navbar-form navbar-right"}],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"input","attrs":[{"type":"attribute","name":"type","value":"text"},{"type":"attribute","name":"class","value":"form-control"},{"type":"attribute","name":"placeholder","value":"User name"},{"type":"attribute","name":"r-model","value":"username"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"input","attrs":[{"type":"attribute","name":"type","value":"text"},{"type":"attribute","name":"class","value":"form-control"},{"type":"attribute","name":"placeholder","value":"Password..."},{"type":"attribute","name":"r-model","value":"password"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"javascript:;"},{"type":"attribute","name":"class","value":"btn btn-primary"},{"type":"attribute","name":"on-click","value":{"type":"expression","body":"_c_['login'](_c_._sg_('username', _d_),_c_._sg_('password', _d_))","constant":false,"setbody":false}}],"children":[{"type":"text","text":"Login"}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n      "}],"alternate":[{"type":"text","text":"\n      "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"navbar-brand navbar-right"}],"children":[{"type":"text","text":"Welcome, "},{"type":"expression","body":"_c_._sg_('username', _d_)","constant":false,"setbody":"_c_._ss_('username',_p_,_d_, '=')"}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n"}]},{"type":"text","text":"\n"},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"container-fluid"}],"children":[{"type":"text","text":"\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"row"}],"children":[{"type":"text","text":"\n    "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"col-sm-3 col-md-2 sidebar"}],"children":[{"type":"text","text":"\n      "},{"type":"element","tag":"app-menu","attrs":[{"type":"attribute","name":"menus","value":{"type":"expression","body":"_c_._sg_('menus', _d_)","constant":false,"setbody":"_c_._ss_('menus',_p_,_d_, '=')"}},{"type":"attribute","name":"state","value":{"type":"expression","body":"_c_['$state']","constant":false,"setbody":"_c_['$state']=_p_","once":true}}],"children":[]},{"type":"text","text":"\n      \n    "}]},{"type":"text","text":"\n    "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main"},{"type":"attribute","name":"ref","value":"view"}],"children":[]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n"}]}] });
 
 
 define("rgl!components/menu.html", function(){ return [{"type":"element","tag":"ul","attrs":[{"type":"attribute","name":"class","value":"nav nav-sidebar"}],"children":[{"type":"text","text":"\n  "},{"type":"list","sequence":{"type":"expression","body":"_c_._sg_('menus', _d_)","constant":false,"setbody":"_c_._ss_('menus',_p_,_d_, '=')"},"variable":"menu","body":[{"type":"text","text":"\n    "},{"type":"element","tag":"li","attrs":[{"type":"attribute","name":"class","value":{"type":"expression","body":"_c_._sg_('state', _d_)['is'](_c_._sg_('menu', _d_)['state'])?'active':''","constant":false,"setbody":false}}],"children":[{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":{"type":"expression","body":"['#!',(function(){try{return _c_._sg_('menu', _d_)['url']}catch(e){return ''}})()].join('')","constant":false,"setbody":false}}],"children":[{"type":"expression","body":"_c_._sg_('menu', _d_)['name']","constant":false,"setbody":"_c_._sg_('menu', _d_)['name']=_p_"}]}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n"}]}] });
@@ -4960,7 +4960,7 @@ define('mock.js',[],function(){
 
   i=0;
   var messages = []
-  while( (i++) < 10 ) {
+  while( (i++) < 3 ) {
     messages.push({
       id: i,
       user: users[random(0, 99)],
@@ -5017,6 +5017,40 @@ define('module/chat.js',['require','../mock.js','rgl!./chat.html'],function(requ
 define("rgl!module/index.html", function(){ return [{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"jumbotron"}],"children":[{"type":"text","text":"\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"container"}],"children":[{"type":"text","text":"\n    "},{"type":"element","tag":"h1","attrs":[],"children":[{"type":"text","text":"Hello!"}]},{"type":"text","text":"\n    "},{"type":"element","tag":"p","attrs":[],"children":[{"type":"text","text":"\n      This is a template for a simple marketing or informational website. It includes a large callout called a jumbotron and three supporting pieces of content. Use it as a starting point to create something more unique.\n    "}]},{"type":"text","text":"\n    "},{"type":"element","tag":"p","attrs":[],"children":[{"type":"text","text":"\n      "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"class","value":"btn btn-primary btn-lg"},{"type":"attribute","name":"href","value":"#"},{"type":"attribute","name":"role","value":"button"}],"children":[{"type":"text","text":"See Blogs »"}]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n"}]},{"type":"text","text":"\n"},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"row"}],"children":[{"type":"text","text":"\n  "},{"type":"list","sequence":{"type":"expression","body":"_c_._sg_('posts', _d_)","constant":false,"setbody":"_c_._ss_('posts',_p_,_d_, '=')"},"variable":"post","body":[{"type":"text","text":"\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"col-md-4"}],"children":[{"type":"text","text":"\n    "},{"type":"element","tag":"h2","attrs":[],"children":[{"type":"text","text":"Heading"},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"label label-default"}],"children":[{"type":"text","text":"New"}]}]},{"type":"text","text":"\n    "},{"type":"element","tag":"p","attrs":[],"children":[{"type":"text","text":"\n      Donec id elit non mi porta gravida at eget metus. Fusce dapibus, tellus ac cursus commodo, tortor mauris condimentum nibh, ut fermentum massa justo sit amet risus. Etiam porta sem malesuada magna mollis euismod. Donec sed odio dui.\n    "}]},{"type":"text","text":"\n    "},{"type":"element","tag":"p","attrs":[],"children":[{"type":"text","text":"\n      "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"class","value":"btn btn-default"},{"type":"attribute","name":"href","value":"#"},{"type":"attribute","name":"role","value":"button"}],"children":[{"type":"text","text":"View details »"}]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n"}]}] });
 
 
+define("rgl!module/user.html", function(){ return [{"type":"element","tag":"div","attrs":[],"children":[{"type":"text","text":"User Page"}]},{"type":"text","text":"\n"},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"ref","value":"view"}],"children":[]}] });
+
+define('module/user.js',["regularjs", "rgl!./user.html"], function( Regular, tpl ){
+
+  return Regular.extend({
+    template: tpl
+  })
+
+});
+
+define("rgl!module/blog.detail.html", function(){ return [{"type":"element","tag":"div","attrs":[],"children":[{"type":"text","text":"Detail Page "},{"type":"expression","body":"_c_._sg_('$param', _d_)['id']","constant":false,"setbody":"_c_._sg_('$param', _d_)['id']=_p_"}]}] });
+
+define('module/blog.detail.js',["regularjs", "rgl!./blog.detail.html"], function( Regular, tpl ){
+  return Regular.extend({
+    template: tpl
+  })
+});
+
+define("rgl!module/blog.list.html", function(){ return [{"type":"element","tag":"div","attrs":[],"children":[{"type":"text","text":"List Page "},{"type":"expression","body":"_c_._sg_('$param', _d_)['page']","constant":false,"setbody":"_c_._sg_('$param', _d_)['page']=_p_"}]}] });
+
+define('module/blog.list.js',["regularjs", "rgl!./blog.list.html"], function( Regular, tpl ){
+  return Regular.extend({
+    template: tpl
+  })
+});
+
+define("rgl!module/blog.edit.html", function(){ return [{"type":"element","tag":"div","attrs":[],"children":[{"type":"text","text":"Edit Page"}]}] });
+
+define('module/blog.edit.js',["regularjs", "rgl!./blog.edit.html"], function( Regular, tpl ){
+  return Regular.extend({
+    template: tpl
+  })
+});
+
 require.config({
     paths : {
         "rgl": '../bower_components/requirejs-regular/rgl',
@@ -5038,41 +5072,57 @@ require([
   "./module/blog.js",
   "./module/chat.js",
   "rgl!./module/index.html",
-  // "./module/blog.list.js",
-  // "./module/blog.tag.js",
-  // "./module/blog.category.js",
-  // "./module/user.js",
+  "./module/user.js",
+  "./module/blog.detail.js",
+  "./module/blog.list.js",
+  "./module/blog.edit.js"
 ], function(
     restate,
     Regular,
     Application,
     Blog,
     Chat,
-    Index
-    // BlogDetail,
-    // BlogList,
-    // BlogTag,
-    // BlogCategory,
-    // User
+    Index,
+    User,
+    BlogDetail,
+    BlogList,
+    BlogEdit
   ){
 
-  var stateman = restate({view: document.getElementById("#app"), Component: Regular});
+  var stateman = restate({
+    view: document.getElementById("#app"), 
+    Component: Regular
+  });
 
 
   stateman
+    // application core
     .state("app", Application, "")
+
+    // home page
     .state("app.index", Index, { url: ""})
+
+    // blog
     .state("app.blog", Blog)
+    .state("app.blog.detail", BlogDetail, ":id")
+    .state("app.blog.list", BlogList, "")
+    .state("app.blog.edit", BlogEdit)
+
+    //chat module
     .state("app.chat", Chat)
-    // .state("app.blog.detail", BlogDetail)
-    // .state("app.blog.list", BlogList)
-    // .state("app.blog.tag", BlogTag)
-    // .state("app.blog.category", BlogCategory)
-    // .state("app.user", User)
+
+    // user
+    .state("app.user", User)
+    // .state("app.user.list", UserList, "")
+    // .state("app.user.detail", UserDetail, ":id")
+
+    // redirect when notfound
     .on("notfound", function(){
       this.go("app.index", {replace: true})
     })
-    .start({ prefix: "!" })
+
+    // start the routing
+    .start({html5:false, prefix: "!"})
 
 
 

@@ -20,7 +20,7 @@ define(function(){
 
   i=0;
   var messages = []
-  while( (i++) < 10 ) {
+  while( (i++) < 3 ) {
     messages.push({
       id: i,
       user: users[random(0, 99)],

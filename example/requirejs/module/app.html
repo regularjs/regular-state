@@ -14,7 +14,7 @@
       <form class="navbar-form navbar-right">
         <input type="text" class="form-control" placeholder="User name" r-model='username'>
         <input type="text" class="form-control" placeholder="Password..." r-model='password'>
-        <a href="javascript:;"class="btn btn-primary" on-click={this.login()} ref1={2}>Login</a>
+        <a href="javascript:;"class="btn btn-primary" on-click={this.login(username, password)}>Login</a>
       </form>
       {#else}
       <div class="navbar-brand navbar-right">Welcome, {username}</div>
