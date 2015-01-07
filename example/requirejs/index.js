@@ -3,7 +3,7 @@ require.config({
     paths : {
         "rgl": '../bower_components/requirejs-regular/rgl',
         "regularjs": '../bower_components/regularjs/dist/regular',
-        "restate": 'https://rawgit.com/regularjs/regular-state/master/restate',
+        "restate": '../restate',
         "stateman": '../bower_components/stateman/stateman'
     },
     rgl: {
@@ -37,10 +37,47 @@ require([
     BlogEdit
   ){
 
+
+  var format = function(){
+    function fix(str){
+      str = "" + (str || "");
+      return str.length <= 1? "0" + str : str;
+    }
+    var maps = {
+      'yyyy': function(date){return date.getFullYear()},
+      'MM': function(date){return fix(date.getMonth() + 1); },
+      'dd': function(date){ return fix(date.getDate()) },
+      'HH': function(date){ return fix(date.getHours()) },
+      'mm': function(date){ return fix(date.getMinutes())}
+    }
+
+    var trunk = new RegExp(Object.keys(maps).join('|'),'g');
+    return function(value, format){
+      format = format || "yyyy-MM-dd HH:mm";
+      value = new Date(value);
+
+      return format.replace(trunk, function(capture){
+        return maps[capture]? maps[capture](value): "";
+      });
+    }
+  }();
+
+  Regular.filter("format", format)
+
+
+
+  // Start Stateman.
+
   var stateman = restate({
     view: document.getElementById("#app"), 
     Component: Regular
   });
+
+  // store infomation in 
+  try{
+      var username = localStorage.getItem("username");
+      if(username) stateman.user = {name: username, id: -1}
+  }catch(e){}
 
 
   stateman
@@ -52,21 +89,28 @@ require([
 
     // blog
     .state("app.blog", Blog)
-    .state("app.blog.detail", BlogDetail, ":id")
+    .state("app.blog.detail", BlogDetail, ":id/detail")
     .state("app.blog.list", BlogList, "")
-    .state("app.blog.edit", BlogEdit)
+    .state("app.blog.edit", BlogEdit, ":id/edit")
 
-    //chat module
+    //chat 
     .state("app.chat", Chat)
 
     // user
-    .state("app.user", User)
-    // .state("app.user.list", UserList, "")
-    // .state("app.user.detail", UserDetail, ":id")
+    .state("app.user", User, "user/:uid")
 
     // redirect when notfound
     .on("notfound", function(){
       this.go("app.index", {replace: true})
+    })
+
+    // authen, need login first
+    .on("begin", function(option){
+      if(option.current.name !== "app.index" && !this.user){
+        option.stop();
+        this.go("app.index", {replace: true})
+        alert("You need Login first")
+      } 
     })
 
     // start the routing

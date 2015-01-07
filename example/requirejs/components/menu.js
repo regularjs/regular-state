@@ -4,7 +4,6 @@ define(["regularjs", "rgl!./menu.html"], function( Regular, tpl ){
     template: tpl,
     config: function(data){
       data.state.on("end", this.$update.bind(this))
-      console.log(data)
     }
   })
 

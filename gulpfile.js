@@ -30,6 +30,7 @@ gulp.task('jshint', function(){
  
 gulp.task('build', ['jshint'], function() {
   gulp.src("restate.js")
+    .pipe(gulp.dest('./example'))
     .pipe(webpack(wpConfig))
     .pipe(wrap(signatrue))
     .pipe(gulp.dest('./'))
@@ -58,7 +59,7 @@ gulp.task('watch', ["build", "example"], function(){
 gulp.task('default', [ 'watch']);
 
 
-gulp.task('server', ['build'], shell.task([
+gulp.task('server', ['build', "example"], shell.task([
   "./node_modules/puer/bin/puer"
 ]))
 

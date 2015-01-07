@@ -10,14 +10,14 @@
       <span class="navbar-brand" href="#">theme from <a href="http://getbootstrap.com/examples/dashboard/">[bootstrap]</a> </span>
     </div>
     <div id="navbar" class="navbar-collapse collapse">
-      {#if !this.$state.username}
+      {#if !this.$state.user}
       <form class="navbar-form navbar-right">
         <input type="text" class="form-control" placeholder="User name" r-model='username'>
         <input type="text" class="form-control" placeholder="Password..." r-model='password'>
-        <a href="javascript:;"class="btn btn-primary" on-click={this.login(username, password)}>Login</a>
+        <a href="javascript:;"class="btn btn-primary" on-click={this.login(username, password)}>login</a>
       </form>
       {#else}
-      <div class="navbar-brand navbar-right">Welcome, {username}</div>
+      <div class="navbar-brand navbar-right">Welcome, {this.$state.user.name} <a href="#" class='btn btn-primary' on-click={this.logout()}>logout</a></div>
       {/if}
     </div>
   </div>
@@ -26,8 +26,14 @@
   <div class="row">
     <div class="col-sm-3 col-md-2 sidebar">
       <app-menu menus={menus} state={@(this.$state)}></app-menu>
-      
     </div>
-    <div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main" ref=view ></div>
+    <div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main" >
+      <div ref=view></div>
+      <footer>
+        <p>© Company 2014</p>
+      </footer>
+    </div>
   </div>
 </div>
+
+

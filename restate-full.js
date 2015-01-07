@@ -59,8 +59,7 @@ return /******/ (function(modules) { // webpackBootstrap
 /* 0 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;
-	(function (root, factory) {
+	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (root, factory) {
 	    if (true) {
 	        // AMD. Register as an anonymous module.
 	        !(__WEBPACK_AMD_DEFINE_ARRAY__ = [__webpack_require__(1)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
@@ -86,7 +85,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	    var filters = {
 	      encode: function(value, param){
-	        return stateman.prefix + (stateman.encode(value, param) || "");
+	        return stateman.history.prefix + (stateman.encode(value, param || {}) || "");
 	      }
 	    }
 
@@ -122,25 +121,24 @@ return /******/ (function(modules) { // webpackBootstrap
 	              view;
 
 	            if(noComponent){
-
 	              component = this.component = new Component({
 	                data: data,
 	                $state: stateman
 	              });
 
 	            }
-
 	            _.extend(component.data, data, true);
 
 	            var parent = this.parent, view;
 	            if(parent.component){
 	              var view = parent.component.$refs.view;
-	              if(!view) throw this.parent.name + "should have a element with [ref=view]";
+	              if(!view) throw this.parent.name + " should have a element with [ref=view]";
 	            }
 	            component.$inject( view || globalView )
-	            component.enter && component.enter(step);
+	            var result = component.enter && component.enter(step);
 	            component.$mute(false);
 	            if(noComponent) component.$update();
+	            return result;
 	          },
 	          leave: function( option){
 	            var component = this.component;

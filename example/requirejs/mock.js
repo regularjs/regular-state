@@ -1,5 +1,8 @@
 define(function(){
   // for chat root
+
+
+
   var i = 0;
 
   var random = function(min, max){
@@ -14,7 +17,8 @@ define(function(){
     users.push({
       id: i,
       name: "user " + i,
-      age: random(10, 30)
+      email: random(10, 30) + "@163.com" ,
+      avatar: "http://www.gravatar.com/avatar/205e460b479e2e5b48aec07710c08d10"
     })
   }
 
@@ -25,6 +29,7 @@ define(function(){
       id: i,
       user: users[random(0, 99)],
       content: new Array(10).join(" message " + i + " content "),
+      time: +new Date,
       reply:[]
     })
   }
@@ -35,8 +40,9 @@ define(function(){
     blogs.push({
       id: i,
       title: "post " + i,
-      contetn: new Array(100).join(" post " + i + " content "),
-      user: users[random(0, 99)]
+      content: new Array(100).join(" post " + i + " content "),
+      user: users[random(0, 99)],
+      time: +new Date()
     })
   }
 
@@ -51,11 +57,15 @@ define(function(){
     find: function(id, list){
       var len = list.length;
       for(;len--;){
-        if(list[len].id === id) return list[len]
+        if(list[len].id == id) return list[len]
       }
     },
-    getList: function(page, list){
-      return list.slice( (page - 1) * limit, page * limit)
-    }
+    remove: function(id, list){
+      var len = list.length;
+      for(;len--;){
+        if(list[len].id == id) return list.splice(len,1);
+      }
+    },
+    random: random
   }
 })

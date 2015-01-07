@@ -1,6 +1,1096 @@
 /**
 @author	leeluolee
-@version	0.2.15-alpha
+@version	0.1.5
+@homepage	https://github.com/leeluolee/stateman
+*/
+(function webpackUniversalModuleDefinition(root, factory) {
+	if(typeof exports === 'object' && typeof module === 'object')
+		module.exports = factory();
+	else if(typeof define === 'function' && define.amd)
+		define('stateman',factory);
+	else if(typeof exports === 'object')
+		exports["StateMan"] = factory();
+	else
+		root["StateMan"] = factory();
+})(this, function() {
+return /******/ (function(modules) { // webpackBootstrap
+/******/ 	// The module cache
+/******/ 	var installedModules = {};
+/******/
+/******/ 	// The require function
+/******/ 	function __webpack_require__(moduleId) {
+/******/
+/******/ 		// Check if module is in cache
+/******/ 		if(installedModules[moduleId])
+/******/ 			return installedModules[moduleId].exports;
+/******/
+/******/ 		// Create a new module (and put it into the cache)
+/******/ 		var module = installedModules[moduleId] = {
+/******/ 			exports: {},
+/******/ 			id: moduleId,
+/******/ 			loaded: false
+/******/ 		};
+/******/
+/******/ 		// Execute the module function
+/******/ 		modules[moduleId].call(module.exports, module, module.exports, __webpack_require__);
+/******/
+/******/ 		// Flag the module as loaded
+/******/ 		module.loaded = true;
+/******/
+/******/ 		// Return the exports of the module
+/******/ 		return module.exports;
+/******/ 	}
+/******/
+/******/
+/******/ 	// expose the modules object (__webpack_modules__)
+/******/ 	__webpack_require__.m = modules;
+/******/
+/******/ 	// expose the module cache
+/******/ 	__webpack_require__.c = installedModules;
+/******/
+/******/ 	// __webpack_public_path__
+/******/ 	__webpack_require__.p = "";
+/******/
+/******/ 	// Load entry module and return exports
+/******/ 	return __webpack_require__(0);
+/******/ })
+/************************************************************************/
+/******/ ([
+/* 0 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var StateMan = __webpack_require__(1);
+	StateMan.Histery = __webpack_require__(2);
+	StateMan.util = __webpack_require__(3);
+	StateMan.State = __webpack_require__(4);
+
+	module.exports = StateMan;
+
+
+/***/ },
+/* 1 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var State = __webpack_require__(4),
+	  Histery = __webpack_require__(2),
+	  brow = __webpack_require__(5),
+	  _ = __webpack_require__(3),
+	  stateFn = State.prototype.state;
+
+
+
+	function StateMan(options){
+	  if(this instanceof StateMan === false){ return new StateMan(options)}
+	  options = options || {};
+	  if(options.history) this.history = options.history;
+	  this._states = {};
+	  this._stashCallback = [];
+	  this.current = this.active = this;
+	}
+
+
+	_.extend( _.emitable( StateMan ), {
+	    // start StateMan
+
+	    state: function(stateName, config){
+	      var active = this.active;
+	      if(typeof stateName === "string" && active.name){
+	         stateName = stateName.replace("~", active.name)
+	         if(active.parent) stateName = stateName.replace("^", active.parent.name || "");
+	      }
+	      // ^ represent current.parent
+	      // ~ represent  current
+	      // only 
+	      return stateFn.apply(this, arguments);
+	    },
+	    start: function(options){
+	      if( !this.history ) this.history = new Histery(options); 
+	      if( !this.history.isStart ){
+	        this.history.on("change", _.bind(this._afterPathChange, this));
+	        this.history.start();
+	      } 
+	      return this;
+	    },
+	    stop: function(){
+	      this.history.stop();
+	    },
+	    // @TODO direct go the point state
+	    go: function(state, option, callback){
+	      option = option || {};
+	      if(typeof state === "string") state = this.state(state);
+
+	      if(typeof option === "function"){
+	        callback = option;
+	        option = {};
+	      }
+
+	      if(option.encode !== false){
+	        var url = state.encode(option.param)
+	        this.nav(url, {silent: true, replace: option.replace});
+	        this.path = url;
+	      }
+	      this._go(state, option, callback);
+	      return this;
+	    },
+	    nav: function(url, options, callback){
+	      if(typeof option === "function"){
+	        callback = option;
+	        option = {};
+	      }
+	      callback && (this._cb = callback)
+
+	      this.history.nav( url, options);
+	      this._cb = null;
+	      return this;
+	    },
+	    decode: function(path){
+	      var pathAndQuery = path.split("?");
+	      var query = this._findQuery(pathAndQuery[1]);
+	      path = pathAndQuery[0];
+	      var state = this._findState(this, path);
+	      if(state) _.extend(state.param, query);
+	      return state;
+	    },
+	    encode: State.prototype.encode,
+	    // notify specify state
+	    // check the active statename whether to match the passed condition (stateName and param)
+	    is: function(stateName, param, isStrict){
+	      if(!stateName) return false;
+	      var stateName = (stateName.name || stateName);
+	      var current = this.current, currentName = current.name;
+	      var matchPath = isStrict? currentName === stateName : (currentName + ".").indexOf(stateName + ".")===0;
+	      return matchPath && (!param || _.eql(param, this.param)); 
+	    },
+	    // after pathchange changed
+	    // @TODO: afterPathChange need based on decode
+	    _afterPathChange: function(path){
+
+	      this.emit("history:change", path);
+
+
+	      var found = this.decode(path), callback = this._cb;
+
+	      this.path = path;
+
+	      if(!found){
+	        // loc.nav("$default", {silent: true})
+	        var $notfound = this.state("$notfound");
+	        if($notfound) this._go($notfound, {path: path}, callback);
+
+	        return this.emit("notfound", {path: path});
+	      }
+
+
+	      this._go( found, { param: found.param}, callback );
+	    },
+
+	    // goto the state with some option
+	    _go: function(state, option, callback){
+	      var over;
+
+	      if(typeof state === "string") state = this.state(state);
+
+
+	      if(!state) return _.log("destination is not defined")
+
+	      // not touch the end in previous transtion
+
+	      if(this.active !== this.current){
+	        // we need return
+
+	        _.log("naving to [" + this.current.name + "] will be stoped, trying to ["+state.name+"] now");
+	        if(this.active.done){
+	          this.active.done(false);
+	        }
+	        this.current = this.active;
+	        // back to before
+	      }
+	      option.param = option.param || {};
+	      this.param = option.param;
+
+	      var current = this.current,
+	        baseState = this._findBase(current, state),
+	        self = this;
+
+	      if( typeof callback === "function" ) this._stashCallback.push(callback);
+	      // if we done the navigating when start
+	      var done = function(success){
+	        over = true;
+	        self.current = self.active;
+	        if( success !== false ) self.emit("end")
+	        self._popStash();
+	      }
+	      
+	      if(current !== state){
+	        self.emit("begin", {
+	          previous: current,
+	          current: state,
+	          stop: function(){
+	            done(false);
+	          }
+	        });
+	        if(over === true) return;
+	        this.previous = current;
+	        this.current = state;
+	        this._leave(baseState, option, function(success){
+	          self._checkQueryAndParam(baseState, option);
+	          if(success === false) return done(success)
+	          self._enter(state, option, done)
+	        })
+	      }else{
+	        self._checkQueryAndParam(baseState, option);
+	        done();
+	      }
+	      
+	    },
+	    _popStash: function(){
+	      var stash = this._stashCallback, len = stash.length;
+	      this._stashCallback = [];
+	      if(!len) return;
+
+	      for(var i = 0; i < len; i++){
+	        stash[i].call(this)
+	      }
+
+	    },
+
+	    _findQuery: function(querystr){
+	      var queries = querystr && querystr.split("&"), query= {};
+	      if(queries){
+	        var len = queries.length;
+	        var query = {};
+	        for(var i =0; i< len; i++){
+	          var tmp = queries[i].split("=");
+	          query[tmp[0]] = tmp[1];
+	        }
+	      }
+	      return query;
+	    },
+	    _findState: function(state, path){
+	      var states = state._states, found, param;
+
+	      // leaf-state has the high priority upon branch-state
+	      if(state.hasNext){
+	        for(var i in states) if(states.hasOwnProperty(i)){
+	          found = this._findState( states[i], path );
+	          if( found ) return found;
+	        }
+	      }
+	      param = state.regexp && state.decode(path);
+	      if(param){
+	        state.param = param;
+	        return state;
+	      }else{
+	        return false;
+	      }
+	    },
+	    // find the same branch;
+	    _findBase: function(now, before){
+	      if(!now || !before || now == this || before == this) return this;
+	      var np = now, bp = before, tmp;
+	      while(np && bp){
+	        tmp = bp;
+	        while(tmp){
+	          if(np === tmp) return tmp;
+	          tmp = tmp.parent;
+	        }
+	        np = np.parent;
+	      }
+	      return this;
+	    },
+	    _enter: function(end, options, callback){
+
+	      callback = callback || _.noop;
+
+	      var active = this.active;
+
+	      if(active == end) return callback();
+	      var stage = [];
+	      while(end !== active && end){
+	        stage.push(end);
+	        end = end.parent;
+	      }
+	      this._enterOne(stage, options, callback)
+	    },
+	    _enterOne: function(stage, options, callback){
+
+	      var cur = stage.pop(), self = this;
+	      if(!cur) return callback();
+
+	      this.active = cur;
+
+	      cur.done = function(success){
+	        cur._pending = false;
+	        cur.done = null;
+	        cur.visited = true;
+	        if(success !== false){
+	          self._enterOne(stage, options, callback)
+	          
+	        }else{
+	          return callback(success);
+	        }
+	      }
+
+	      if(!cur.enter) cur.done();
+	      else {
+	        var success = cur.enter(options);
+	        if(!cur._pending && cur.done) cur.done(success);
+	      }
+	    },
+	    _leave: function(end, options, callback){
+	      callback = callback || _.noop;
+	      if(end == this.active) return callback();
+	      this._leaveOne(end, options,callback)
+	    },
+	    _leaveOne: function(end, options, callback){
+	      if( end === this.active ) return callback();
+	      var cur = this.active, self = this;
+	      cur.done = function( success ){
+	        cur._pending = false;
+	        cur.done = null;
+	        if(success !== false){
+	          if(cur.parent) self.active = cur.parent;
+	          self._leaveOne(end, options, callback)
+	        }else{
+	          return callback(success);
+	        }
+	      }
+	      if(!cur.leave) cur.done();
+	      else{
+	        var success = cur.leave(options);
+	        if( !cur._pending && cur.done) cur.done(success);
+	      }
+	    },
+	    // check the query and Param
+	    _checkQueryAndParam: function(baseState, options){
+	      var from = baseState;
+	      while( from !== this ){
+	        from.update && from.update(options);
+	        from = from.parent;
+	      }
+	    }
+
+	}, true)
+
+
+
+	module.exports = StateMan;
+
+/***/ },
+/* 2 */
+/***/ function(module, exports, __webpack_require__) {
+
+	
+	// MIT
+	// Thx Backbone.js 1.1.2  and https://github.com/cowboy/jquery-hashchange/blob/master/jquery.ba-hashchange.js
+	// for iframe patches in old ie.
+
+	var browser = __webpack_require__(5);
+	var _ = __webpack_require__(3);
+
+
+	// the mode const
+	var QUIRK = 3,
+	  HASH = 1,
+	  HISTORY = 2;
+
+
+
+	// extract History for test
+	// resolve the conficlt with the Native History
+	function Histery(options){
+	  options = options || {};
+
+	  // Trick from backbone.history for anchor-faked testcase 
+	  this.location = options.location || browser.location;
+
+	  // mode config, you can pass absolute mode (just for test);
+	  this.html5 = options.html5;
+	  this.mode = options.html5 && browser.history ? HISTORY: HASH; 
+	  if( !browser.hash ) this.mode = QUIRK;
+	  if(options.mode) this.mode = options.mode;
+
+	  // hash prefix , used for hash or quirk mode
+	  this.prefix = "#" + (options.prefix || "") ;
+	  this.rPrefix = new RegExp(this.prefix + '(.*)$');
+	  this.interval = options.interval || 66;
+
+	  // the root regexp for remove the root for the path. used in History mode
+	  this.root = options.root ||  "/" ;
+	  this.rRoot = new RegExp("^" +  this.root);
+
+	  this._fixInitState();
+
+	  this.autolink = options.autolink!==false;
+
+	  this.curPath = undefined;
+	}
+
+	_.extend( _.emitable(Histery), {
+	  // check the 
+	  start: function(){
+	  	debugger
+	    var path = this.getPath();
+	    this._checkPath = _.bind(this.checkPath, this);
+
+	    if( this.isStart ) return;
+	    this.isStart = true;
+
+	    if(this.mode === QUIRK){
+	      this._fixHashProbelm(path); 
+	    }
+
+	    switch ( this.mode ){
+	      case HASH: 
+	        browser.on(window, "hashchange", this._checkPath); 
+	        break;
+	      case HISTORY:
+	        browser.on(window, "popstate", this._checkPath);
+	        break;
+	      case QUIRK:
+	        this._checkLoop();
+	    }
+	    // event delegate
+	    this.autolink && this._autolink();
+
+	    this.curPath = path;
+
+	    this.emit("change", path);
+	  },
+	  // the history teardown
+	  stop: function(){
+
+	    browser.off(window, 'hashchange', this._checkPath)  
+	    browser.off(window, 'popstate', this._checkPath)  
+	    clearTimeout(this.tid);
+	    this.isStart = false;
+	    this._checkPath = null;
+	  },
+	  // get the path modify
+	  checkPath: function(ev){
+
+	    var path = this.getPath(), curPath = this.curPath;
+
+	    //for oldIE hash history issue
+	    if(path === curPath && this.iframe){
+	      path = this.getPath(this.iframe.location);
+	    }
+
+	    if( path !== curPath ) {
+	      this.iframe && this.nav(path, {silent: true});
+	      this.emit('change', path);
+	    }
+	  },
+	  // get the current path
+	  getPath: function(location){
+	    var location = location || this.location, tmp;
+	    if( this.mode !== HISTORY ){
+	      tmp = location.href.match(this.rPrefix);
+	      return tmp && tmp[1]? tmp[1]: "";
+
+	    }else{
+	      return _.cleanPath(( location.pathname + location.search || "" ).replace( this.rRoot, "/" ))
+	    }
+	  },
+
+	  nav: function(to, options ){
+
+	    var iframe = this.iframe;
+
+	    options = options || {};
+
+	    to = _.cleanPath(to);
+
+	    if(this.curPath == to) return;
+
+	    // pushState wont trigger the checkPath
+	    // but hashchange will
+	    // so we need set curPath before to forbit the CheckPath
+	    this.curPath = to;
+
+	    // 3 or 1 is matched
+	    if( this.mode !== HISTORY ){
+	      this._setHash(this.location, to, options.replace)
+	      if( iframe && this.getPath(iframe.location) !== to ){
+	        if(!options.replace) iframe.document.open().close();
+	        this._setHash(this.iframe.location, to, options.replace)
+	      }
+	    }else{
+	      history[options.replace? 'replaceState': 'pushState']( {}, options.title || "" , _.cleanPath( this.root + to ) )
+	    }
+
+	    if( !options.silent ) this.emit('change', to);
+	  },
+	  _autolink: function(){
+	    if(this.mode!==HISTORY) return;
+	    // only in html5 mode, the autolink is works
+	    // if(this.mode !== 2) return;
+	    var prefix = this.prefix, self = this;
+	    browser.on( document.body, "click", function(ev){
+	      var target = ev.target || ev.srcElement;
+	      if( target.tagName.toLowerCase() !== "a" ) return;
+	      var tmp = (browser.getHref(target)||"").match(self.rPrefix);
+	      var hash = tmp && tmp[1]? tmp[1]: "";
+
+	      if(!hash) return;
+	      
+	      ev.preventDefault && ev.preventDefault();
+	      self.nav( hash )
+	      return (ev.returnValue = false);
+	    } )
+	  },
+	  _setHash: function(location, path, replace){
+	    var href = location.href.replace(/(javascript:|#).*$/, '');
+	    if (replace){
+	      location.replace(href + this.prefix+ path);
+	    }
+	    else location.hash = this.prefix+ path;
+	  },
+	  // for browser that not support onhashchange
+	  _checkLoop: function(){
+	    var self = this; 
+	    this.tid = setTimeout( function(){
+	      self._checkPath();
+	      self._checkLoop();
+	    }, this.interval );
+	  },
+	  // if we use real url in hash env( browser no history popstate support)
+	  // or we use hash in html5supoort mode (when paste url in other url)
+	  // then , histery should repara it
+	  _fixInitState: function(){
+	    var pathname = _.cleanPath(this.location.pathname), hash, hashInPathName;
+
+	    // dont support history popstate but config the html5 mode
+	    if( this.mode !== HISTORY && this.html5){
+
+	      hashInPathName = pathname.replace(this.rRoot, "")
+	      if(hashInPathName) this.location.replace(this.root + this.prefix + hashInPathName);
+
+	    }else if( this.mode === HISTORY /* && pathname === this.root*/){
+
+	      hash = this.location.hash.replace(this.prefix, "");
+	      if(hash) history.replaceState({}, document.title, _.cleanPath(this.root + hash))
+
+	    }
+	  },
+	  // Thanks for backbone.history and https://github.com/cowboy/jquery-hashchange/blob/master/jquery.ba-hashchange.js
+	  // for helping stateman fixing the oldie hash history issues when with iframe hack
+	  _fixHashProbelm: function(path){
+	    var iframe = document.createElement('iframe'), body = document.body;
+	    iframe.src = 'javascript:;';
+	    iframe.style.display = 'none';
+	    iframe.tabIndex = -1;
+	    iframe.title = "";
+	    this.iframe = body.insertBefore(iframe, body.firstChild).contentWindow;
+	    this.iframe.document.open().close();
+	    this.iframe.location.hash = '#' + path;
+	  }
+	  
+	})
+
+
+
+
+
+	module.exports = Histery;
+
+/***/ },
+/* 3 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var _ = module.exports = {};
+	var slice = [].slice, o2str = ({}).toString;
+
+
+	// merge o2's properties to Object o1. 
+	_.extend = function(o1, o2, override){
+	  for(var i in o2) if(override || o1[i] === undefined){
+	    o1[i] = o2[i]
+	  }
+	  return o1;
+	}
+
+
+	// Object.create shim
+	_.ocreate = Object.create || function(o) {
+	  var Foo = function(){};
+	  Foo.prototype = o;
+	  return new Foo;
+	}
+
+
+	_.slice = function(arr, index){
+	  return slice.call(arr, index);
+	}
+
+	_.typeOf = function typeOf (o) {
+	  return o == null ? String(o) : o2str.call(o).slice(8, -1).toLowerCase();
+	}
+
+	//strict eql
+	_.eql = function(o1, o2){
+	  var t1 = _.typeOf(o1), t2 = _.typeOf(o2);
+	  if( t1 !== t2) return false;
+	  if(t1 === 'object'){
+	    var equal = true;
+	    // only check the first's propertie
+	    for(var i in o1){
+	      if( o1[i] !== o2[i] ) equal = false;
+	    }
+	    return equal;
+	  }
+	  return o1 === o2;
+	}
+
+
+	// small emitter 
+	_.emitable = (function(){
+	  var API = {
+	    once: function(event, fn){
+	      var callback = function(){
+	        fn.apply(this, arguments)
+	        this.off(event, callback)
+	      }
+	      return this.on(event, callback)
+	    },
+	    on: function(event, fn) {
+	      if(typeof event === 'object'){
+	        for (var i in event) {
+	          this.on(i, event[i]);
+	        }
+	      }else{
+	        var handles = this._handles || (this._handles = {}),
+	          calls = handles[event] || (handles[event] = []);
+	        calls.push(fn);
+	      }
+	      return this;
+	    },
+	    off: function(event, fn) {
+	      if(!event || !this._handles) this._handles = {};
+	      if(!this._handles) return;
+
+	      var handles = this._handles , calls;
+
+	      if (calls = handles[event]) {
+	        if (!fn) {
+	          handles[event] = [];
+	          return this;
+	        }
+	        for (var i = 0, len = calls.length; i < len; i++) {
+	          if (fn === calls[i]) {
+	            calls.splice(i, 1);
+	            return this;
+	          }
+	        }
+	      }
+	      return this;
+	    },
+	    emit: function(event){
+	      var args = _.slice(arguments, 1),
+	        handles = this._handles, calls;
+
+	      if (!handles || !(calls = handles[event])) return this;
+	      for (var i = 0, len = calls.length; i < len; i++) {
+	        calls[i].apply(this, args)
+	      }
+	      return this;
+	    }
+	  }
+	  return function(obj){
+	      obj = typeof obj == "function" ? obj.prototype : obj;
+	      return _.extend(obj, API)
+	  }
+	})();
+
+
+	_.noop = function(){}
+
+	_.bind = function(fn, context){
+	  return function(){
+	    return fn.apply(context, arguments);
+	  }
+	}
+
+	var rDbSlash = /\/+/g, // double slash
+	  rEndSlash = /\/$/;    // end slash
+
+	_.cleanPath = function (path){
+	  return ("/" + path).replace( rDbSlash,"/" ).replace( rEndSlash, "" ) || "/";
+	}
+
+	// normalize the path
+	function normalizePath(path) {
+	  // means is from 
+	  // (?:\:([\w-]+))?(?:\(([^\/]+?)\))|(\*{2,})|(\*(?!\*)))/g
+	  var preIndex = 0;
+	  var keys = [];
+	  var index = 0;
+	  var matches = "";
+
+	  path = _.cleanPath(path);
+
+	  var regStr = path
+	    //  :id(capture)? | (capture)   |  ** | * 
+	    .replace(/\:([\w-]+)(?:\(([^\/]+?)\))?|(?:\(([^\/]+)\))|(\*{2,})|(\*(?!\*))/g, 
+	      function(all, key, keyformat, capture, mwild, swild, startAt) {
+	        // move the uncaptured fragment in the path
+	        if(startAt > preIndex) matches += path.slice(preIndex, startAt);
+	        preIndex = startAt + all.length;
+	        if( key ){
+	          matches += "(" + key + ")";
+	          keys.push(key)
+	          return "("+( keyformat || "[\\w-]+")+")";
+	        }
+	        matches += "(" + index + ")";
+
+	        keys.push( index++ );
+
+	        if( capture ){
+	           // sub capture detect
+	          return "(" + capture +  ")";
+	        } 
+	        if(mwild) return "(.*)";
+	        if(swild) return "([^\\/]*)";
+	    })
+
+	  if(preIndex !== path.length) matches += path.slice(preIndex)
+
+	  return {
+	    regexp: new RegExp("^" + regStr +"/?$"),
+	    keys: keys,
+	    matches: matches || path
+	  }
+	}
+
+	_.log = function(msg, type){
+	  typeof console !== "undefined" && console[type || "log"](msg)
+	}
+
+
+	_.normalize = normalizePath;
+
+
+
+/***/ },
+/* 4 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var _ = __webpack_require__(3);
+
+	function State(option){
+	  this._states = {};
+	  this._pending = false;
+	  this.visited = false;
+	  if(option) this.config(option);
+	}
+
+
+	//regexp cache
+	State.rCache = {};
+
+	_.extend( _.emitable( State ), {
+	  
+	  state: function(stateName, config){
+	    if(_.typeOf(stateName) === "object"){
+	      for(var i in stateName){
+	        this.state(i, stateName[i])
+	      }
+	      return this;
+	    }
+	    var current, next, nextName, states = this._states, i=0;
+
+	    if( typeof stateName === "string" ) stateName = stateName.split(".");
+
+	    var slen = stateName.length, current = this;
+	    var stack = [];
+
+
+	    do{
+	      nextName = stateName[i];
+	      next = states[nextName];
+	      stack.push(nextName);
+	      if(!next){
+	        if(!config) return;
+	        next = states[nextName] = new State();
+	        _.extend(next, {
+	          parent: current,
+	          manager: current.manager || current,
+	          name: stack.join("."),
+	          currentName: nextName
+	        })
+	        current.hasNext = true;
+	        next.configUrl();
+	      }
+	      current = next;
+	      states = next._states;
+	    }while((++i) < slen )
+
+	    if(config){
+	       next.config(config);
+	       return this;
+	    } else {
+	      return current;
+	    }
+	  },
+
+	  config: function(configure){
+	    if(!configure ) return;
+	    configure = this._getConfig(configure);
+
+	    for(var i in configure){
+	      var prop = configure[i];
+	      switch(i){
+	        case "url": 
+	          if(typeof prop === "string"){
+	            this.url = prop;
+	            this.configUrl();
+	          }
+	          break;
+	        case "events": 
+	          this.on(prop)
+	          break;
+	        default:
+	          this[i] = prop;
+	      }
+	    }
+	  },
+
+	  // children override
+	  _getConfig: function(configure){
+	    return typeof configure === "function"? {enter: configure} : configure;
+	  },
+
+	  //from url 
+
+	  configUrl: function(){
+	    var url = "" , base = this, currentUrl;
+	    var _watchedParam = [];
+
+	    while( base ){
+
+	      url = (typeof base.url === "string" ? base.url: (base.currentName || "")) + "/" + url;
+
+	      // means absolute;
+	      if(url.indexOf("^/") === 0) {
+	        url = url.slice(1);
+	        break;
+	      }
+	      base = base.parent;
+	    }
+	    this.pattern = _.cleanPath("/" + url);
+	    var pathAndQuery = this.pattern.split("?");
+	    this.pattern = pathAndQuery[0];
+	    // some Query we need watched
+
+	    _.extend(this, _.normalize(this.pattern), true);
+	  },
+	  encode: function(stateName, param){
+	    var state;
+	    stateName = stateName || {};
+	    if( _.typeOf(stateName) === "object" ){
+	      state = this;
+	      param = stateName;
+	    }else{
+	      state = this.state(stateName);
+	    }
+	    var param = param || {};
+
+	    var matched = "%";
+
+	    var url = state.matches.replace(/\(([\w-]+)\)/g, function(all, capture){
+	      var sec = param[capture] || "";
+	      matched+= capture + "%";
+	      return sec;
+	    }) + "?";
+
+	    // remained is the query, we need concat them after url as query
+	    for(var i in param) {
+	      if( matched.indexOf("%"+i+"%") === -1) url += i + "=" + param[i] + "&";
+	    }
+	    return _.cleanPath( url.replace(/(?:\?|&)$/,"") )
+	  },
+	  decode: function( path ){
+	    var matched = this.regexp.exec(path),
+	      keys = this.keys;
+
+	    if(matched){
+
+	      var param = {};
+	      for(var i =0,len=keys.length;i<len;i++){
+	        param[keys[i]] = matched[i+1] 
+	      }
+	      return param;
+	    }else{
+	      return false;
+	    }
+	  },
+	  async: function(){
+	    var self = this;
+	    this._pending = true;
+	    return this.done;
+	  }
+
+	})
+
+
+	module.exports = State;
+
+/***/ },
+/* 5 */
+/***/ function(module, exports, __webpack_require__) {
+
+	
+	var win = window, 
+	  doc = document;
+
+
+
+	var b = module.exports = {
+	  hash: "onhashchange" in win && (!doc.documentMode || doc.documentMode > 7),
+	  history: win.history && "onpopstate" in win,
+	  location: win.location,
+	  getHref: function(node){
+	    return "href" in node ? node.getAttribute("href", 2) : node.getAttribute("href");
+	  },
+	  on: "addEventListener" in win ?  // IE10 attachEvent is not working when binding the onpopstate, so we need check addEventLister first
+	      function(node,type,cb){return node.addEventListener( type, cb )}
+	    : function(node,type,cb){return node.attachEvent( "on" + type, cb )},
+	    
+	  off: "removeEventListener" in win ? 
+	      function(node,type,cb){return node.removeEventListener( type, cb )}
+	    : function(node,type,cb){return node.detachEvent( "on" + type, cb )}
+	}
+
+	b.msie = parseInt((/msie (\d+)/.exec(navigator.userAgent.toLowerCase()) || [])[1]);
+	if (isNaN(b.msie)) {
+	  b.msie = parseInt((/trident\/.*; rv:(\d+)/.exec(navigator.userAgent.toLowerCase()) || [])[1]);
+	}
+
+
+/***/ }
+/******/ ])
+});
+(function (root, factory) {
+    if (typeof define === 'function' && define.amd) {
+        // AMD. Register as an anonymous module.
+        define('restate',['stateman'], factory);
+    } else if (typeof exports === 'object') {
+        // Node. Does not work with strict CommonJS, but
+        // only CommonJS-like environments that support module.exports,
+        // like Node.
+        module.exports = factory(require('stateman'));
+    } else {
+        // Browser globals (root is window)
+        root.restate = factory(root.Regularjs, root.StateMan);
+    }
+}(this, function (StateMan) {
+
+  var _ = StateMan.util;
+
+  var restate = function(option){
+    option = option || {};
+    var stateman = option.stateman || new StateMan(option);
+    var preStae = stateman.state;
+    var BaseComponent = option.Component;
+    var globalView = option.view || document.body;
+
+    var filters = {
+      encode: function(value, param){
+        return stateman.history.prefix + (stateman.encode(value, param || {}) || "");
+      }
+    }
+
+    stateman.state = function(name, Component, config){
+
+      if(!Component) return preStae.call(stateman, name);
+
+      if(BaseComponent){
+        // 1. regular template or parsed ast
+        if(typeof Component === "string" || Array.isArray( Component )){
+          Component = BaseComponent.extend({
+            template: Component
+          })
+        }
+        // 2. it a Object, but need regularifi
+        if(typeof Component === "object" && Component.regularify ){
+          Component = BaseComponent.extend( Component );
+        }
+      }
+
+      // 3. duck check is a Regular Component
+      if( Component.extend && Component.__after__ ){
+
+        if(!Component.filter("encode")){
+          Component.filter(filters);
+        }
+        var state = {
+          component: null,
+          enter: function( step ){
+            var data = { $param: step.param },
+              component = this.component,
+              noComponent = !component, 
+              view;
+
+            if(noComponent){
+              component = this.component = new Component({
+                data: data,
+                $state: stateman
+              });
+
+            }
+            _.extend(component.data, data, true);
+
+            var parent = this.parent, view;
+            if(parent.component){
+              var view = parent.component.$refs.view;
+              if(!view) throw this.parent.name + " should have a element with [ref=view]";
+            }
+            component.$inject( view || globalView )
+            var result = component.enter && component.enter(step);
+            component.$mute(false);
+            if(noComponent) component.$update();
+            return result;
+          },
+          leave: function( option){
+            var component = this.component;
+            if(!component) return;
+            component.$inject(false);
+            component.leave && component.leave(option);
+            component.$mute(true);
+          },
+          update: function(option){
+            var component = this.component;
+            if(!component) return;
+            component.update && component.update(option);
+            component.$update({
+              $param: option.param
+            })
+            component.$emit("state:update", option);
+          }
+        }
+
+        if(typeof config === "string") config = {url: config};
+        _.extend(state, config || {});
+
+        preStae.call(stateman, name, state);
+
+      }else{
+        preStae.call(stateman, name, Component);
+      }
+      return this;
+    }
+    return stateman;
+  }
+
+  restate.StateMan = StateMan;
+
+  return restate;
+
+}));
+
+/**
+@author	leeluolee
+@version	0.3.0-pre
 @homepage	http://regularjs.github.io
 */
 ;(function(){
@@ -648,24 +1738,26 @@ Regular.implement({
     return filter;
   },
   // simple accessor get
-  _sg_:function(path, defaults){
-    var computed = this.computed,
-      computedProperty = computed[path];
-    if(computedProperty){
-      if(computedProperty.get)  return computedProperty.get(this);
-      else _.log("the computed '" + path + "' don't define the get function,  get data."+path + " altnately", "error")
+  _sg_:function(path, defaults, needComputed){
+    if(needComputed){
+      var computed = this.computed,
+        computedProperty = computed[path];
+      if(computedProperty){
+        if(computedProperty.get)  return computedProperty.get(this);
+        else _.log("the computed '" + path + "' don't define the get function,  get data."+path + " altnately", "error")
+      }
     }
+    if(typeof defaults === "undefined" || typeof path == "undefined" ) return undefined;
     return defaults[path];
 
   },
   // simple accessor set
-  _ss_:function(path, value, data, op){
+  _ss_:function(path, value, data , op, computed){
     var computed = this.computed,
-      op = op || "=",
-      computedProperty = computed[path],
-      prev;
+      op = op || "=", prev, 
+      computedProperty = computed? computed[path]:null;
 
-    if(op!== '='){
+    if(op !== '='){
       prev = computedProperty? computedProperty.get(this): data[path];
       switch(op){
         case "+=":
@@ -684,8 +1776,7 @@ Regular.implement({
           value = prev % value;
           break;
       }
-    }  
-
+    }
     if(computedProperty) {
       if(computedProperty.set) return computedProperty.set(this, value);
       else _.log("the computed '" + path + "' don't define the set function,  assign data."+path + " altnately", "error" )
@@ -1195,7 +2286,7 @@ _.cache = function(max){
 _.touchExpression = function(expr){
   if(expr.type === 'expression'){
     if(!expr.get){
-      expr.get = new Function("context", prefix + "try{return (" + expr.body + ")}catch(e){return undefined}");
+      expr.get = new Function("context", prefix + "return (" + expr.body + ")");
       expr.body = null;
       if(expr.setbody){
         expr.set = function(ctx, value){
@@ -2469,8 +3560,6 @@ Lexer.setup();
 
 module.exports = Lexer;
 
-
-
 });
 require.register("regularjs/src/parser/node.js", function(exports, require, module){
 module.exports = {
@@ -2731,8 +3820,7 @@ op.attvalue = function(){
         parsed.forEach(function(item){
           if(!item.constant) constant=false;
           // silent the mutiple inteplation
-          body.push( item.body?  
-            "(function(){try{return " + item.body + "}catch(e){return ''}})()" : "'" + item.text + "'");
+            body.push(item.body || "'" + item.text + "'");        
         });
         body = "[" + body.join(",") + "].join('')";
         value = node.expression(body, null, constant);
@@ -3020,7 +4108,7 @@ op.unary = function(){
 // member [ expression ]
 // member . ident  
 
-op.member = function(base, last, pathes){
+op.member = function(base, last, pathes, prevBase){
   var ll, path;
 
 
@@ -3032,7 +4120,7 @@ op.member = function(base, last, pathes){
       pathes = [];
       pathes.push( path );
       last = path;
-      base = ctxName + "._sg_('" + path + "', " + varName + ")";
+      base = ctxName + "._sg_('" + path + "', " + varName + ", 1)";
       onlySimpleAccessor = true;
     }else{ //Primative Type
       if(path.get === 'this'){
@@ -3056,14 +4144,26 @@ op.member = function(base, last, pathes){
       case '.':
           // member(object, property, computed)
         var tmpName = this.match('IDENT').value;
+        prevBase = base;
+        if( this.la() !== "(" ){ 
+          base = ctxName + "._sg_('" + tmpName + "', " + base + ")";
+        }else{
           base += "['" + tmpName + "']";
-        return this.member( base, tmpName, pathes );
+        }
+        return this.member( base, tmpName, pathes,  prevBase);
       case '[':
           // member(object, property, computed)
         path = this.assign();
-        base += "[" + path.get + "]";
+        prevBase = base;
+        if( this.la() !== "(" ){ 
+        // means function call, we need throw undefined error when call function
+        // and confirm that the function call wont lose its context
+          base = ctxName + "._sg_(" + path.get + ", " + base + ")";
+        }else{
+          base += "[" + path.get + "]";
+        }
         this.match(']')
-        return this.member(base, path, pathes);
+        return this.member(base, path, pathes, prevBase);
       case '(':
         // call(callee, args)
         var args = this.arguments().join(',');
@@ -3075,8 +4175,12 @@ op.member = function(base, last, pathes){
   if( pathes && pathes.length ) this.depend.push( pathes );
   var res =  {get: base};
   if(last){
-    if(onlySimpleAccessor) res.set = ctxName + "._ss_('" + path + "'," + _.setName + "," + _.varName + ", '=')";
-    else res.set = base + '=' + _.setName;
+    res.set = ctxName + "._ss_(" + 
+        (last.get? last.get : "'"+ last + "'") + 
+        ","+ _.setName + ","+ 
+        (prevBase?prevBase:_.varName) + 
+        ", '=', "+ ( onlySimpleAccessor? 1 : 0 ) + ")";
+  
   }
   return res;
 }
@@ -4885,10 +5989,10 @@ if (typeof exports == 'object') {
 }})();
 define('rgl',{load: function(id){throw new Error("Dynamic load not allowed: " + id);}});
 
-define("rgl!module/app.html", function(){ return [{"type":"element","tag":"nav","attrs":[{"type":"attribute","name":"class","value":"navbar navbar-inverse navbar-fixed-top"}],"children":[{"type":"text","text":"\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"container-fluid"}],"children":[{"type":"text","text":"\n    "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"navbar-header"}],"children":[{"type":"text","text":"\n      "},{"type":"element","tag":"button","attrs":[{"type":"attribute","name":"type","value":"button"},{"type":"attribute","name":"class","value":"navbar-toggle collapsed"},{"type":"attribute","name":"data-toggle","value":"collapse"},{"type":"attribute","name":"data-target","value":"#navbar"},{"type":"attribute","name":"aria-expanded","value":"false"},{"type":"attribute","name":"aria-controls","value":"navbar"}],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"sr-only"}],"children":[{"type":"text","text":"Toggle navigation"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"icon-bar"}],"children":[]},{"type":"text","text":"\n        "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"icon-bar"}],"children":[]},{"type":"text","text":"\n        "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"icon-bar"}],"children":[]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n      "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"navbar-brand"},{"type":"attribute","name":"href","value":"#"}],"children":[{"type":"text","text":"theme from "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"http://getbootstrap.com/examples/dashboard/"}],"children":[{"type":"text","text":"[bootstrap]"}]},{"type":"text","text":" "}]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n    "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"id","value":"navbar"},{"type":"attribute","name":"class","value":"navbar-collapse collapse"}],"children":[{"type":"text","text":"\n      "},{"type":"if","test":{"type":"expression","body":"(!_c_['$state']['username'])","constant":false,"setbody":false},"consequent":[{"type":"text","text":"\n      "},{"type":"element","tag":"form","attrs":[{"type":"attribute","name":"class","value":"navbar-form navbar-right"}],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"input","attrs":[{"type":"attribute","name":"type","value":"text"},{"type":"attribute","name":"class","value":"form-control"},{"type":"attribute","name":"placeholder","value":"User name"},{"type":"attribute","name":"r-model","value":"username"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"input","attrs":[{"type":"attribute","name":"type","value":"text"},{"type":"attribute","name":"class","value":"form-control"},{"type":"attribute","name":"placeholder","value":"Password..."},{"type":"attribute","name":"r-model","value":"password"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"javascript:;"},{"type":"attribute","name":"class","value":"btn btn-primary"},{"type":"attribute","name":"on-click","value":{"type":"expression","body":"_c_['login'](_c_._sg_('username', _d_),_c_._sg_('password', _d_))","constant":false,"setbody":false}}],"children":[{"type":"text","text":"Login"}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n      "}],"alternate":[{"type":"text","text":"\n      "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"navbar-brand navbar-right"}],"children":[{"type":"text","text":"Welcome, "},{"type":"expression","body":"_c_._sg_('username', _d_)","constant":false,"setbody":"_c_._ss_('username',_p_,_d_, '=')"}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n"}]},{"type":"text","text":"\n"},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"container-fluid"}],"children":[{"type":"text","text":"\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"row"}],"children":[{"type":"text","text":"\n    "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"col-sm-3 col-md-2 sidebar"}],"children":[{"type":"text","text":"\n      "},{"type":"element","tag":"app-menu","attrs":[{"type":"attribute","name":"menus","value":{"type":"expression","body":"_c_._sg_('menus', _d_)","constant":false,"setbody":"_c_._ss_('menus',_p_,_d_, '=')"}},{"type":"attribute","name":"state","value":{"type":"expression","body":"_c_['$state']","constant":false,"setbody":"_c_['$state']=_p_","once":true}}],"children":[]},{"type":"text","text":"\n      \n    "}]},{"type":"text","text":"\n    "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main"},{"type":"attribute","name":"ref","value":"view"}],"children":[]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n"}]}] });
+define("rgl!module/app.html", function(){ return [{"type":"element","tag":"nav","attrs":[{"type":"attribute","name":"class","value":"navbar navbar-inverse navbar-fixed-top"}],"children":[{"type":"text","text":"\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"container-fluid"}],"children":[{"type":"text","text":"\n    "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"navbar-header"}],"children":[{"type":"text","text":"\n      "},{"type":"element","tag":"button","attrs":[{"type":"attribute","name":"type","value":"button"},{"type":"attribute","name":"class","value":"navbar-toggle collapsed"},{"type":"attribute","name":"data-toggle","value":"collapse"},{"type":"attribute","name":"data-target","value":"#navbar"},{"type":"attribute","name":"aria-expanded","value":"false"},{"type":"attribute","name":"aria-controls","value":"navbar"}],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"sr-only"}],"children":[{"type":"text","text":"Toggle navigation"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"icon-bar"}],"children":[]},{"type":"text","text":"\n        "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"icon-bar"}],"children":[]},{"type":"text","text":"\n        "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"icon-bar"}],"children":[]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n      "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"navbar-brand"},{"type":"attribute","name":"href","value":"#"}],"children":[{"type":"text","text":"theme from "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"http://getbootstrap.com/examples/dashboard/"}],"children":[{"type":"text","text":"[bootstrap]"}]},{"type":"text","text":" "}]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n    "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"id","value":"navbar"},{"type":"attribute","name":"class","value":"navbar-collapse collapse"}],"children":[{"type":"text","text":"\n      "},{"type":"if","test":{"type":"expression","body":"(!_c_._sg_('user', _c_._sg_('$state', _c_)))","constant":false,"setbody":false},"consequent":[{"type":"text","text":"\n      "},{"type":"element","tag":"form","attrs":[{"type":"attribute","name":"class","value":"navbar-form navbar-right"}],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"input","attrs":[{"type":"attribute","name":"type","value":"text"},{"type":"attribute","name":"class","value":"form-control"},{"type":"attribute","name":"placeholder","value":"User name"},{"type":"attribute","name":"r-model","value":"username"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"input","attrs":[{"type":"attribute","name":"type","value":"text"},{"type":"attribute","name":"class","value":"form-control"},{"type":"attribute","name":"placeholder","value":"Password..."},{"type":"attribute","name":"r-model","value":"password"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"javascript:;"},{"type":"attribute","name":"class","value":"btn btn-primary"},{"type":"attribute","name":"on-click","value":{"type":"expression","body":"_c_['login'](_c_._sg_('username', _d_, 1),_c_._sg_('password', _d_, 1))","constant":false,"setbody":false}}],"children":[{"type":"text","text":"login"}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n      "}],"alternate":[{"type":"text","text":"\n      "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"navbar-brand navbar-right"}],"children":[{"type":"text","text":"Welcome, "},{"type":"expression","body":"_c_._sg_('name', _c_._sg_('user', _c_._sg_('$state', _c_)))","constant":false,"setbody":"_c_._ss_('name',_p_,_c_._sg_('user', _c_._sg_('$state', _c_)), '=', 0)"},{"type":"text","text":" "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"#"},{"type":"attribute","name":"class","value":"btn btn-primary"},{"type":"attribute","name":"on-click","value":{"type":"expression","body":"_c_['logout']()","constant":false,"setbody":false}}],"children":[{"type":"text","text":"logout"}]}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n"}]},{"type":"text","text":"\n"},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"container-fluid"}],"children":[{"type":"text","text":"\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"row"}],"children":[{"type":"text","text":"\n    "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"col-sm-3 col-md-2 sidebar"}],"children":[{"type":"text","text":"\n      "},{"type":"element","tag":"app-menu","attrs":[{"type":"attribute","name":"menus","value":{"type":"expression","body":"_c_._sg_('menus', _d_, 1)","constant":false,"setbody":"_c_._ss_('menus',_p_,_d_, '=', 1)"}},{"type":"attribute","name":"state","value":{"type":"expression","body":"_c_._sg_('$state', _c_)","constant":false,"setbody":"_c_._ss_('$state',_p_,_c_, '=', 0)","once":true}}],"children":[]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n    "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main"}],"children":[{"type":"text","text":"\n      "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"ref","value":"view"}],"children":[]},{"type":"text","text":"\n      "},{"type":"element","tag":"footer","attrs":[],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"p","attrs":[],"children":[{"type":"text","text":"© Company 2014"}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n"}]}] });
 
 
-define("rgl!components/menu.html", function(){ return [{"type":"element","tag":"ul","attrs":[{"type":"attribute","name":"class","value":"nav nav-sidebar"}],"children":[{"type":"text","text":"\n  "},{"type":"list","sequence":{"type":"expression","body":"_c_._sg_('menus', _d_)","constant":false,"setbody":"_c_._ss_('menus',_p_,_d_, '=')"},"variable":"menu","body":[{"type":"text","text":"\n    "},{"type":"element","tag":"li","attrs":[{"type":"attribute","name":"class","value":{"type":"expression","body":"_c_._sg_('state', _d_)['is'](_c_._sg_('menu', _d_)['state'])?'active':''","constant":false,"setbody":false}}],"children":[{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":{"type":"expression","body":"['#!',(function(){try{return _c_._sg_('menu', _d_)['url']}catch(e){return ''}})()].join('')","constant":false,"setbody":false}}],"children":[{"type":"expression","body":"_c_._sg_('menu', _d_)['name']","constant":false,"setbody":"_c_._sg_('menu', _d_)['name']=_p_"}]}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n"}]}] });
+define("rgl!components/menu.html", function(){ return [{"type":"element","tag":"ul","attrs":[{"type":"attribute","name":"class","value":"nav nav-sidebar"}],"children":[{"type":"text","text":"\n  "},{"type":"list","sequence":{"type":"expression","body":"_c_._sg_('menus', _d_, 1)","constant":false,"setbody":"_c_._ss_('menus',_p_,_d_, '=', 1)"},"variable":"menu","body":[{"type":"text","text":"\n    "},{"type":"element","tag":"li","attrs":[{"type":"attribute","name":"class","value":{"type":"expression","body":"_c_._sg_('state', _d_, 1)['is'](_c_._sg_('state', _c_._sg_('menu', _d_, 1)))?'active':''","constant":false,"setbody":false}}],"children":[{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":{"type":"expression","body":"['#!',_c_._sg_('url', _c_._sg_('menu', _d_, 1))].join('')","constant":false,"setbody":false}}],"children":[{"type":"expression","body":"_c_._sg_('name', _c_._sg_('menu', _d_, 1))","constant":false,"setbody":"_c_._ss_('name',_p_,_c_._sg_('menu', _d_, 1), '=', 0)"}]}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n"}]}] });
 
 define('components/menu.js',["regularjs", "rgl!./menu.html"], function( Regular, tpl ){
 
@@ -4896,7 +6000,6 @@ define('components/menu.js',["regularjs", "rgl!./menu.html"], function( Regular,
     template: tpl,
     config: function(data){
       data.state.on("end", this.$update.bind(this))
-      console.log(data)
     }
   })
 
@@ -4908,9 +6011,7 @@ define('module/app.js',["regularjs", "rgl!./app.html", "../components/menu.js"],
 
   return Regular.extend({
     template: tpl,
-    name: function(){
-      return "app"
-    },
+
     config: function(data){
       data.menus = [
         {url: '/',name: "Home", state: "app.index" },
@@ -4918,28 +6019,46 @@ define('module/app.js',["regularjs", "rgl!./app.html", "../components/menu.js"],
         {url: '/chat', name: "Chat", state: 'app.chat'}
       ]
     },
-    init: function(){
-      Regular;
-      this.$get("menus")
+    login: function(username, password){
+      this.$state.user = {
+        name: username,
+        id: -1,
+        avatar: "https://avatars1.githubusercontent.com/u/731333?v=3&s=460"
+      }
+
+      try{
+        localStorage.setItem("username", username);
+      }catch(e){}
+      
+
+      return false;
     },
-    login: function(user, password){
-      Regular;
-      this.$state.username = user;
-      this.$state.emit("login");
+    logout: function(){
+      this.$state.user = null;
+      this.$state.go("app.index");
+      try{
+        localStorage.setItem("username", "");
+      }catch(e){}
       return false;
     }
   })
 });
 
-define("rgl!module/blog.html", function(){ return [{"type":"element","tag":"h1","attrs":[{"type":"attribute","name":"class","value":"page-header"}],"children":[{"type":"text","text":"Dashboard"}]},{"type":"text","text":"\n"},{"type":"element","tag":"nav","attrs":[{"type":"attribute","name":"class","value":"navbar navbar-default"}],"children":[{"type":"text","text":"\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"container-fluid"}],"children":[{"type":"text","text":"\n    "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"navbar-header"}],"children":[{"type":"text","text":"\n      "},{"type":"element","tag":"button","attrs":[{"type":"attribute","name":"type","value":"button"},{"type":"attribute","name":"class","value":"navbar-toggle collapsed"},{"type":"attribute","name":"data-toggle","value":"collapse"},{"type":"attribute","name":"data-target","value":"#navbar"},{"type":"attribute","name":"aria-expanded","value":"false"},{"type":"attribute","name":"aria-controls","value":"navbar"}],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"sr-only"}],"children":[{"type":"text","text":"Toggle navigation"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"icon-bar"}],"children":[]},{"type":"text","text":"\n        "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"icon-bar"}],"children":[]},{"type":"text","text":"\n        "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"icon-bar"}],"children":[]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n      "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"class","value":"navbar-brand"},{"type":"attribute","name":"href","value":"#"}],"children":[{"type":"text","text":"Project name"}]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n    "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"id","value":"navbar"},{"type":"attribute","name":"class","value":"navbar-collapse collapse"}],"children":[{"type":"text","text":"\n      "},{"type":"element","tag":"ul","attrs":[{"type":"attribute","name":"class","value":"nav navbar-nav"}],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"li","attrs":[{"type":"attribute","name":"class","value":"active"}],"children":[{"type":"text","text":"\n          "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"#"}],"children":[{"type":"text","text":"Home"}]},{"type":"text","text":"\n        "}]},{"type":"text","text":"\n        "},{"type":"element","tag":"li","attrs":[],"children":[{"type":"text","text":"\n          "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"#"}],"children":[{"type":"text","text":"About"}]},{"type":"text","text":"\n        "}]},{"type":"text","text":"\n        "},{"type":"element","tag":"li","attrs":[],"children":[{"type":"text","text":"\n          "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"#"}],"children":[{"type":"text","text":"Contact"}]},{"type":"text","text":"\n        "}]},{"type":"text","text":"\n        "},{"type":"element","tag":"li","attrs":[{"type":"attribute","name":"class","value":"dropdown"}],"children":[{"type":"text","text":"\n          "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"#"},{"type":"attribute","name":"class","value":"dropdown-toggle"},{"type":"attribute","name":"data-toggle","value":"dropdown"},{"type":"attribute","name":"role","value":"button"},{"type":"attribute","name":"aria-expanded","value":"false"}],"children":[{"type":"text","text":"\n            Dropdown\n            "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"caret"}],"children":[]},{"type":"text","text":"\n          "}]},{"type":"text","text":"\n          "},{"type":"element","tag":"ul","attrs":[{"type":"attribute","name":"class","value":"dropdown-menu"},{"type":"attribute","name":"role","value":"menu"}],"children":[{"type":"text","text":"\n            "},{"type":"element","tag":"li","attrs":[],"children":[{"type":"text","text":"\n              "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"#"}],"children":[{"type":"text","text":"Action"}]},{"type":"text","text":"\n            "}]},{"type":"text","text":"\n            "},{"type":"element","tag":"li","attrs":[],"children":[{"type":"text","text":"\n              "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"#"}],"children":[{"type":"text","text":"Another action"}]},{"type":"text","text":"\n            "}]},{"type":"text","text":"\n            "},{"type":"element","tag":"li","attrs":[],"children":[{"type":"text","text":"\n              "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"#"}],"children":[{"type":"text","text":"Something else here"}]},{"type":"text","text":"\n            "}]},{"type":"text","text":"\n            "},{"type":"element","tag":"li","attrs":[{"type":"attribute","name":"class","value":"divider"}],"children":[]},{"type":"text","text":"\n            "},{"type":"element","tag":"li","attrs":[{"type":"attribute","name":"class","value":"dropdown-header"}],"children":[{"type":"text","text":"Nav header"}]},{"type":"text","text":"\n            "},{"type":"element","tag":"li","attrs":[],"children":[{"type":"text","text":"\n              "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"#"}],"children":[{"type":"text","text":"Separated link"}]},{"type":"text","text":"\n            "}]},{"type":"text","text":"\n            "},{"type":"element","tag":"li","attrs":[],"children":[{"type":"text","text":"\n              "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"#"}],"children":[{"type":"text","text":"One more separated link"}]},{"type":"text","text":"\n            "}]},{"type":"text","text":"\n          "}]},{"type":"text","text":"\n        "}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n      "},{"type":"element","tag":"ul","attrs":[{"type":"attribute","name":"class","value":"nav navbar-nav navbar-right"}],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"li","attrs":[{"type":"attribute","name":"class","value":"active"}],"children":[{"type":"text","text":"\n          "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"./"}],"children":[{"type":"text","text":"\n            Default\n            "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"sr-only"}],"children":[{"type":"text","text":"(current)"}]},{"type":"text","text":"\n          "}]},{"type":"text","text":"\n        "}]},{"type":"text","text":"\n        "},{"type":"element","tag":"li","attrs":[],"children":[{"type":"text","text":"\n          "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"../navbar-static-top/"}],"children":[{"type":"text","text":"Static top"}]},{"type":"text","text":"\n        "}]},{"type":"text","text":"\n        "},{"type":"element","tag":"li","attrs":[],"children":[{"type":"text","text":"\n          "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"../navbar-fixed-top/"}],"children":[{"type":"text","text":"Fixed top"}]},{"type":"text","text":"\n        "}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n\n\n"},{"type":"element","tag":"hr","attrs":[]},{"type":"text","text":"\n\n"},{"type":"element","tag":"footer","attrs":[],"children":[{"type":"text","text":"\n  "},{"type":"element","tag":"p","attrs":[],"children":[{"type":"text","text":"© Company 2014"}]},{"type":"text","text":"\n"}]},{"type":"text","text":"\n\n"},{"type":"element","tag":"h2","attrs":[{"type":"attribute","name":"class","value":"sub-header"}],"children":[{"type":"text","text":"Section title"}]},{"type":"text","text":"\n"},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"table-responsive"}],"children":[{"type":"text","text":"\n  "},{"type":"element","tag":"table","attrs":[{"type":"attribute","name":"class","value":"table table-striped"}],"children":[{"type":"text","text":"\n    "},{"type":"element","tag":"thead","attrs":[],"children":[{"type":"text","text":"\n      "},{"type":"element","tag":"tr","attrs":[],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"th","attrs":[],"children":[{"type":"text","text":"#"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"th","attrs":[],"children":[{"type":"text","text":"Header"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"th","attrs":[],"children":[{"type":"text","text":"Header"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"th","attrs":[],"children":[{"type":"text","text":"Header"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"th","attrs":[],"children":[{"type":"text","text":"Header"}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n    "},{"type":"element","tag":"tbody","attrs":[],"children":[{"type":"text","text":"\n      "},{"type":"element","tag":"tr","attrs":[],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"1,001"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"Lorem"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"ipsum"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"dolor"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"sit"}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n      "},{"type":"element","tag":"tr","attrs":[],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"1,002"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"amet"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"consectetur"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"adipiscing"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"elit"}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n      "},{"type":"element","tag":"tr","attrs":[],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"1,003"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"Integer"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"nec"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"odio"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"Praesent"}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n      "},{"type":"element","tag":"tr","attrs":[],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"1,003"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"libero"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"Sed"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"cursus"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"ante"}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n      "},{"type":"element","tag":"tr","attrs":[],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"1,004"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"dapibus"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"diam"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"Sed"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"nisi"}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n      "},{"type":"element","tag":"tr","attrs":[],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"1,005"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"Nulla"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"quis"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"sem"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"at"}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n      "},{"type":"element","tag":"tr","attrs":[],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"1,006"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"nibh"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"elementum"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"imperdiet"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"Duis"}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n      "},{"type":"element","tag":"tr","attrs":[],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"1,007"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"sagittis"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"ipsum"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"Praesent"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"mauris"}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n      "},{"type":"element","tag":"tr","attrs":[],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"1,008"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"Fusce"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"nec"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"tellus"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"sed"}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n      "},{"type":"element","tag":"tr","attrs":[],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"1,009"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"augue"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"semper"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"porta"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"Mauris"}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n      "},{"type":"element","tag":"tr","attrs":[],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"1,010"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"massa"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"Vestibulum"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"lacinia"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"arcu"}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n      "},{"type":"element","tag":"tr","attrs":[],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"1,011"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"eget"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"nulla"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"Class"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"aptent"}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n      "},{"type":"element","tag":"tr","attrs":[],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"1,012"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"taciti"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"sociosqu"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"ad"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"litora"}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n      "},{"type":"element","tag":"tr","attrs":[],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"1,013"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"torquent"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"per"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"conubia"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"nostra"}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n      "},{"type":"element","tag":"tr","attrs":[],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"1,014"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"per"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"inceptos"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"himenaeos"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"Curabitur"}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n      "},{"type":"element","tag":"tr","attrs":[],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"1,015"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"sodales"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"ligula"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"in"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"libero"}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n"}]}] });
+define("rgl!module/blog.html", function(){ return [{"type":"element","tag":"h1","attrs":[{"type":"attribute","name":"class","value":"page-header"}],"children":[{"type":"text","text":"Blog"}]},{"type":"text","text":"\n"},{"type":"element","tag":"nav","attrs":[{"type":"attribute","name":"class","value":"navbar navbar-default"}],"children":[{"type":"text","text":"\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"container-fluid"}],"children":[{"type":"text","text":"\n    "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"id","value":"navbar"},{"type":"attribute","name":"class","value":"navbar-collapse collapse"}],"children":[{"type":"text","text":"\n      "},{"type":"element","tag":"ul","attrs":[{"type":"attribute","name":"class","value":"nav navbar-nav"}],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"li","attrs":[{"type":"attribute","name":"class","value":{"type":"expression","body":"_c_._sg_('$state', _c_)['is']('app.blog.list')?'active':''","constant":false,"setbody":false}}],"children":[{"type":"text","text":"\n          "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":{"type":"expression","body":"(function(){var _f_='app.blog.list';_f_ = _c_._f_('encode')(_f_);return _f_})()","constant":true,"setbody":false}}],"children":[{"type":"text","text":"List"}]},{"type":"text","text":"\n        "}]},{"type":"text","text":"\n        "},{"type":"element","tag":"li","attrs":[{"type":"attribute","name":"class","value":{"type":"expression","body":"_c_._sg_('$state', _c_)['is']('app.blog.detail')?'active':''","constant":false,"setbody":false}}],"children":[{"type":"text","text":"\n          "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"javascript:;"}],"children":[{"type":"text","text":"Detail"}]},{"type":"text","text":"\n        "}]},{"type":"text","text":"\n        "},{"type":"element","tag":"li","attrs":[{"type":"attribute","name":"class","value":{"type":"expression","body":"_c_._sg_('$state', _c_)['is']('app.blog.edit')?'active':''","constant":false,"setbody":false}}],"children":[{"type":"text","text":"\n          "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":{"type":"expression","body":"(function(){var _f_='app.blog.edit';_f_ = _c_._f_('encode')(_f_, {'id':(-1)});return _f_})()","constant":true,"setbody":false}}],"children":[{"type":"text","text":"Edit"}]},{"type":"text","text":"\n        "}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n"},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"col-sm-12"},{"type":"attribute","name":"ref","value":"view"}],"children":[]},{"type":"text","text":"\n\n\n\n\n"}] });
 
 define('module/blog.js',["regularjs", "rgl!./blog.html"], function( Regular, tpl ){
   return Regular.extend({
-    template: tpl
+    template: tpl,
+    config: function(){
+      this.$state.on("end", this.$update.bind(this,null));
+    }
   })
 });
 define('mock.js',[],function(){
   // for chat root
+
+
+
   var i = 0;
 
   var random = function(min, max){
@@ -4954,7 +6073,8 @@ define('mock.js',[],function(){
     users.push({
       id: i,
       name: "user " + i,
-      age: random(10, 30)
+      email: random(10, 30) + "@163.com" ,
+      avatar: "http://www.gravatar.com/avatar/205e460b479e2e5b48aec07710c08d10"
     })
   }
 
@@ -4965,6 +6085,7 @@ define('mock.js',[],function(){
       id: i,
       user: users[random(0, 99)],
       content: new Array(10).join(" message " + i + " content "),
+      time: +new Date,
       reply:[]
     })
   }
@@ -4975,8 +6096,9 @@ define('mock.js',[],function(){
     blogs.push({
       id: i,
       title: "post " + i,
-      contetn: new Array(100).join(" post " + i + " content "),
-      user: users[random(0, 99)]
+      content: new Array(100).join(" post " + i + " content "),
+      user: users[random(0, 99)],
+      time: +new Date()
     })
   }
 
@@ -4991,16 +6113,20 @@ define('mock.js',[],function(){
     find: function(id, list){
       var len = list.length;
       for(;len--;){
-        if(list[len].id === id) return list[len]
+        if(list[len].id == id) return list[len]
       }
     },
-    getList: function(page, list){
-      return list.slice( (page - 1) * limit, page * limit)
-    }
+    remove: function(id, list){
+      var len = list.length;
+      for(;len--;){
+        if(list[len].id == id) return list.splice(len,1);
+      }
+    },
+    random: random
   }
 });
 
-define("rgl!module/chat.html", function(){ return [{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"panel panel-primary"}],"children":[{"type":"text","text":"\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"panel-heading"}],"children":[{"type":"text","text":"\n    "},{"type":"element","tag":"h3","attrs":[{"type":"attribute","name":"class","value":"panel-title"}],"children":[{"type":"text","text":"Chat Room "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"badge"}],"children":[{"type":"expression","body":"_c_._sg_('messages', _d_)['length']","constant":false,"setbody":"_c_._sg_('messages', _d_)['length']=_p_"}]}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"panel-body"}],"children":[{"type":"text","text":"\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"message-list"}],"children":[{"type":"text","text":"\n  "},{"type":"list","sequence":{"type":"expression","body":"_c_._sg_('messages', _d_)","constant":false,"setbody":"_c_._ss_('messages',_p_,_d_, '=')"},"variable":"message","body":[{"type":"text","text":"\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"media"}],"children":[{"type":"text","text":"\n    "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"class","value":"media-left"},{"type":"attribute","name":"href","value":"#"}],"children":[{"type":"text","text":"\n      "},{"type":"element","tag":"img","attrs":[{"type":"attribute","name":"src","value":"http://www.gravatar.com/avatar/205e460b479e2e5b48aec07710c08d10"},{"type":"attribute","name":"style","value":"width: 64px; height: 64px;"}]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n    "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"media-body"}],"children":[{"type":"text","text":"\n      "},{"type":"element","tag":"h4","attrs":[{"type":"attribute","name":"class","value":"media-heading"}],"children":[{"type":"text","text":"@"},{"type":"expression","body":"_c_._sg_('message', _d_)['user']['name']","constant":false,"setbody":"_c_._sg_('message', _d_)['user']['name']=_p_"}]},{"type":"text","text":"\n      "},{"type":"expression","body":"_c_._sg_('message', _d_)['content']","constant":false,"setbody":"_c_._sg_('message', _d_)['content']=_p_"},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n"}]}] });
+define("rgl!module/chat.html", function(){ return [{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"panel panel-primary"}],"children":[{"type":"text","text":"\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"panel-heading"}],"children":[{"type":"text","text":"\n    "},{"type":"element","tag":"h3","attrs":[{"type":"attribute","name":"class","value":"panel-title"}],"children":[{"type":"text","text":"Chat Room "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"badge"}],"children":[{"type":"expression","body":"_c_._sg_('length', _c_._sg_('messages', _d_, 1))","constant":false,"setbody":"_c_._ss_('length',_p_,_c_._sg_('messages', _d_, 1), '=', 0)"}]}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"panel-body"}],"children":[{"type":"text","text":"\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"message-list"}],"children":[{"type":"text","text":"\n  "},{"type":"list","sequence":{"type":"expression","body":"_c_._sg_('messages', _d_, 1)","constant":false,"setbody":"_c_._ss_('messages',_p_,_d_, '=', 1)"},"variable":"message","body":[{"type":"text","text":"\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"media"},{"type":"attribute","name":"r-animation","value":"on: enter; class: animated fadeInY; on: leave; class: animated fadeOutY;"}],"children":[{"type":"text","text":"\n    "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"class","value":"media-left"},{"type":"attribute","name":"href","value":"#"}],"children":[{"type":"text","text":"\n      "},{"type":"element","tag":"img","attrs":[{"type":"attribute","name":"src","value":{"type":"expression","body":"_c_._sg_('avatar', _c_._sg_('user', _c_._sg_('message', _d_, 1)))","constant":false,"setbody":"_c_._ss_('avatar',_p_,_c_._sg_('user', _c_._sg_('message', _d_, 1)), '=', 0)"}},{"type":"attribute","name":"style","value":"width: 64px; height: 64px;"}]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n    "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"media-body"}],"children":[{"type":"text","text":"\n      "},{"type":"element","tag":"h4","attrs":[{"type":"attribute","name":"class","value":"media-heading"}],"children":[{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":{"type":"expression","body":"['#!/user/',_c_._sg_('id', _c_._sg_('user', _c_._sg_('message', _d_, 1)))].join('')","constant":false,"setbody":false}}],"children":[{"type":"expression","body":"_c_._sg_('name', _c_._sg_('user', _c_._sg_('message', _d_, 1)))","constant":false,"setbody":"_c_._ss_('name',_p_,_c_._sg_('user', _c_._sg_('message', _d_, 1)), '=', 0)"}]},{"type":"text","text":" \n      "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"small"}],"children":[{"type":"expression","body":"(function(){var _f_=_c_._sg_('time', _c_._sg_('message', _d_, 1));_f_ = _c_._f_('format')(_f_);return _f_})()","constant":false,"setbody":false}]},{"type":"text","text":"\n      "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"#"},{"type":"attribute","name":"r-hide","value":{"type":"expression","body":"_c_._sg_('user', _c_._sg_('message', _d_, 1))!==_c_._sg_('user', _c_._sg_('$state', _c_))","constant":false,"setbody":false}},{"type":"attribute","name":"on-click","value":{"type":"expression","body":"_c_['remove'](_c_._sg_('message_index', _d_, 1))","constant":false,"setbody":false}}],"children":[{"type":"text","text":"delete"}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n      "},{"type":"expression","body":"_c_._sg_('content', _c_._sg_('message', _d_, 1))","constant":false,"setbody":"_c_._ss_('content',_p_,_c_._sg_('message', _d_, 1), '=', 0)"},{"type":"text","text":" \n    "}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n    \n  "}]},{"type":"text","text":"\n    "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"row"}],"children":[{"type":"text","text":"\n      "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"col-sm-12"}],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"input-group"}],"children":[{"type":"text","text":"\n          "},{"type":"element","tag":"input","attrs":[{"type":"attribute","name":"type","value":"text"},{"type":"attribute","name":"class","value":"form-control"},{"type":"attribute","name":"r-model","value":{"type":"expression","body":"_c_._sg_('text', _d_, 1)","constant":false,"setbody":"_c_._ss_('text',_p_,_d_, '=', 1)"}},{"type":"attribute","name":"placeholder","value":"Say something for..."}]},{"type":"text","text":"\n          "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"input-group-btn"}],"children":[{"type":"text","text":"\n            "},{"type":"element","tag":"button","attrs":[{"type":"attribute","name":"class","value":"btn btn-primary"},{"type":"attribute","name":"type","value":"button"},{"type":"attribute","name":"on-click","value":{"type":"expression","body":"_c_['post'](_c_._sg_('text', _d_, 1))","constant":false,"setbody":false}}],"children":[{"type":"text","text":"Post Message!"}]},{"type":"text","text":"\n          "}]},{"type":"text","text":"\n        "}]}]}]}]}] });
 
 define('module/chat.js',['require','../mock.js','rgl!./chat.html'],function(require){
   var mock = require("../mock.js");
@@ -5010,11 +6136,26 @@ define('module/chat.js',['require','../mock.js','rgl!./chat.html'],function(requ
     enter: function(option){
       var page = option.page || 1;
       this.data.messages = mock.messages;
+    },
+    post: function(text){
+      this.data.messages.push({
+        id: mock.random(1000, 99999),
+        user: this.$state.user,
+        content: text,
+        time: +new Date
+      })
+
+      this.data.text = "";
+    },
+    remove: function(index){
+      this.data.messages.splice(index, 1);
+      return false;
     }
+
   }
 });
 
-define("rgl!module/index.html", function(){ return [{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"jumbotron"}],"children":[{"type":"text","text":"\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"container"}],"children":[{"type":"text","text":"\n    "},{"type":"element","tag":"h1","attrs":[],"children":[{"type":"text","text":"Hello!"}]},{"type":"text","text":"\n    "},{"type":"element","tag":"p","attrs":[],"children":[{"type":"text","text":"\n      This is a template for a simple marketing or informational website. It includes a large callout called a jumbotron and three supporting pieces of content. Use it as a starting point to create something more unique.\n    "}]},{"type":"text","text":"\n    "},{"type":"element","tag":"p","attrs":[],"children":[{"type":"text","text":"\n      "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"class","value":"btn btn-primary btn-lg"},{"type":"attribute","name":"href","value":"#"},{"type":"attribute","name":"role","value":"button"}],"children":[{"type":"text","text":"See Blogs »"}]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n"}]},{"type":"text","text":"\n"},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"row"}],"children":[{"type":"text","text":"\n  "},{"type":"list","sequence":{"type":"expression","body":"_c_._sg_('posts', _d_)","constant":false,"setbody":"_c_._ss_('posts',_p_,_d_, '=')"},"variable":"post","body":[{"type":"text","text":"\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"col-md-4"}],"children":[{"type":"text","text":"\n    "},{"type":"element","tag":"h2","attrs":[],"children":[{"type":"text","text":"Heading"},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"label label-default"}],"children":[{"type":"text","text":"New"}]}]},{"type":"text","text":"\n    "},{"type":"element","tag":"p","attrs":[],"children":[{"type":"text","text":"\n      Donec id elit non mi porta gravida at eget metus. Fusce dapibus, tellus ac cursus commodo, tortor mauris condimentum nibh, ut fermentum massa justo sit amet risus. Etiam porta sem malesuada magna mollis euismod. Donec sed odio dui.\n    "}]},{"type":"text","text":"\n    "},{"type":"element","tag":"p","attrs":[],"children":[{"type":"text","text":"\n      "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"class","value":"btn btn-default"},{"type":"attribute","name":"href","value":"#"},{"type":"attribute","name":"role","value":"button"}],"children":[{"type":"text","text":"View details »"}]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n"}]}] });
+define("rgl!module/index.html", function(){ return [{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"jumbotron"}],"children":[{"type":"text","text":"\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"container"}],"children":[{"type":"text","text":"\n    "},{"type":"element","tag":"h1","attrs":[],"children":[{"type":"text","text":"Hello!"}]},{"type":"text","text":"\n    "},{"type":"element","tag":"p","attrs":[],"children":[{"type":"text","text":"\n      This is a template for a simple marketing or informational website. It includes a large callout called a jumbotron and three supporting pieces of content. Use it as a starting point to create something more unique.\n    "}]},{"type":"text","text":"\n    "},{"type":"element","tag":"p","attrs":[],"children":[{"type":"text","text":"\n      "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"class","value":"btn btn-primary btn-lg"},{"type":"attribute","name":"href","value":"#!/blog"},{"type":"attribute","name":"role","value":"button"}],"children":[{"type":"text","text":"See Blogs »"}]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n"}]},{"type":"text","text":"\n"},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"row"}],"children":[{"type":"text","text":"\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"col-md-4"}],"children":[{"type":"text","text":"\n    "},{"type":"element","tag":"h2","attrs":[],"children":[{"type":"text","text":"Heading"},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"label label-default"}],"children":[{"type":"text","text":"New"}]}]},{"type":"text","text":"\n    "},{"type":"element","tag":"p","attrs":[],"children":[{"type":"text","text":"\n      Donec id elit non mi porta gravida at eget metus. Fusce dapibus, tellus ac cursus commodo, tortor mauris condimentum nibh, ut fermentum massa justo sit amet risus. Etiam porta sem malesuada magna mollis euismod. Donec sed odio dui.\n    "}]},{"type":"text","text":"\n    "},{"type":"element","tag":"p","attrs":[],"children":[{"type":"text","text":"\n    "}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"col-md-4"}],"children":[{"type":"text","text":"\n    "},{"type":"element","tag":"h2","attrs":[],"children":[{"type":"text","text":"Heading"},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"label label-default"}],"children":[{"type":"text","text":"New"}]}]},{"type":"text","text":"\n    "},{"type":"element","tag":"p","attrs":[],"children":[{"type":"text","text":"\n      Donec id elit non mi porta gravida at eget metus. Fusce dapibus, tellus ac cursus commodo, tortor mauris condimentum nibh, ut fermentum massa justo sit amet risus. Etiam porta sem malesuada magna mollis euismod. Donec sed odio dui.\n    "}]},{"type":"text","text":"\n    "},{"type":"element","tag":"p","attrs":[],"children":[{"type":"text","text":"\n    "}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"col-md-4"}],"children":[{"type":"text","text":"\n    "},{"type":"element","tag":"h2","attrs":[],"children":[{"type":"text","text":"Heading"},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"label label-default"}],"children":[{"type":"text","text":"New"}]}]},{"type":"text","text":"\n    "},{"type":"element","tag":"p","attrs":[],"children":[{"type":"text","text":"\n      Donec id elit non mi porta gravida at eget metus. Fusce dapibus, tellus ac cursus commodo, tortor mauris condimentum nibh, ut fermentum massa justo sit amet risus. Etiam porta sem malesuada magna mollis euismod. Donec sed odio dui.\n    "}]},{"type":"text","text":"\n    "},{"type":"element","tag":"p","attrs":[],"children":[{"type":"text","text":"\n    "}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n"}]}] });
 
 
 define("rgl!module/user.html", function(){ return [{"type":"element","tag":"div","attrs":[],"children":[{"type":"text","text":"User Page"}]},{"type":"text","text":"\n"},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"ref","value":"view"}],"children":[]}] });
@@ -5027,35 +6168,165 @@ define('module/user.js',["regularjs", "rgl!./user.html"], function( Regular, tpl
 
 });
 
-define("rgl!module/blog.detail.html", function(){ return [{"type":"element","tag":"div","attrs":[],"children":[{"type":"text","text":"Detail Page "},{"type":"expression","body":"_c_._sg_('$param', _d_)['id']","constant":false,"setbody":"_c_._sg_('$param', _d_)['id']=_p_"}]}] });
+define("rgl!module/blog.detail.html", function(){ return [{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"blog-post"}],"children":[{"type":"text","text":"\n  "},{"type":"element","tag":"h2","attrs":[{"type":"attribute","name":"class","value":"blog-post-title"}],"children":[{"type":"expression","body":"_c_._sg_('title', _c_._sg_('blog', _d_, 1))","constant":false,"setbody":"_c_._ss_('title',_p_,_c_._sg_('blog', _d_, 1), '=', 0)"},{"type":"text","text":"\n  "},{"type":"if","test":{"type":"expression","body":"_c_._sg_('preview', _d_, 1)","constant":false,"setbody":"_c_._ss_('preview',_p_,_d_, '=', 1)"},"consequent":[{"type":"text","text":"\n  "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"badge"}],"children":[{"type":"text","text":"preview"}]},{"type":"text","text":"\n  "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":{"type":"expression","body":"(function(){var _f_='app.blog.edit';_f_ = _c_._f_('encode')(_f_, {'id':_c_._sg_('id', _c_._sg_('blog', _d_, 1))});return _f_})()","constant":false,"setbody":false}}],"children":[{"type":"text","text":"Return Edit"}]},{"type":"text","text":"\n  "}],"alternate":[{"type":"text","text":"\n  "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":{"type":"expression","body":"(function(){var _f_='app.blog.edit';_f_ = _c_._f_('encode')(_f_, {'id':_c_._sg_('id', _c_._sg_('blog', _d_, 1))});return _f_})()","constant":false,"setbody":false}}],"children":[{"type":"text","text":"Edit"}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n"}]},{"type":"text","text":"\n"},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"blog-post-meta"}],"children":[{"type":"text","text":"\n  "},{"type":"expression","body":"(function(){var _f_=_c_._sg_('time', _c_._sg_('blog', _d_, 1));_f_ = _c_._f_('format')(_f_);return _f_})()","constant":false,"setbody":false},{"type":"text","text":"\n  "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"javascript:;"}],"children":[{"type":"expression","body":"_c_._sg_('name', _c_._sg_('user', _c_._sg_('blog', _d_, 1)))","constant":false,"setbody":"_c_._ss_('name',_p_,_c_._sg_('user', _c_._sg_('blog', _d_, 1)), '=', 0)"}]},{"type":"text","text":"\n\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"content"},{"type":"attribute","name":"r-html","value":{"type":"expression","body":"_c_._sg_('content', _c_._sg_('blog', _d_, 1))","constant":false,"setbody":"_c_._ss_('content',_p_,_c_._sg_('blog', _d_, 1), '=', 0)"}}],"children":[]},{"type":"text","text":"\n"}]},{"type":"text","text":"\n\n"}]}] });
 
-define('module/blog.detail.js',["regularjs", "rgl!./blog.detail.html"], function( Regular, tpl ){
+
+define('module/blog.detail.js',["regularjs", "rgl!./blog.detail.html",'../mock.js'], function( Regular, tpl , mock){
+
   return Regular.extend({
-    template: tpl
+    template: tpl,
+    // when preview in edit page
+    config: function(data){
+      if(data.title){
+        data.blog = {
+          title: data.title,
+          content: data.content
+        }
+        data.preview = true;
+      }
+    },
+    enter: function(option){
+      this.update(option);
+    },
+    update: function(option){
+      var data = this.data;
+      var id = parseInt(option.param.id);
+      data.blog = mock.find( id, mock.blogs)
+    }
   })
 });
 
-define("rgl!module/blog.list.html", function(){ return [{"type":"element","tag":"div","attrs":[],"children":[{"type":"text","text":"List Page "},{"type":"expression","body":"_c_._sg_('$param', _d_)['page']","constant":false,"setbody":"_c_._sg_('$param', _d_)['page']=_p_"}]}] });
+define("rgl!module/blog.list.html", function(){ return [{"type":"element","tag":"h2","attrs":[{"type":"attribute","name":"class","value":"sub-header"}],"children":[{"type":"text","text":"Bloging List"}]},{"type":"text","text":"\n"},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"table-responsive"}],"children":[{"type":"text","text":"\n  "},{"type":"element","tag":"table","attrs":[{"type":"attribute","name":"class","value":"table table-striped"}],"children":[{"type":"text","text":"\n    "},{"type":"element","tag":"thead","attrs":[],"children":[{"type":"text","text":"\n      "},{"type":"element","tag":"tr","attrs":[],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"th","attrs":[],"children":[{"type":"text","text":"id"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"th","attrs":[],"children":[{"type":"text","text":"author"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"th","attrs":[],"children":[{"type":"text","text":"time"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"th","attrs":[],"children":[{"type":"text","text":"title"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"th","attrs":[],"children":[{"type":"text","text":"abstract"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"th","attrs":[],"children":[{"type":"text","text":"action"}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n    "},{"type":"element","tag":"tbody","attrs":[],"children":[{"type":"text","text":"\n      "},{"type":"list","sequence":{"type":"expression","body":"_c_._sg_('blogs', _d_, 1)","constant":false,"setbody":"_c_._ss_('blogs',_p_,_d_, '=', 1)"},"variable":"blog","body":[{"type":"text","text":"\n      "},{"type":"element","tag":"tr","attrs":[],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"expression","body":"_c_._sg_('id', _c_._sg_('blog', _d_, 1))","constant":false,"setbody":"_c_._ss_('id',_p_,_c_._sg_('blog', _d_, 1), '=', 0)"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"expression","body":"_c_._sg_('name', _c_._sg_('user', _c_._sg_('blog', _d_, 1)))","constant":false,"setbody":"_c_._ss_('name',_p_,_c_._sg_('user', _c_._sg_('blog', _d_, 1)), '=', 0)"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"expression","body":"(function(){var _f_=_c_._sg_('time', _c_._sg_('blog', _d_, 1));_f_ = _c_._f_('format')(_f_);return _f_})()","constant":false,"setbody":false}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"expression","body":"_c_._sg_('title', _c_._sg_('blog', _d_, 1))","constant":false,"setbody":"_c_._ss_('title',_p_,_c_._sg_('blog', _d_, 1), '=', 0)"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"expression","body":"_c_._sg_('content', _c_._sg_('blog', _d_, 1))['slice'](0,30)+'...'","constant":false,"setbody":false}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"btn-group"},{"type":"attribute","name":"role","value":"group"},{"type":"attribute","name":"aria-label","value":"..."}],"children":[{"type":"text","text":"\n          "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":{"type":"expression","body":"(function(){var _f_='app.blog.edit';_f_ = _c_._f_('encode')(_f_, {'id':_c_._sg_('id', _c_._sg_('blog', _d_, 1))});return _f_})()","constant":false,"setbody":false}},{"type":"attribute","name":"class","value":"btn btn-default"}],"children":[{"type":"text","text":"edit"}]},{"type":"text","text":"\n          "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":{"type":"expression","body":"(function(){var _f_='app.blog.detail';_f_ = _c_._f_('encode')(_f_, {'id':_c_._sg_('id', _c_._sg_('blog', _d_, 1))});return _f_})()","constant":false,"setbody":false}},{"type":"attribute","name":"class","value":"btn btn-default"}],"children":[{"type":"text","text":"view"}]},{"type":"text","text":"\n          "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"#"},{"type":"attribute","name":"on-click","value":{"type":"expression","body":"_c_['remove'](_c_._sg_('blog', _d_, 1),_c_._sg_('blog_index', _d_, 1))","constant":false,"setbody":false}},{"type":"attribute","name":"class","value":"btn btn-danger"}],"children":[{"type":"text","text":"delete"}]},{"type":"text","text":"\n        "}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n  "},{"type":"element","tag":"pager","attrs":[{"type":"attribute","name":"total","value":{"type":"expression","body":"_c_._sg_('total', _d_, 1)","constant":false,"setbody":"_c_._ss_('total',_p_,_d_, '=', 1)"}},{"type":"attribute","name":"current","value":{"type":"expression","body":"_c_._sg_('current', _d_, 1)","constant":false,"setbody":"_c_._ss_('current',_p_,_d_, '=', 1)"}},{"type":"attribute","name":"on-nav","value":{"type":"expression","body":"_c_['refresh'](_c_._sg_('page', _c_._sg_('$event', _d_, 1)),true)","constant":false,"setbody":false}}],"children":[]},{"type":"text","text":"\n"}]}] });
 
-define('module/blog.list.js',["regularjs", "rgl!./blog.list.html"], function( Regular, tpl ){
+
+define("rgl!components/pager.html", function(){ return [{"type":"element","tag":"ul","attrs":[{"type":"attribute","name":"class","value":"pagination"}],"children":[{"type":"text","text":"\n  "},{"type":"element","tag":"li","attrs":[{"type":"attribute","name":"on-click","value":{"type":"expression","body":"_c_['nav'](_c_._sg_('current', _d_, 1)-1)","constant":false,"setbody":false}},{"type":"attribute","name":"class","value":{"type":"expression","body":"['pageprv ',_c_._sg_('current', _d_, 1)==1?'disabled':''].join('')","constant":false,"setbody":false}}],"children":[{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"#"}],"children":[{"type":"text","text":"PREV"}]}]},{"type":"text","text":"\n  "},{"type":"if","test":{"type":"expression","body":"_c_._sg_('total', _d_, 1)-5>_c_._sg_('show', _d_, 1)*2","constant":false,"setbody":false},"consequent":[{"type":"text","text":" \n  "},{"type":"element","tag":"li","attrs":[{"type":"attribute","name":"on-click","value":{"type":"expression","body":"_c_['nav'](1)","constant":false,"setbody":false}},{"type":"attribute","name":"class","value":{"type":"expression","body":"_c_._sg_('current', _d_, 1)==1?'active':''","constant":false,"setbody":false}}],"children":[{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"#"}],"children":[{"type":"text","text":"1"}]}]},{"type":"text","text":"\n  "},{"type":"element","tag":"li","attrs":[],"children":[{"type":"if","test":{"type":"expression","body":"_c_._sg_('begin', _d_, 1)>2","constant":false,"setbody":false},"consequent":[{"type":"element","tag":"a","attrs":[],"children":[{"type":"text","text":"..."}]}],"alternate":[]}]},{"type":"text","text":"\n  "},{"type":"list","sequence":{"type":"expression","body":"(function(start,end){var res = [],step=end>start?1:-1; for(var i = start; end>start?i <= end: i>=end; i=i+step){res.push(i); } return res })(_c_._sg_('begin', _d_, 1),_c_._sg_('end', _d_, 1))","constant":false,"setbody":false},"variable":"i","body":[{"type":"text","text":"\n    "},{"type":"element","tag":"li","attrs":[{"type":"attribute","name":"on-click","value":{"type":"expression","body":"_c_['nav'](_c_._sg_('i', _d_, 1))","constant":false,"setbody":false}},{"type":"attribute","name":"class","value":{"type":"expression","body":"_c_._sg_('current', _d_, 1)==_c_._sg_('i', _d_, 1)?'active':''","constant":false,"setbody":false}}],"children":[{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"#"}],"children":[{"type":"expression","body":"_c_._sg_('i', _d_, 1)","constant":false,"setbody":"_c_._ss_('i',_p_,_d_, '=', 1)"}]}]},{"type":"text","text":" \n  "}]},{"type":"text","text":"\n  "},{"type":"if","test":{"type":"expression","body":"(_c_._sg_('end', _d_, 1)<_c_._sg_('total', _d_, 1)-1)","constant":false,"setbody":false},"consequent":[{"type":"element","tag":"li","attrs":[],"children":[{"type":"element","tag":"a","attrs":[],"children":[{"type":"text","text":"..."}]}]},{"type":"text","text":" "}],"alternate":[]},{"type":"text","text":"\n  "},{"type":"element","tag":"li","attrs":[{"type":"attribute","name":"on-click","value":{"type":"expression","body":"_c_['nav'](_c_._sg_('total', _d_, 1))","constant":false,"setbody":false}},{"type":"attribute","name":"class","value":{"type":"expression","body":"_c_._sg_('current', _d_, 1)==_c_._sg_('total', _d_, 1)?'active':''","constant":false,"setbody":false}}],"children":[{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"#"}],"children":[{"type":"expression","body":"_c_._sg_('total', _d_, 1)","constant":false,"setbody":"_c_._ss_('total',_p_,_d_, '=', 1)"}]}]},{"type":"text","text":" \n  "}],"alternate":[{"type":"text","text":"\n  "},{"type":"list","sequence":{"type":"expression","body":"(function(start,end){var res = [],step=end>start?1:-1; for(var i = start; end>start?i <= end: i>=end; i=i+step){res.push(i); } return res })(1,_c_._sg_('total', _d_, 1))","constant":false,"setbody":false},"variable":"i","body":[{"type":"text","text":" \n  "},{"type":"element","tag":"li","attrs":[{"type":"attribute","name":"on-click","value":{"type":"expression","body":"_c_['nav'](_c_._sg_('i', _d_, 1))","constant":false,"setbody":false}},{"type":"attribute","name":"class","value":{"type":"expression","body":"_c_._sg_('current', _d_, 1)==_c_._sg_('i', _d_, 1)?'active':''","constant":false,"setbody":false}}],"children":[{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"#"}],"children":[{"type":"expression","body":"_c_._sg_('i', _d_, 1)","constant":false,"setbody":"_c_._ss_('i',_p_,_d_, '=', 1)"}]}]},{"type":"text","text":" \n  "}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n  "},{"type":"element","tag":"li","attrs":[{"type":"attribute","name":"on-click","value":{"type":"expression","body":"_c_['nav'](_c_._sg_('current', _d_, 1)+1)","constant":false,"setbody":false}},{"type":"attribute","name":"class","value":{"type":"expression","body":"['pagenxt ',_c_._sg_('current', _d_, 1)==_c_._sg_('total', _d_, 1)?'disabled':''].join('')","constant":false,"setbody":false}}],"children":[{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"#"}],"children":[{"type":"text","text":"NEXT"}]}]},{"type":"text","text":"\n"}]}] });
+
+define('components/pager.js',["regularjs", "rgl!./pager.html"], function( Regular, tpl ){
+
+  var Pager = Regular.extend({
+      template: tpl,
+      // is called before compile. 一般用来处理数据
+      config: function(data){
+        var count =  5;
+        var show = data.show = Math.floor( count/2 );
+        data.current = parseInt(data.current || 1);
+        data.total = parseInt(data.total || 1);
+
+        this.$watch(['current', 'total'], function( current, total ){
+          data.begin = current - show;
+          data.end = current + show;
+          if(data.begin < 2) data.begin = 2;
+          if(data.end > data.total-1) data.end = data.total-1;
+          if(current-data.begin <= 1) data.end = data.end + show + data.begin- current;
+          if(data.end - current <= 1) data.begin = data.begin-show-current+ data.end;
+        });
+      },
+      nav: function(page){
+        var data = this.data;
+        if(page < 1) return false;
+        if(page > data.total) return false;
+        if(page === data.current) return false;
+        var evObj = {page: page}
+        this.$emit('nav', evObj);
+        if(!evObj.stop){
+          data.current = page;
+        }
+        // preventDefault
+        return false;
+      }
+    });
+
+  return Pager
+})
+;
+define('module/blog.list.js',[
+  "regularjs", 
+  "rgl!./blog.list.html", 
+  '../components/pager.js',
+  '../mock.js'
+  ], function( Regular, tpl ,Pager, mock ){
+
   return Regular.extend({
-    template: tpl
-  })
+    template: tpl,
+    enter: function(option){
+      this.update(option);
+    },
+    update: function(option){
+      this.refresh(option.param.page || 1);
+    },
+    refresh: function(page, redirect){
+      if(redirect) return this.$state.go("~", {param: {page: page}})
+      var data = this.data;
+      page = parseInt(page, 10);
+      data.total = Math.floor(mock.blogs.length / 10);
+      data.blogs = mock.blogs.slice( (page-1) * 10, page * 10);
+      data.current = page;
+      return false;
+    },
+    remove: function( blog, index){
+      var data = this.data;
+
+      mock.remove(blog.id, mock.blogs); 
+
+      data.blogs.splice(index,1);
+      
+      return false; 
+    }
+
+  }).component("pager", Pager);
+  
 });
 
-define("rgl!module/blog.edit.html", function(){ return [{"type":"element","tag":"div","attrs":[],"children":[{"type":"text","text":"Edit Page"}]}] });
+define("rgl!module/blog.edit.html", function(){ return [{"type":"element","tag":"h2","attrs":[],"children":[{"type":"expression","body":"_c_._sg_('id', _c_._sg_('$param', _d_, 1))=='-1'?'Add':'Edit'","constant":false,"setbody":false},{"type":"text","text":" Post"}]},{"type":"text","text":"\n"},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"row"}],"children":[{"type":"text","text":"\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"col-md-10"}],"children":[{"type":"text","text":"\n    "},{"type":"element","tag":"form","attrs":[],"children":[{"type":"text","text":"\n      "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"form-group"}],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"label","attrs":[{"type":"attribute","name":"for","value":"title"}],"children":[{"type":"text","text":"Title"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"input","attrs":[{"type":"attribute","name":"type","value":"email"},{"type":"attribute","name":"class","value":"form-control"},{"type":"attribute","name":"r-model","value":{"type":"expression","body":"_c_._sg_('title', _d_, 1)","constant":false,"setbody":"_c_._ss_('title',_p_,_d_, '=', 1)"}},{"type":"attribute","name":"placeholder","value":"Enter Title"}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n      "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"form-group"}],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"label","attrs":[{"type":"attribute","name":"for","value":"content"}],"children":[{"type":"text","text":"Content"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"textarea","attrs":[{"type":"attribute","name":"r-model","value":{"type":"expression","body":"_c_._sg_('content', _d_, 1)","constant":false,"setbody":"_c_._ss_('content',_p_,_d_, '=', 1)"}},{"type":"attribute","name":"placeholder","value":"Blog Content"},{"type":"attribute","name":"class","value":"form-control"},{"type":"attribute","name":"rows","value":"20"}],"children":[]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n       "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"class","value":"btn btn-primary"},{"type":"attribute","name":"on-click","value":{"type":"expression","body":"_c_['submit'](_c_._sg_('title', _d_, 1),_c_._sg_('content', _d_, 1),_c_._sg_('id', _c_._sg_('$param', _d_, 1)))","constant":false,"setbody":false}}],"children":[{"type":"text","text":"Submit"}]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n"}]}] });
 
-define('module/blog.edit.js',["regularjs", "rgl!./blog.edit.html"], function( Regular, tpl ){
+define('module/blog.edit.js',["regularjs", "rgl!./blog.edit.html", "./blog.detail.js" ,"../mock.js"], function( Regular, tpl , BlogDetail , mock){
   return Regular.extend({
-    template: tpl
-  })
+    template: tpl,
+    submit: function( title, content, id){
+      var data = this.data;
+      var $state = this.$state, id= parseInt(id);
+      if(id == "-1"){ //add
+        mock.blogs.unshift({
+          user: $state.user,
+          time: +new Date,
+          content: content,
+          title: title,
+          id: mock.random(20000,100000000)
+        })
+        alert("add success")
+        this.$state.go("app.blog.list");
+      }else{
+        var blog = mock.find(id, mock.blogs)
+        blog.title = title;
+        blog.content = content;
+        blog.time = +new Date;
+        alert("edit success")
+        this.$state.go("app.blog.detail", {param: {id: id}});
+      }
+    },
+    enter: function(option){
+      this.update(option);
+    },
+    update: function(option){
+      var blog;
+      var id = parseInt(option.param.id);
+      if(option.param.id != "-1"){
+        blog = mock.find( id , mock.blogs);
+      }else{
+        blog = {}
+      }
+      this.data.title = blog.title;
+      this.data.content = blog.content;
+    }
+   
+  }).component("blog-preview", BlogDetail)
 });
 
 require.config({
     paths : {
         "rgl": '../bower_components/requirejs-regular/rgl',
         "regularjs": '../bower_components/regularjs/dist/regular',
-        "restate": 'https://rawgit.com/regularjs/regular-state/master/restate',
+        "restate": '../restate',
         "stateman": '../bower_components/stateman/stateman'
     },
     rgl: {
@@ -5089,10 +6360,47 @@ require([
     BlogEdit
   ){
 
+
+  var format = function(){
+    function fix(str){
+      str = "" + (str || "");
+      return str.length <= 1? "0" + str : str;
+    }
+    var maps = {
+      'yyyy': function(date){return date.getFullYear()},
+      'MM': function(date){return fix(date.getMonth() + 1); },
+      'dd': function(date){ return fix(date.getDate()) },
+      'HH': function(date){ return fix(date.getHours()) },
+      'mm': function(date){ return fix(date.getMinutes())}
+    }
+
+    var trunk = new RegExp(Object.keys(maps).join('|'),'g');
+    return function(value, format){
+      format = format || "yyyy-MM-dd HH:mm";
+      value = new Date(value);
+
+      return format.replace(trunk, function(capture){
+        return maps[capture]? maps[capture](value): "";
+      });
+    }
+  }();
+
+  Regular.filter("format", format)
+
+
+
+  // Start Stateman.
+
   var stateman = restate({
     view: document.getElementById("#app"), 
     Component: Regular
   });
+
+  // store infomation in 
+  try{
+      var username = localStorage.getItem("username");
+      if(username) stateman.user = {name: username, id: -1}
+  }catch(e){}
 
 
   stateman
@@ -5104,21 +6412,29 @@ require([
 
     // blog
     .state("app.blog", Blog)
-    .state("app.blog.detail", BlogDetail, ":id")
+    .state("app.blog.detail", BlogDetail, ":id/detail")
     .state("app.blog.list", BlogList, "")
-    .state("app.blog.edit", BlogEdit)
+    .state("app.blog.edit", BlogEdit, ":id/edit")
 
-    //chat module
+    //chat 
     .state("app.chat", Chat)
 
     // user
-    .state("app.user", User)
-    // .state("app.user.list", UserList, "")
-    // .state("app.user.detail", UserDetail, ":id")
+    .state("app.user", User, "user/:uid")
 
     // redirect when notfound
     .on("notfound", function(){
       this.go("app.index", {replace: true})
+    })
+
+    // authen, need login first
+    .on("begin", function(ev){
+      console.log(ev.current.name)
+      if(ev.current.name !== "app.index" && !this.user){
+        ev.stop();
+        this.go("app.index", {replace: true})
+        alert("You need Login first")
+      } 
     })
 
     // start the routing
