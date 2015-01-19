@@ -93,6 +93,18 @@
     "rhino"         : false,    // Enable globals available when your code is running inside of the Rhino runtime environment.
     "wsh"           : false,    // Enable globals available when your code is running as a script for the Windows Script Host.
 
+    "globals"   : {
+        /* MOCHA */
+        "describe"   : false,
+        "it"         : false,
+        "before"     : false,
+        "beforeEach" : false,
+        "after"      : false,
+        "afterEach"  : false,
+
+        "define"  : false
+    },
+
     // == JSLint Legacy ===================================================
     //
     // These options are legacy from JSLint. Aside from bug fixes they will

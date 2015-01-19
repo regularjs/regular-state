@@ -39,17 +39,21 @@ gulp.task('build', ['jshint'], function() {
     })
 });
 
+gulp.task("example:bower", shell.task([
+  "cd example && bower install && cd .."
+]))
 
 
-gulp.task("example:requirejs",shell.task([
+gulp.task("example:requirejs", ["example:bower"], shell.task([
   "node ./example/requirejs/bundle.js"
 ]))
 
-gulp.task("example:browserify" , function(){
+gulp.task("example:browserify" ,["example:bower"], function(){
 
 })
 
-gulp.task("example", [ "example:requirejs", "example:browserify"] )
+
+gulp.task("example", [  "example:requirejs", "example:browserify"] )
 
 gulp.task('watch', ["build", "example"], function(){
   gulp.watch(['restate.js'], ['build'])

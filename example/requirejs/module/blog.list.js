@@ -35,3 +35,6 @@ define([
   }).component("pager", Pager);
   
 })
+
+
+

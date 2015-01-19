@@ -114,8 +114,10 @@ require([
     })
 
     // start the routing
-    .start({html5:false, prefix: "!"})
+    .start({html:true, prefix: "!"})
 
+
+    window.Regular = Regular;
 
 
 });

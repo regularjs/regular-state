@@ -23,6 +23,9 @@ define(["regularjs", "rgl!./blog.edit.html", "./blog.detail.js" ,"../mock.js"], 
         this.$state.go("app.blog.detail", {param: {id: id}});
       }
     },
+    config: function(data){
+      data.tags = [];
+    },
     enter: function(option){
       this.update(option);
     },
@@ -39,4 +42,12 @@ define(["regularjs", "rgl!./blog.edit.html", "./blog.detail.js" ,"../mock.js"], 
     }
    
   }).component("blog-preview", BlogDetail)
+  .filter('split', {
+    get: function(value, split){
+      return value.join(split || "-");
+    },
+    set: function(value, split){
+      return  value.split(split || "-");
+    }
+  })
 })

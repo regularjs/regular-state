@@ -1,5 +1,7 @@
+
 <h2 class="sub-header">Bloging List</h2>
 <div class="table-responsive">
+<pager total={total} current={current} on-nav={this.refresh($event.page, true)}></pager>
   <table class="table table-striped">
     <thead>
       <tr>
@@ -32,6 +34,8 @@
   </table>
   <pager total={total} current={current} on-nav={this.refresh($event.page, true)}></pager>
 </div>
+
+
 
 
 

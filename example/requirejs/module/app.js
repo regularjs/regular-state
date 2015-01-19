@@ -1,5 +1,6 @@
 define(["regularjs", "rgl!./app.html", "../components/menu.js"], function( Regular, tpl ){
 
+
   return Regular.extend({
     template: tpl,
 
@@ -25,6 +26,7 @@ define(["regularjs", "rgl!./app.html", "../components/menu.js"], function( Regul
       return false;
     },
     logout: function(){
+
       this.$state.user = null;
       this.$state.go("app.index");
       try{
