@@ -207,6 +207,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  options = options || {};
 	  if(options.history) this.history = options.history;
 	  this._states = {};
+	  this._stashCallback = [];
 	  this.current = this.active = this;
 	}
 
@@ -240,6 +241,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	    go: function(state, option, callback){
 	      option = option || {};
 	      if(typeof state === "string") state = this.state(state);
+
+	      if(typeof option === "function"){
+	        callback = option;
+	        option = {};
+	      }
+
 	      if(option.encode !== false){
 	        var url = state.encode(option.param)
 	        this.nav(url, {silent: true, replace: option.replace});
@@ -249,7 +256,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	      return this;
 	    },
 	    nav: function(url, options, callback){
+	      if(typeof option === "function"){
+	        callback = option;
+	        option = {};
+	      }
 	      callback && (this._cb = callback)
+
 	      this.history.nav( url, options);
 	      this._cb = null;
 	      return this;
@@ -268,8 +280,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	    is: function(stateName, param, isStrict){
 	      if(!stateName) return false;
 	      var stateName = (stateName.name || stateName);
-	      var active = this.active, pendingName = active.name;
-	      var matchPath = isStrict? pendingName === stateName : (pendingName + ".").indexOf(stateName + ".")===0;
+	      var current = this.current, currentName = current.name;
+	      var matchPath = isStrict? currentName === stateName : (currentName + ".").indexOf(stateName + ".")===0;
 	      return matchPath && (!param || _.eql(param, this.param)); 
 	    },
 	    // after pathchange changed
@@ -297,6 +309,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	    // goto the state with some option
 	    _go: function(state, option, callback){
+	      var over;
 
 	      if(typeof state === "string") state = this.state(state);
 
@@ -308,12 +321,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	      if(this.active !== this.current){
 	        // we need return
 
-	        this.current = this.active
-	        if(this.active._pending && this.active.done){
+	        _.log("naving to [" + this.current.name + "] will be stoped, trying to ["+state.name+"] now");
+	        if(this.active.done){
 	          this.active.done(false);
-	        }else{
-	          _.log("naving to [" + this.current.name + "] will be stoped, trying to ["+state.name+"] now");
 	        }
+	        this.current = this.active;
 	        // back to before
 	      }
 	      option.param = option.param || {};
@@ -323,26 +335,48 @@ return /******/ (function(modules) { // webpackBootstrap
 	        baseState = this._findBase(current, state),
 	        self = this;
 
-	      var done = function(){
+	      if( typeof callback === "function" ) this._stashCallback.push(callback);
+	      // if we done the navigating when start
+	      var done = function(success){
+	        over = true;
 	        self.current = self.active;
-	        self.emit("end")
-	        if(typeof callback === "function") callback.call(self);
+	        if( success !== false ) self.emit("end")
+	        self._popStash();
 	      }
 	      
 	      if(current !== state){
+	        self.emit("begin", {
+	          previous: current,
+	          current: state,
+	          stop: function(){
+	            done(false);
+	          }
+	        });
+	        if(over === true) return;
 	        this.previous = current;
 	        this.current = state;
-	        self.emit("begin")
-	        this._leave(baseState, option, function(stop){
+	        this._leave(baseState, option, function(success){
 	          self._checkQueryAndParam(baseState, option);
-	          if(stop) return done()
+	          if(success === false) return done(success)
 	          self._enter(state, option, done)
 	        })
 	      }else{
 	        self._checkQueryAndParam(baseState, option);
+	        done();
 	      }
 	      
 	    },
+	    _popStash: function(){
+	      var stash = this._stashCallback, len = stash.length;
+	      this._stashCallback = [];
+	      if(!len) return;
+
+	      for(var i = 0; i < len; i++){
+	        stash[i].call(this)
+	      }
+
+	    },
+
 	    _findQuery: function(querystr){
 	      var queries = querystr && querystr.split("&"), query= {};
 	      if(queries){
@@ -416,7 +450,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	          self._enterOne(stage, options, callback)
 	          
 	        }else{
-	          return callback(false);
+	          return callback(success);
 	        }
 	      }
 
@@ -441,7 +475,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	          if(cur.parent) self.active = cur.parent;
 	          self._leaveOne(end, options, callback)
 	        }else{
-	          return callback(true);
+	          return callback(success);
 	        }
 	      }
 	      if(!cur.leave) cur.done();
@@ -494,14 +528,15 @@ return /******/ (function(modules) { // webpackBootstrap
 	  this.location = options.location || browser.location;
 
 	  // mode config, you can pass absolute mode (just for test);
-	  this.mode = options.mode || (options.html5 && browser.history ? HISTORY: HASH); 
 	  this.html5 = options.html5;
-	  if( !browser.hash ) this.mode = this.mode | HISTORY;
+	  this.mode = options.html5 && browser.history ? HISTORY: HASH; 
+	  if( !browser.hash ) this.mode = QUIRK;
+	  if(options.mode) this.mode = options.mode;
 
 	  // hash prefix , used for hash or quirk mode
 	  this.prefix = "#" + (options.prefix || "") ;
 	  this.rPrefix = new RegExp(this.prefix + '(.*)$');
-	  this.interval = options.interval || 1000;
+	  this.interval = options.interval || 66;
 
 	  // the root regexp for remove the root for the path. used in History mode
 	  this.root = options.root ||  "/" ;
@@ -529,7 +564,8 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	    switch ( this.mode ){
 	      case HASH: 
-	        browser.on(window, "hashchange", this._checkPath); break;
+	        browser.on(window, "hashchange", this._checkPath); 
+	        break;
 	      case HISTORY:
 	        browser.on(window, "popstate", this._checkPath);
 	        break;
@@ -559,12 +595,13 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	    //for oldIE hash history issue
 	    if(path === curPath && this.iframe){
-	      curPath = this.getPath(this.iframe.location);
+	      path = this.getPath(this.iframe.location);
 	    }
 
 	    if( path !== curPath ) {
 	      this.iframe && this.nav(path, {silent: true});
-	      this.emit('change', (this.curPath=path));
+	      this.curPath = path;
+	      this.emit('change', path);
 	    }
 	  },
 	  // get the current path
@@ -598,7 +635,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	    if( this.mode !== HISTORY ){
 	      this._setHash(this.location, to, options.replace)
 	      if( iframe && this.getPath(iframe.location) !== to ){
-	        //
 	        if(!options.replace) iframe.document.open().close();
 	        this._setHash(this.iframe.location, to, options.replace)
 	      }
@@ -609,6 +645,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    if( !options.silent ) this.emit('change', to);
 	  },
 	  _autolink: function(){
+	    if(this.mode!==HISTORY) return;
 	    // only in html5 mode, the autolink is works
 	    // if(this.mode !== 2) return;
 	    var prefix = this.prefix, self = this;
@@ -621,7 +658,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	      if(!hash) return;
 	      
 	      ev.preventDefault && ev.preventDefault();
-	      self.nav( hash , {force: true})
+	      self.nav( hash )
 	      return (ev.returnValue = false);
 	    } )
 	  },
@@ -732,6 +769,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	// small emitter 
 	_.emitable = (function(){
 	  var API = {
+	    once: function(event, fn){
+	      var callback = function(){
+	        fn.apply(this, arguments)
+	        this.off(event, callback)
+	      }
+	      return this.on(event, callback)
+	    },
 	    on: function(event, fn) {
 	      if(typeof event === 'object'){
 	        for (var i in event) {
@@ -965,7 +1009,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	  },
 	  encode: function(stateName, param){
 	    var state;
-	    if(typeof param === "undefined"){
+	    stateName = stateName || {};
+	    if( _.typeOf(stateName) === "object" ){
 	      state = this;
 	      param = stateName;
 	    }else{
