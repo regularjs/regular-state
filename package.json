@@ -23,7 +23,7 @@
   },
   "homepage": "https://github.com/regularjs/regular-state",
   "dependencies": {
-    "stateman": "^0.1.4"
+    "stateman": "^0.1.7"
   },
   "devDependencies": {
     "gulp-gh-pages": "^0.4.0",

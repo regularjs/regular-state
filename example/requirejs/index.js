@@ -114,7 +114,7 @@ require([
     })
 
     // start the routing
-    .start({html:true, prefix: "!"})
+    .start({html5: false, prefix: "!"})
 
 
     window.Regular = Regular;

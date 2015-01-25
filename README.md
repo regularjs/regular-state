@@ -6,7 +6,6 @@ now, use regularjs to create single page application with no pain.
 
 ## Example 
 
-show you the code
 
 ```javascript
 
@@ -23,12 +22,8 @@ stateman.state("app", Application)
 ```
 
 
-guess
 
-
-
-![PAT system]()
-
+## 
 
 
 

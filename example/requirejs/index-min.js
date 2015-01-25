@@ -6045,6 +6045,7 @@ define('components/menu.js',["regularjs", "rgl!./menu.html"], function( Regular,
 });
 define('module/app.js',["regularjs", "rgl!./app.html", "../components/menu.js"], function( Regular, tpl ){
 
+
   return Regular.extend({
     template: tpl,
 
@@ -6070,6 +6071,7 @@ define('module/app.js',["regularjs", "rgl!./app.html", "../components/menu.js"],
       return false;
     },
     logout: function(){
+
       this.$state.user = null;
       this.$state.go("app.index");
       try{
@@ -6311,9 +6313,13 @@ define('module/blog.list.js',[
 
   }).component("pager", Pager);
   
-});
+})
 
-define("rgl!module/blog.edit.html", function(){ return [{"type":"element","tag":"h2","attrs":[],"children":[{"type":"expression","body":"_c_._sg_('id', _c_._sg_('$param', _d_, 1))=='-1'?'Add':'Edit'","constant":false,"setbody":false},{"type":"text","text":" Post"}]},{"type":"text","text":"\n"},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"row"}],"children":[{"type":"text","text":"\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"col-md-10"}],"children":[{"type":"text","text":"\n    "},{"type":"element","tag":"form","attrs":[],"children":[{"type":"text","text":"\n      "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"form-group"}],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"label","attrs":[{"type":"attribute","name":"for","value":"title"}],"children":[{"type":"text","text":"Title"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"input","attrs":[{"type":"attribute","name":"type","value":"text"},{"type":"attribute","name":"class","value":"form-control"},{"type":"attribute","name":"r-model","value":{"type":"expression","body":"_c_._sg_('title', _d_, 1)","constant":false,"setbody":"_c_._ss_('title',_p_,_d_, '=', 1)"}},{"type":"attribute","name":"placeholder","value":"Enter Title"}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n      "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"form-group"}],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"label","attrs":[{"type":"attribute","name":"for","value":"content"}],"children":[{"type":"text","text":"Content"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"textarea","attrs":[{"type":"attribute","name":"r-model","value":{"type":"expression","body":"_c_._sg_('content', _d_, 1)","constant":false,"setbody":"_c_._ss_('content',_p_,_d_, '=', 1)"}},{"type":"attribute","name":"placeholder","value":"Blog Content"},{"type":"attribute","name":"class","value":"form-control"},{"type":"attribute","name":"rows","value":"20"}],"children":[]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n       "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"class","value":"btn btn-primary"},{"type":"attribute","name":"on-click","value":{"type":"expression","body":"_c_['submit'](_c_._sg_('title', _d_, 1),_c_._sg_('content', _d_, 1),_c_._sg_('id', _c_._sg_('$param', _d_, 1)))","constant":false,"setbody":false}}],"children":[{"type":"text","text":"Submit"}]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n"}]}] });
+
+
+;
+
+define("rgl!module/blog.edit.html", function(){ return [{"type":"element","tag":"h2","attrs":[],"children":[{"type":"expression","body":"_c_._sg_('id', _c_._sg_('$param', _d_, 1))=='-1'?'Add':'Edit'","constant":false,"setbody":false},{"type":"text","text":" Post"}]},{"type":"text","text":"\n"},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"row"}],"children":[{"type":"text","text":"\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"col-md-10"}],"children":[{"type":"text","text":"\n    "},{"type":"element","tag":"form","attrs":[],"children":[{"type":"text","text":"\n      "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"form-group"}],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"label","attrs":[{"type":"attribute","name":"for","value":"title"}],"children":[{"type":"text","text":"Title"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"input","attrs":[{"type":"attribute","name":"type","value":"text"},{"type":"attribute","name":"class","value":"form-control"},{"type":"attribute","name":"r-model","value":{"type":"expression","body":"_c_._sg_('title', _d_, 1)","constant":false,"setbody":"_c_._ss_('title',_p_,_d_, '=', 1)"}},{"type":"attribute","name":"placeholder","value":"Enter Title"}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n      "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"form-group"}],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"label","attrs":[{"type":"attribute","name":"for","value":"content"}],"children":[{"type":"text","text":"Tag"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"input","attrs":[{"type":"attribute","name":"r-model","value":{"type":"expression","body":"(function(_t_){_t_ = _c_._f_('split' ).get.call( _c_,_t_);return _t_})(_c_._sg_('tags', _d_, 1))","constant":false,"setbody":"_c_._ss_('tags',(function(_t_){_t_ = _c_._f_('split' ).set.call( _c_,_t_);return _t_})(_p_),_d_, '=', 1)"}},{"type":"attribute","name":"placeholder","value":"Blog Content"},{"type":"attribute","name":"class","value":"form-control"},{"type":"attribute","name":"rows","value":"20"}]},{"type":"text","text":"\n        "},{"type":"expression","body":"(function(_t_){_t_ = _c_._f_('json' ).get.call( _c_,_t_);return _t_})(_c_._sg_('tags', _d_, 1))","constant":false,"setbody":"_c_._ss_('tags',(function(_t_){_t_ = _c_._f_('json' ).set.call( _c_,_t_);return _t_})(_p_),_d_, '=', 1)"},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n      "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"form-group"}],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"label","attrs":[{"type":"attribute","name":"for","value":"content"}],"children":[{"type":"text","text":"Content"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"textarea","attrs":[{"type":"attribute","name":"r-model","value":{"type":"expression","body":"_c_._sg_('content', _d_, 1)","constant":false,"setbody":"_c_._ss_('content',_p_,_d_, '=', 1)"}},{"type":"attribute","name":"placeholder","value":"Blog Content"},{"type":"attribute","name":"class","value":"form-control"},{"type":"attribute","name":"rows","value":"20"}],"children":[]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n       "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"class","value":"btn btn-primary"},{"type":"attribute","name":"on-click","value":{"type":"expression","body":"_c_['submit'](_c_._sg_('title', _d_, 1),_c_._sg_('content', _d_, 1),_c_._sg_('id', _c_._sg_('$param', _d_, 1)))","constant":false,"setbody":false}}],"children":[{"type":"text","text":"Submit"}]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n"}]}] });
 
 define('module/blog.edit.js',["regularjs", "rgl!./blog.edit.html", "./blog.detail.js" ,"../mock.js"], function( Regular, tpl , BlogDetail , mock){
   return Regular.extend({
@@ -6360,11 +6366,11 @@ define('module/blog.edit.js',["regularjs", "rgl!./blog.edit.html", "./blog.detai
    
   }).component("blog-preview", BlogDetail)
   .filter('split', {
-    get: function(value){
-      return value.join("-");
+    get: function(value, split){
+      return value.join(split || "-");
     },
-    set: function(value){
-      return  value.split("-");
+    set: function(value, split){
+      return  value.split(split || "-");
     }
   })
 });
@@ -6484,8 +6490,10 @@ require([
     })
 
     // start the routing
-    .start({html5:false, prefix: "!"})
+    .start({html:true, prefix: "!"})
 
+
+    window.Regular = Regular;
 
 
 });

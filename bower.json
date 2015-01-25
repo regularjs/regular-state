@@ -20,6 +20,6 @@
     "*.md"
   ],
   "dependencies": {
-    "stateman": "~0.1.6"
+    "stateman": "^0.1.7"
   }
 }
