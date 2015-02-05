@@ -70,7 +70,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        module.exports = factory(require('stateman'));
 	    } else {
 	        // Browser globals (root is window)
-	        root.restate = factory(root.Regularjs, root.StateMan);
+	        root.restate = factory(root.StateMan);
 	    }
 	}(this, function (StateMan) {
 
