@@ -90,6 +90,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    }
 
 	    stateman.state = function(name, Component, config){
+	      if(typeof config === 'undefined') config = {};
 
 	      if(!Component) return preStae.call(stateman, name);
 
@@ -117,7 +118,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	          enter: function( step ){
 	            var data = { $param: step.param },
 	              component = this.component,
-	              noComponent = !component, 
+	              // if component is not exsit or need autoreset
+	              noComponent = !component || config.autoreset, 
 	              view;
 
 	            if(noComponent){
@@ -143,6 +145,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	          leave: function( option){
 	            var component = this.component;
 	            if(!component) return;
+
+	            if( config.autoreset) component.destroy();
 	            component.$inject(false);
 	            component.leave && component.leave(option);
 	            component.$mute(true);

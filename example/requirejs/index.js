@@ -89,7 +89,7 @@ require([
 
     // blog
     .state("app.blog", Blog)
-    .state("app.blog.detail", BlogDetail, ":id/detail")
+    .state("app.blog.detail", BlogDetail, {url: ":id/detail", autoreset:true })
     .state("app.blog.list", BlogList, "")
     .state("app.blog.edit", BlogEdit, ":id/edit")
 
