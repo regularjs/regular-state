@@ -18,7 +18,7 @@
   var restate = function(option){
     option = option || {};
     var stateman = option.stateman || new StateMan(option);
-    var preStae = stateman.state;
+    var preState = stateman.state;
     var BaseComponent = option.Component;
     var globalView = option.view || document.body;
 
@@ -29,9 +29,15 @@
     }
 
     stateman.state = function(name, Component, config){
-      if(typeof config === 'undefined') config = {};
+      if(typeof config === 'undefined')
+        config = {};
+      else if(typeof config === "string")
+        config = {url: config};
 
-      if(!Component) return preStae.call(stateman, name);
+      // Use global option.rebuild if config.rebuild is not defined.
+      config.rebuild = config.rebuild === undefined ? option.rebuild : config.rebuild;
+
+      if(!Component) return preState.call(stateman, name);
 
       if(BaseComponent){
         // 1. regular template or parsed ast
@@ -40,7 +46,7 @@
             template: Component
           })
         }
-        // 2. it a Object, but need regularifi
+        // 2. it an Object, but need regularify
         if(typeof Component === "object" && Component.regularify ){
           Component = BaseComponent.extend( Component );
         }
@@ -57,8 +63,8 @@
           enter: function( step ){
             var data = { $param: step.param },
               component = this.component,
-              // if component is not exsit or need autoreset
-              noComponent = !component || config.autoreset, 
+              // if component is not exist or required to be rebuilded when entering.
+              noComponent = !component || config.rebuild, 
               view;
 
             if(noComponent){
@@ -85,7 +91,7 @@
             var component = this.component;
             if(!component) return;
 
-            if( config.autoreset) component.destroy();
+            if( config.rebuild) component.destroy();
             component.$inject(false);
             component.leave && component.leave(option);
             component.$mute(true);
@@ -101,13 +107,12 @@
           }
         }
 
-        if(typeof config === "string") config = {url: config};
         _.extend(state, config || {});
 
-        preStae.call(stateman, name, state);
+        preState.call(stateman, name, state);
 
       }else{
-        preStae.call(stateman, name, Component);
+        preState.call(stateman, name, Component);
       }
       return this;
     }

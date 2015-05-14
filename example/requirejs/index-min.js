@@ -1,6 +1,6 @@
 /**
 @author	leeluolee
-@version	0.1.5
+@version	0.1.8
 @homepage	https://github.com/leeluolee/stateman
 */
 (function webpackUniversalModuleDefinition(root, factory) {
@@ -75,6 +75,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  Histery = __webpack_require__(2),
 	  brow = __webpack_require__(5),
 	  _ = __webpack_require__(3),
+	  baseTitle = document.title,
 	  stateFn = State.prototype.state;
 
 
@@ -86,6 +87,17 @@ return /******/ (function(modules) { // webpackBootstrap
 	  this._states = {};
 	  this._stashCallback = [];
 	  this.current = this.active = this;
+	  this.strict = options.strict;
+	  this.title = options.title;
+	  this.on("end", function(){
+	    var cur = this.current,title;
+	    while( cur ){
+	      title = cur.title;
+	      if(title) break; 
+	      cur = cur.parent;
+	    }
+	    document.title = typeof title === "function"? cur.title(): String( title || baseTitle ) ;
+	  })
 	}
 
 
@@ -114,6 +126,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	    stop: function(){
 	      this.history.stop();
 	    },
+	    async: function(){
+	      return this.active && this.active.async();
+	    },
 	    // @TODO direct go the point state
 	    go: function(state, option, callback){
 	      option = option || {};
@@ -133,14 +148,16 @@ return /******/ (function(modules) { // webpackBootstrap
 	      return this;
 	    },
 	    nav: function(url, options, callback){
-	      if(typeof option === "function"){
-	        callback = option;
-	        option = {};
+	      if(typeof options === "function"){
+	        callback = options;
+	        options = {};
 	      }
-	      callback && (this._cb = callback)
+	      options = options || {};
+	      // callback && (this._cb = callback)
 
-	      this.history.nav( url, options);
-	      this._cb = null;
+	      this.history.nav( url, _.extend({silent: true}, options));
+	      if(!options.silent) this._afterPathChange( _.cleanPath(url) , options , callback)
+	      // this._cb = null;
 	      return this;
 	    },
 	    decode: function(path){
@@ -151,7 +168,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	      if(state) _.extend(state.param, query);
 	      return state;
 	    },
-	    encode: State.prototype.encode,
+	    encode: function(stateName, param){
+	      return this.state(stateName).encode(param);
+	    },
 	    // notify specify state
 	    // check the active statename whether to match the passed condition (stateName and param)
 	    is: function(stateName, param, isStrict){
@@ -163,27 +182,34 @@ return /******/ (function(modules) { // webpackBootstrap
 	    },
 	    // after pathchange changed
 	    // @TODO: afterPathChange need based on decode
-	    _afterPathChange: function(path){
+	    _afterPathChange: function(path, options ,callback){
 
 	      this.emit("history:change", path);
 
 
-	      var found = this.decode(path), callback = this._cb;
+	      var found = this.decode(path);
 
 	      this.path = path;
 
+	      options = options || {};
+
 	      if(!found){
 	        // loc.nav("$default", {silent: true})
-	        var $notfound = this.state("$notfound");
-	        if($notfound) this._go($notfound, {path: path}, callback);
-
-	        return this.emit("notfound", {path: path});
+	        options.path = path;
+	        return this._notfound(options);
 	      }
 
+	      options.param = found.param;
 
-	      this._go( found, { param: found.param}, callback );
+
+	      this._go( found, options, callback );
 	    },
+	    _notfound: function(options){
+	      var $notfound = this.state("$notfound");
+	      if($notfound) this._go($notfound, options);
 
+	      return this.emit("notfound", options);
+	    },
 	    // goto the state with some option
 	    _go: function(state, option, callback){
 	      var over;
@@ -192,6 +218,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 
 	      if(!state) return _.log("destination is not defined")
+	      if(state.hasNext && this.strict) return this._notfound({name: state.name});
 
 	      // not touch the end in previous transtion
 
@@ -217,7 +244,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	      var done = function(success){
 	        over = true;
 	        self.current = self.active;
-	        if( success !== false ) self.emit("end")
+	        if( success !== false ) self.emit("end");
 	        self._popStash();
 	      }
 	      
@@ -225,8 +252,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	        self.emit("begin", {
 	          previous: current,
 	          current: state,
+	          param: option.param,
 	          stop: function(){
 	            done(false);
+	            self.nav(current!==self? current.encode(current.param): "/", {silent:true});
 	          }
 	        });
 	        if(over === true) return;
@@ -276,6 +305,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	          if( found ) return found;
 	        }
 	      }
+	      // in strict mode only leaf can be touched
+	      // if all children is don. will try it self
 	      param = state.regexp && state.decode(path);
 	      if(param){
 	        state.param = param;
@@ -611,6 +642,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	}
 
 
+
 	// Object.create shim
 	_.ocreate = Object.create || function(o) {
 	  var Foo = function(){};
@@ -884,17 +916,10 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	    _.extend(this, _.normalize(this.pattern), true);
 	  },
-	  encode: function(stateName, param){
-	    var state;
-	    stateName = stateName || {};
-	    if( _.typeOf(stateName) === "object" ){
-	      state = this;
-	      param = stateName;
-	    }else{
-	      state = this.state(stateName);
-	    }
-	    var param = param || {};
-
+	  encode: function(param){
+	    var state = this;
+	    param = param || {};
+	    
 	    var matched = "%";
 
 	    var url = state.matches.replace(/\(([\w-]+)\)/g, function(all, capture){
@@ -943,8 +968,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	var win = window, 
 	  doc = document;
 
-
-
 	var b = module.exports = {
 	  hash: "onhashchange" in win && (!doc.documentMode || doc.documentMode > 7),
 	  history: win.history && "onpopstate" in win,
@@ -961,10 +984,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	    : function(node,type,cb){return node.detachEvent( "on" + type, cb )}
 	}
 
-	b.msie = parseInt((/msie (\d+)/.exec(navigator.userAgent.toLowerCase()) || [])[1]);
-	if (isNaN(b.msie)) {
-	  b.msie = parseInt((/trident\/.*; rv:(\d+)/.exec(navigator.userAgent.toLowerCase()) || [])[1]);
-	}
 
 
 /***/ }
@@ -982,7 +1001,7 @@ return /******/ (function(modules) { // webpackBootstrap
         module.exports = factory(require('stateman'));
     } else {
         // Browser globals (root is window)
-        root.restate = factory(root.Regularjs, root.StateMan);
+        root.restate = factory(root.StateMan);
     }
 }(this, function (StateMan) {
 
@@ -991,7 +1010,7 @@ return /******/ (function(modules) { // webpackBootstrap
   var restate = function(option){
     option = option || {};
     var stateman = option.stateman || new StateMan(option);
-    var preStae = stateman.state;
+    var preState = stateman.state;
     var BaseComponent = option.Component;
     var globalView = option.view || document.body;
 
@@ -1002,8 +1021,15 @@ return /******/ (function(modules) { // webpackBootstrap
     }
 
     stateman.state = function(name, Component, config){
+      if(typeof config === 'undefined')
+        config = {};
+      else if(typeof config === "string")
+        config = {url: config};
 
-      if(!Component) return preStae.call(stateman, name);
+      // Use global option.rebuild if config.rebuild is not defined.
+      config.rebuild = config.rebuild === undefined ? option.rebuild : config.rebuild;
+
+      if(!Component) return preState.call(stateman, name);
 
       if(BaseComponent){
         // 1. regular template or parsed ast
@@ -1012,7 +1038,7 @@ return /******/ (function(modules) { // webpackBootstrap
             template: Component
           })
         }
-        // 2. it a Object, but need regularifi
+        // 2. it an Object, but need regularify
         if(typeof Component === "object" && Component.regularify ){
           Component = BaseComponent.extend( Component );
         }
@@ -1029,7 +1055,8 @@ return /******/ (function(modules) { // webpackBootstrap
           enter: function( step ){
             var data = { $param: step.param },
               component = this.component,
-              noComponent = !component, 
+              // if component is not exist or required to be rebuilded when entering.
+              noComponent = !component || config.rebuild, 
               view;
 
             if(noComponent){
@@ -1055,6 +1082,8 @@ return /******/ (function(modules) { // webpackBootstrap
           leave: function( option){
             var component = this.component;
             if(!component) return;
+
+            if( config.rebuild) component.destroy();
             component.$inject(false);
             component.leave && component.leave(option);
             component.$mute(true);
@@ -1070,13 +1099,12 @@ return /******/ (function(modules) { // webpackBootstrap
           }
         }
 
-        if(typeof config === "string") config = {url: config};
         _.extend(state, config || {});
 
-        preStae.call(stateman, name, state);
+        preState.call(stateman, name, state);
 
       }else{
-        preStae.call(stateman, name, Component);
+        preState.call(stateman, name, Component);
       }
       return this;
     }
@@ -1091,11 +1119,11 @@ return /******/ (function(modules) { // webpackBootstrap
 
 /**
 @author	leeluolee
-@version	0.3.0-pre
+@version	0.3.1
 @homepage	http://regularjs.github.io
 */
 ;(function(){
-
+'use strict';
 
 /**
  * Require the given path.
@@ -1301,19 +1329,23 @@ require.relative = function(parent) {
 };
 require.register("regularjs/src/Regular.js", function(exports, require, module){
 
+var env = require('./env.js');
 var Lexer = require("./parser/Lexer.js");
 var Parser = require("./parser/Parser.js");
-var dom = require("./dom.js");
 var config = require("./config.js");
-var Group = require('./group.js');
 var _ = require('./util');
 var extend = require('./helper/extend.js');
-var Event = require('./helper/event.js');
+if(env.browser){
 var combine = require('./helper/combine.js');
+var dom = require("./dom.js");
+var walkers = require('./walkers.js');
+var Group = require('./group.js');
+}
+var events = require('./helper/event.js');
 var Watcher = require('./helper/watcher.js');
 var parse = require('./helper/parse.js');
+var filter = require('./helper/filter.js');
 var doc = typeof document==='undefined'? {} : document;
-var env = require('./env.js');
 
 
 /**
@@ -1346,8 +1378,8 @@ var Regular = function(options){
 
   template = this.template;
 
-  // template is a string (len < 40). we will find it container first
-  if((typeof template === 'string' && template.length < 40) && (node = dom.find(template))) {
+  // template is a string (len < 16). we will find it container first
+  if((typeof template === 'string' && template.length < 16) && (node = dom.find(template))) {
     template = node.innerHTML;
   }
   // if template is a xml
@@ -1355,13 +1387,18 @@ var Regular = function(options){
   if(typeof template === 'string') this.template = new Parser(template).parse();
 
   this.computed = handleComputed(this.computed);
-  this.$context = this.$context || this;
   this.$root = this.$root || this;
   // if have events
   if(this.events){
     this.$on(this.events);
   }
-
+  if(this.$body){
+    this._getTransclude = function(){
+      var ctx = this.$parent || this;
+      if(this.$body) return ctx.$compile(this.$body, {namespace: options.namespace, outer: this, extra: options.extra})
+    }
+  }
+  this.$emit("$config");
   this.config && this.config(this.data);
   // handle computed
   if(template){
@@ -1370,9 +1407,9 @@ var Regular = function(options){
   }
 
 
-  if(this.$root === this) this.$update();
+  if(!this.$parent) this.$update();
   this.$ready = true;
-  if(this.$context === this) this.$emit("$init");
+  this.$emit("$init");
   if( this.init ) this.init(this.data);
 
   // @TODO: remove, maybe , there is no need to update after init; 
@@ -1383,8 +1420,7 @@ var Regular = function(options){
 }
 
 
-var walkers = require('./walkers.js');
-walkers.Regular = Regular;
+walkers && (walkers.Regular = Regular);
 
 
 // description
@@ -1400,11 +1436,12 @@ _.extend(Regular, {
     var template;
     this.__after__ = supr.__after__;
 
-    if(o.name) supr.component(o.name, this);
+    // use name make the component global.
+    if(o.name) Regular.component(o.name, this);
     // this.prototype.template = dom.initTemplate(o)
     if(template = o.template){
       var node, name;
-      if( typeof template === 'string' && template.length < 20 && ( node = dom.find( template )) ){
+      if( typeof template === 'string' && template.length < 16 && ( node = dom.find( template )) ){
         template = node.innerHTML;
         if(name = dom.attr(node, 'name')) Regular.component(name, this);
       }
@@ -1482,11 +1519,8 @@ _.extend(Regular, {
     if(needGenLexer) Lexer.setup();
   },
   expression: parse.expression,
-  parse: parse.parse,
-
   Parser: Parser,
   Lexer: Lexer,
-
   _addProtoInheritCache: function(name, transform){
     if( Array.isArray( name ) ){
       return name.forEach(Regular._addProtoInheritCache);
@@ -1534,7 +1568,7 @@ Regular._addProtoInheritCache("filter", function(cfg){
 })
 
 
-Event.mixTo(Regular);
+events.mixTo(Regular);
 Watcher.mixTo(Regular);
 
 Regular.implement({
@@ -1542,7 +1576,7 @@ Regular.implement({
   config: function(){},
   destroy: function(){
     // destroy event wont propgation;
-    if(this.$context === this) this.$emit("$destroy");
+    this.$emit("$destroy");
     this.group && this.group.destroy(true);
     this.group = null;
     this.parentNode = null;
@@ -1570,10 +1604,12 @@ Regular.implement({
     if(typeof ast === 'string'){
       ast = new Parser(ast).parse()
     }
-    var preNs = this.__ns__,
+    var preExt = this.__ext__,
       record = options.record, 
       records;
-    if(options.namespace) this.__ns__ = options.namespace;
+
+    if(options.extra) this.__ext__ = options.extra;
+
     if(record) this._record();
     var group = this._walk(ast, options);
     if(record){
@@ -1584,7 +1620,7 @@ Regular.implement({
         group.ondestroy = function(){ self.$unwatch(records); }
       }
     }
-    if(options.namespace) this.__ns__ = preNs;
+    if(options.extra) this.__ext__ = preExt;
     return group;
   },
 
@@ -1716,7 +1752,6 @@ Regular.implement({
   },
   _append: function(component){
     this._children.push(component);
-    component.$root = this.$root;
     component.$parent = this;
   },
   _handleEvent: function(elem, type, value, attrs){
@@ -1733,6 +1768,36 @@ Regular.implement({
       dom.off(elem, type, fire);
     }
   },
+  // 1. 用来处理exprBody -> Function
+  // 2. list里的循环
+  _touchExpr: function(expr){
+    var  rawget, ext = this.__ext__, touched = {};
+    if(expr.type !== 'expression' || expr.touched) return expr;
+    rawget = expr.get || (expr.get = new Function(_.ctxName, _.extName , _.prefix+ "return (" + expr.body + ")"));
+    touched.get = !ext? rawget: function(context){
+      return rawget(context, ext)
+    }
+
+    if(expr.setbody && !expr.set){
+      var setbody = expr.setbody;
+      expr.set = function(ctx, value, ext){
+        expr.set = new Function(_.ctxName, _.setName , _.extName, _.prefix + setbody);          
+        return expr.set(ctx, value, ext);
+      }
+      expr.setbody = null;
+    }
+    if(expr.set){
+      touched.set = !ext? expr.set : function(ctx, value){
+        return expr.set(ctx, value, ext);
+      }
+    }
+    _.extend(touched, {
+      type: 'expression',
+      touched: true,
+      once: expr.once || expr.constant
+    })
+    return touched
+  },
   // find filter
   _f_: function(name){
     var Component = this.constructor;
@@ -1741,17 +1806,19 @@ Regular.implement({
     return filter;
   },
   // simple accessor get
-  _sg_:function(path, defaults, needComputed){
-    if(needComputed){
+  _sg_:function(path, defaults, ext){
+    if(typeof ext !== 'undefined'){
+      // if(path === "demos")  debugger
       var computed = this.computed,
         computedProperty = computed[path];
       if(computedProperty){
+        if(computedProperty.type==='expression' && !computedProperty.get) this._touchExpr(computedProperty);
         if(computedProperty.get)  return computedProperty.get(this);
         else _.log("the computed '" + path + "' don't define the get function,  get data."+path + " altnately", "error")
       }
-    }
+  }
     if(typeof defaults === "undefined" || typeof path == "undefined" ) return undefined;
-    return defaults[path];
+    return (ext && typeof ext[path] !== 'undefined')? ext[path]: defaults[path];
 
   },
   // simple accessor set
@@ -1789,17 +1856,15 @@ Regular.implement({
   }
 });
 
-Regular.prototype.inject = Regular.prototype.$inject;
+Regular.prototype.inject = function(){
+  _.log("use $inject instead of inject", "error");
+  return this.$inject.apply(this, arguments);
+}
 
 
 // only one builtin filter
-Regular.filter("json", function(value, minify){
-  if(typeof JSON !== 'undefined' && JSON.stringify){
-    return JSON.stringify(value);
-  }else{
-    return value
-  }
-})
+
+Regular.filter(filter);
 
 module.exports = Regular;
 
@@ -1809,15 +1874,13 @@ var handleComputed = (function(){
   // wrap the computed getter;
   function wrapGet(get){
     return function(context){
-      var ctx = context.$context;
-      return get.call(ctx, ctx.data );
+      return get.call(context, context.data );
     }
   }
   // wrap the computed setter;
   function wrapSet(set){
     return function(context, value){
-      var ctx = context.$context;
-      set.call( ctx, value, ctx.data );
+      set.call( context, value, context.data );
       return value;
     }
   }
@@ -1867,9 +1930,10 @@ _.uid = (function(){
   }
 })();
 
-_.varName = '_d_';
-_.setName = '_p_';
-_.ctxName = '_c_';
+_.varName = 'd';
+_.setName = 'p_';
+_.ctxName = 'c';
+_.extName = 'e';
 
 _.rWord = /^[\$\w]+$/;
 _.rSimpleAccessor = /^[\$\w]+(\.[\$\w]+)*$/;
@@ -1882,10 +1946,7 @@ _.nextTick = typeof setImmediate === 'function'?
 
 
 
-var prefix =  "var " + _.ctxName + "=context.$context||context;" + "var " + _.varName + "=context.data;";
-
-
-_.host = "data";
+_.prefix = "var " + _.varName + "=" + _.ctxName + ".data;" +  _.extName  + "=" + _.extName + "||'';";
 
 
 _.slice = function(obj, start, end){
@@ -1898,7 +1959,7 @@ _.slice = function(obj, start, end){
 }
 
 _.typeOf = function (o) {
-  return o == null ? String(o) : ({}).toString.call(o).slice(8, -1).toLowerCase();
+  return o == null ? String(o) : o2str.call(o).slice(8, -1).toLowerCase();
 }
 
 
@@ -2078,11 +2139,11 @@ _.clone = function clone(obj){
 
 
 _.equals = function(now, old){
-  var type = _.typeOf(now);
-  if(type === 'array'){
+  if( Array.isArray(now) ){
     var splices = ld(now, old||[]);
     return splices;
   }
+  var type = typeof now;
   if(type === 'number' && typeof old === 'number'&& isNaN(now) && isNaN(old)) return true
   return now === old;
 }
@@ -2295,25 +2356,12 @@ _.cache = function(max){
   };
 }
 
-// setup the raw Expression
-_.touchExpression = function(expr){
-  if(expr.type === 'expression'){
-    if(!expr.get){
-      expr.get = new Function("context", prefix + "return (" + expr.body + ")");
-      expr.body = null;
-      if(expr.setbody){
-        expr.set = function(ctx, value){
-          if(expr.setbody){
-            expr.set = new Function('context', _.setName ,  prefix + expr.setbody);
-            expr.setbody = null;
-          }
-          return expr.set(ctx, value);
-        }
-      }
-    }
-  }
-  return expr;
-}
+// // setup the raw Expression
+// _.touchExpression = function(expr){
+//   if(expr.type === 'expression'){
+//   }
+//   return expr;
+// }
 
 
 // handle the same logic on component's `on-*` and element's `on-*`
@@ -2328,14 +2376,14 @@ _.handleEvent = function(value, type ){
       self.data.$event = obj;
       var res = evaluate(self);
       if(res === false && obj && obj.preventDefault) obj.preventDefault();
-      delete self.data.$event;
+      self.data.$event = undefined;
       self.$update();
     }
   }else{
     return function fire(){
       var args = slice.call(arguments)      
       args.unshift(value);
-      self.$emit.apply(self.$context, args);
+      self.$emit.apply(self, args);
       self.$update();
     }
   }
@@ -2348,11 +2396,6 @@ _.once = function(fn){
     if( time++ === 0) fn.apply(this, arguments);
   }
 }
-
-
-
-
-
 
 
 
@@ -2376,12 +2419,6 @@ _.assert = function(test, msg){
 }
 
 
-
-_.defineProperty = function(){
-  
-}
-
-
 });
 require.register("regularjs/src/walkers.js", function(exports, require, module){
 var node = require("./parser/node.js");
@@ -2393,34 +2430,24 @@ var combine = require('./helper/combine.js');
 
 var walkers = module.exports = {};
 
-walkers.list = function(ast){
+walkers.list = function(ast, options){
 
   var Regular = walkers.Regular;  
   var placeholder = document.createComment("Regular list"),
-    namespace = this.__ns__;
-  // proxy Component to implement list item, so the behaviar is similar with angular;
-  var Section =  Regular.extend( { 
-    template: ast.body, 
-    $context: this.$context,
-    // proxy the event to $context
-    $on: this.$context.$on.bind(this.$context),
-    $off: this.$context.$off.bind(this.$context),
-    $emit: this.$context.$emit.bind(this.$context)
-  });
-  Regular._inheritConfig(Section, this.constructor);
-
-  // var fragment = dom.fragment();
-  // fragment.appendChild(placeholder);
+    namespace = options.namespace,
+    extra = options.extra;
   var self = this;
   var group = new Group();
   group.push(placeholder);
   var indexName = ast.variable + '_index';
   var variable = ast.variable;
-  // group.push(placeholder);
-
 
   function update(newValue, splices){
-    newValue = newValue || [];
+    if(!newValue) {
+      newValue = [];
+      splices = _.equals(newValue, splices);
+    }
+    
     if(!splices || !splices.length) return;
     var cur = placeholder;
     var m = 0, len = newValue.length,
@@ -2442,15 +2469,20 @@ walkers.list = function(ast){
       for(var o = index; o < index + splice.add; o++){ //add
         // prototype inherit
         var item = newValue[o];
-        var data = _.createObject(self.data);
+        var data = {};
         data[indexName] = o;
         data[variable] = item;
 
-        var section = new Section({data: data, $parent: self , namespace: namespace});
-
+        _.extend(data, extra);
+        var section = self.$compile(ast.body, {
+          extra: data,
+          namespace:namespace,
+          record: true,
+          outer: options.outer
+        })
+        section.data = data;
         // autolink
         var insert =  combine.last(group.get(o));
-        // animate.inject(combine.node(section),insert,'after')
         if(insert.parentNode){
           animate.inject(combine.node(section),insert, 'after');
         }
@@ -2472,12 +2504,11 @@ walkers.list = function(ast){
   this.$watch(ast.sequence, update, { init: true });
   return group;
 }
-
 // {#include }
-walkers.template = function(ast){
+walkers.template = function(ast, options){
   var content = ast.content, compiled;
   var placeholder = document.createComment('inlcude');
-  var compiled, namespace = this.__ns__;
+  var compiled, namespace = options.namespace, extra = options.extra;
   // var fragment = dom.fragment();
   // fragment.appendChild(placeholder);
   var group = new Group();
@@ -2489,7 +2520,7 @@ walkers.template = function(ast){
         compiled.destroy(true); 
         group.children.pop();
       }
-      group.push( compiled =  self.$compile(value, {record: true, namespace: namespace}) ); 
+      group.push( compiled =  self.$compile(value, {record: true, outer: options.outer,namespace: namespace, extra: extra}) ); 
       if(placeholder.parentNode) animate.inject(combine.node(compiled), placeholder, 'before')
     }, {
       init: true
@@ -2502,15 +2533,15 @@ walkers.template = function(ast){
 // how to resolve this problem
 var ii = 0;
 walkers['if'] = function(ast, options){
-  var self = this, consequent, alternate;
+  var self = this, consequent, alternate, extra = options.extra;
   if(options && options.element){ // attribute inteplation
     var update = function(nvalue){
       if(!!nvalue){
         if(alternate) combine.destroy(alternate)
-        if(ast.consequent) consequent = self.$compile(ast.consequent, {record: true, element: options.element });
+        if(ast.consequent) consequent = self.$compile(ast.consequent, {record: true, element: options.element , extra:extra});
       }else{
         if(consequent) combine.destroy(consequent)
-        if(ast.alternate) alternate = self.$compile(ast.alternate, {record: true, element: options.element});
+        if(ast.alternate) alternate = self.$compile(ast.alternate, {record: true, element: options.element, extra: extra});
       }
     }
     this.$watch(ast.test, update, { force: true });
@@ -2522,12 +2553,11 @@ walkers['if'] = function(ast, options){
     }
   }
 
-
   var test, consequent, alternate, node;
   var placeholder = document.createComment("Regular if" + ii++);
   var group = new Group();
   group.push(placeholder);
-  var preValue = null, namespace= this.__ns__;
+  var preValue = null, namespace= options.namespace;
 
 
   var update = function (nvalue, old){
@@ -2540,7 +2570,7 @@ walkers['if'] = function(ast, options){
     }
     if(value){ //true
       if(ast.consequent && ast.consequent.length){
-        consequent = self.$compile( ast.consequent , {record:true, namespace: namespace })
+        consequent = self.$compile( ast.consequent , {record:true, outer: options.outer,namespace: namespace, extra:extra })
         // placeholder.parentNode && placeholder.parentNode.insertBefore( node, placeholder );
         group.push(consequent);
         if(placeholder.parentNode){
@@ -2549,7 +2579,7 @@ walkers['if'] = function(ast, options){
       }
     }else{ //false
       if(ast.alternate && ast.alternate.length){
-        alternate = self.$compile(ast.alternate, {record:true, namespace: namespace});
+        alternate = self.$compile(ast.alternate, {record:true, outer: options.outer,namespace: namespace, extra:extra});
         group.push(alternate);
         if(placeholder.parentNode){
           animate.inject(combine.node(alternate), placeholder, 'before');
@@ -2563,14 +2593,14 @@ walkers['if'] = function(ast, options){
 }
 
 
-walkers.expression = function(ast){
+walkers.expression = function(ast, options){
   var node = document.createTextNode("");
   this.$watch(ast, function(newval){
     dom.text(node, "" + (newval == null? "": "" + newval) );
   })
   return node;
 }
-walkers.text = function(ast){
+walkers.text = function(ast, options){
   var node = document.createTextNode(_.convertEntity(ast.text));
   return node;
 }
@@ -2582,29 +2612,28 @@ var eventReg = /^on-(.+)$/
 /**
  * walkers element (contains component)
  */
-walkers.element = function(ast){
+walkers.element = function(ast, options){
   var attrs = ast.attrs, 
     component, self = this,
     Constructor=this.constructor,
     children = ast.children,
-    namespace = this.__ns__, ref, group, 
+    namespace = options.namespace, ref, group, 
+    extra = options.extra,
+    isolate = 0,
     Component = Constructor.component(ast.tag);
 
 
-  if(ast.tag === 'svg') var namespace = "svg";
+  if(ast.tag === 'svg') namespace = "svg";
 
 
-  if(children && children.length){
-    group = this.$compile(children, {namespace: namespace });
-  }
 
 
   if(Component){
     var data = {},events;
     for(var i = 0, len = attrs.length; i < len; i++){
       var attr = attrs[i];
-      var value = attr.value||"";
-      _.touchExpression(value);
+      var value = this._touchExpr(attr.value || "");
+      
       var name = attr.name;
       var etest = name.match(eventReg);
       // bind event proxy
@@ -2622,30 +2651,56 @@ walkers.element = function(ast){
       if( attr.name === 'ref'  && value != null){
         ref = value.type === 'expression'? value.get(self): value;
       }
+      if( attr.name === 'isolate'){
+        // 1: stop: composite -> parent
+        // 2. stop: composite <- parent
+        // 3. stop 1 and 2: composite <-> parent
+        // 0. stop nothing (defualt)
+        isolate = value.type === 'expression'? value.get(self): parseInt(value || 3, 10);
+        data.isolate = isolate;
+      }
+
 
     }
 
-    var $body;
-    if(ast.children) $body = ast.children;
-    var component = new Component({data: data, events: events, $body: $body, $parent: this, namespace: namespace});
-    if(ref &&  self.$context.$refs) self.$context.$refs[ref] = component;
+    var config = { 
+      data: data, 
+      events: events, 
+      $parent: this,
+      $outer: options.outer,
+      namespace: namespace, 
+      $root: this.$root,
+      $body: ast.children
+    }
+
+    var component = new Component(config);
+    if(ref &&  self.$refs) self.$refs[ref] = component;
     for(var i = 0, len = attrs.length; i < len; i++){
       var attr = attrs[i];
       var value = attr.value||"";
       if(value.type === 'expression' && attr.name.indexOf('on-')===-1){
-        this.$watch(value, component.$update.bind(component, attr.name))
-        if(value.set) component.$watch(attr.name, self.$update.bind(self, value))
+        value = self._touchExpr(value);
+        // use bit operate to control scope
+        if( !(isolate & 2) ) 
+          this.$watch(value, component.$update.bind(component, attr.name))
+        if( value.set && !(isolate & 1 ) ) 
+          // sync the data. it force the component don't trigger attr.name's first dirty echeck
+          component.$watch(attr.name, self.$update.bind(self, value), {sync: true});
       }
     }
     if(ref){
       component.$on('destroy', function(){
-        if(self.$context.$refs) self.$context.$refs[ref] = null;
+        if(self.$refs) self.$refs[ref] = null;
       })
     }
     return component;
   }
-  else if(ast.tag === 'r-content' && this.$body){
-    return this.$body;
+  else if( ast.tag === 'r-content' && this._getTransclude ){
+    return this._getTransclude();
+  }
+  
+  if(children && children.length){
+    group = this.$compile(children, {outer: options.outer,namespace: namespace, extra: extra });
   }
 
   var element = dom.create(ast.tag, namespace, attrs);
@@ -2668,7 +2723,7 @@ walkers.element = function(ast){
     return -1;
   })
   // may distinct with if else
-  var destroies = walkAttributes.call(this, attrs, element, destroies);
+  var destroies = walkAttributes.call(this, attrs, element, extra);
 
 
 
@@ -2704,10 +2759,10 @@ walkers.element = function(ast){
   return res;
 }
 
-function walkAttributes(attrs, element){
+function walkAttributes(attrs, element, extra){
   var bindings = []
   for(var i = 0, len = attrs.length; i < len; i++){
-    var binding = this._walk(attrs[i], {element: element, fromElement: true, attrs: attrs})
+    var binding = this._walk(attrs[i], {element: element, fromElement: true, attrs: attrs, extra: extra})
     if(binding) bindings.push(binding);
   }
   return bindings;
@@ -2721,7 +2776,7 @@ walkers.attribute = function(ast ,options){
   var name = attr.name,
     value = attr.value || "", directive = Component.directive(name);
 
-  _.touchExpression(value);
+  value = this._touchExpr(value);
 
 
   if(directive && directive.link){
@@ -2731,7 +2786,7 @@ walkers.attribute = function(ast ,options){
   }else{
     if( name === 'ref'  && value != null && options.fromElement){
       var ref = value.type === 'expression'? value.get(self): value;
-      var refs = this.$context.$refs;
+      var refs = this.$refs;
       if(refs){
         refs[ref] = element
         return {
@@ -2775,25 +2830,38 @@ exports.svg = (function(){
 })();
 
 
-exports.transition = (function(){
-  
-})();
-
+exports.browser = typeof document !== "undefined" && document.nodeType;
 // whether have component in initializing
 exports.exprCache = _.cache(1000);
 exports.isRunning = false;
 
 });
 require.register("regularjs/src/index.js", function(exports, require, module){
-module.exports = require("./Regular.js");
+var env =  require("./env.js");
+var config = require("./config"); 
+var Regular = module.exports = require("./Regular.js");
+var Parser = Regular.Parser;
+var Lexer = Regular.Lexer;
 
-require("./directive/base.js");
-require("./directive/animation.js");
-require("./module/timeout.js");
+if(env.browser){
+    require("./directive/base.js");
+    require("./directive/animation.js");
+    require("./module/timeout.js");
+    Regular.dom = require("./dom.js");
+}
+Regular.env = env;
+Regular.util = require("./util.js");
+Regular.parse = function(str, options){
+  options = options || {};
 
-module.exports.dom = require("./dom.js");
-module.exports.util = require("./util.js");
-module.exports.env = require("./env.js");
+  if(options.BEGIN || options.END){
+    if(options.BEGIN) config.BEGIN = options.BEGIN;
+    if(options.END) config.END = options.END;
+    Lexer.setup();
+  }
+  var ast = new Parser(str).parse();
+  return !options.stringify? ast : JSON.stringify(ast);
+}
 
 
 });
@@ -2807,6 +2875,7 @@ require.register("regularjs/src/dom.js", function(exports, require, module){
 
 // ---
 // license: MIT-style license. http://mootools.net
+
 
 var dom = module.exports;
 var env = require("./env.js");
@@ -2977,7 +3046,9 @@ dom.attr = function(node, name, value){
 dom.on = function(node, type, handler){
   var types = type.split(' ');
   handler.real = function(ev){
-    handler.call(node, new Event(ev));
+    var $event = new Event(ev);
+    $event.origin = node;
+    handler.call(node, $event);
   }
   types.forEach(function(type){
     type = fixEventName(node, type);
@@ -3638,6 +3709,7 @@ var node = require("./node.js");
 var Lexer = require("./Lexer.js");
 var varName = _.varName;
 var ctxName = _.ctxName;
+var extName = _.extName;
 var isPath = _.makePredicate("STRING IDENT NUMBER");
 var isKeyWord = _.makePredicate("true false undefined null this Array Date JSON Math NaN RegExp decodeURI decodeURIComponent encodeURI encodeURIComponent parseFloat parseInt Object");
 
@@ -3833,7 +3905,7 @@ op.attvalue = function(){
         parsed.forEach(function(item){
           if(!item.constant) constant=false;
           // silent the mutiple inteplation
-            body.push(item.body || "'" + item.text + "'");        
+            body.push(item.body || "'" + item.text.replace(/'/g, "\\'") + "'");        
         });
         body = "[" + body.join(",") + "].join('')";
         value = node.expression(body, null, constant);
@@ -3966,7 +4038,7 @@ op.filter = function(){
   var left = this.assign();
   var ll = this.eat('|');
   var buffer = [], setBuffer, prefix,
-    attr = "_t_", 
+    attr = "t", 
     set = left.set, get, 
     tmp = "";
 
@@ -3976,7 +4048,6 @@ op.filter = function(){
     prefix = "(function(" + attr + "){";
 
     do{
-
       tmp = attr + " = " + ctxName + "._f_('" + this.match('IDENT').value+ "' ).get.call( "+_.ctxName +"," + attr ;
       if(this.eat(':')){
         tmp +=", "+ this.arguments("|").join(",") + ");"
@@ -4010,7 +4081,7 @@ op.assign = function(){
   var left = this.condition(), ll;
   if(ll = this.eat(['=', '+=', '-=', '*=', '/=', '%='])){
     if(!left.set) this.error('invalid lefthand expression in assignment expression');
-    return this.getset( left.set.replace("_p_", this.condition().get).replace("'='", "'"+ll.type+"'"), left.set);
+    return this.getset( left.set.replace( "," + _.setName, "," + this.condition().get ).replace("'='", "'"+ll.type+"'"), left.set);
     // return this.getset('(' + left.get + ll.type  + this.condition().get + ')', left.set);
   }
   return left;
@@ -4140,7 +4211,7 @@ op.unary = function(){
 // member . ident  
 
 op.member = function(base, last, pathes, prevBase){
-  var ll, path;
+  var ll, path, extValue;
 
 
   var onlySimpleAccessor = false;
@@ -4151,7 +4222,8 @@ op.member = function(base, last, pathes, prevBase){
       pathes = [];
       pathes.push( path );
       last = path;
-      base = ctxName + "._sg_('" + path + "', " + varName + ", 1)";
+      extValue = extName + "." + path
+      base = ctxName + "._sg_('" + path + "', " + varName + ", " + extName + ")";
       onlySimpleAccessor = true;
     }else{ //Primative Type
       if(path.get === 'this'){
@@ -4511,7 +4583,7 @@ module.exports = {
     if( typeof expr === 'string' && ( expr = expr.trim() ) ){
       expr = exprCache.get( expr ) || exprCache.set( expr, new Parser( expr, { mode: 2, expression: true } ).expression() )
     }
-    if(expr) return _.touchExpression( expr );
+    if(expr) return expr;
   },
   parse: function(template){
     return new Parser(template).parse();
@@ -4529,8 +4601,9 @@ function Watcher(){}
 
 var methods = {
   $watch: function(expr, fn, options){
-    var get, once, test, rlen; //records length
+    var get, once, test, rlen, extra = this.__ext__; //records length
     if(!this._watchers) this._watchers = [];
+
     options = options || {};
     if(options === true){
        options = { deep: true }
@@ -4539,13 +4612,13 @@ var methods = {
     if(Array.isArray(expr)){
       var tests = [];
       for(var i = 0,len = expr.length; i < len; i++){
-          tests.push(parseExpression(expr[i]).get) 
+          tests.push(this.$expression(expr[i]).get)
       }
       var prev = [];
       test = function(context){
         var equal = true;
         for(var i =0, len = tests.length; i < len; i++){
-          var splice = tests[i](context);
+          var splice = tests[i](context, extra);
           if(!_.equals(splice, prev[i])){
              equal = false;
              prev[i] = _.clone(splice);
@@ -4554,9 +4627,9 @@ var methods = {
         return equal? false: prev;
       }
     }else{
-      expr = this.$expression? this.$expression(expr) : parseExpression(expr);
+      expr = this._touchExpr( parseExpression(expr) );
       get = expr.get;
-      once = expr.once || expr.constant;
+      once = expr.once;
     }
 
     var watcher = {
@@ -4566,7 +4639,8 @@ var methods = {
       once: once, 
       force: options.force,
       test: test,
-      deep: options.deep
+      deep: options.deep,
+      last: options.sync? get(this): undefined
     }
     
     this._watchers.push( watcher );
@@ -4579,9 +4653,10 @@ var methods = {
       this._checkSingleWatch( watcher, this._watchers.length-1 );
       this.$phase = null;
     }
-    return uid;
+    return watcher;
   },
   $unwatch: function(uid){
+    uid = uid.uid || uid;
     if(!this._watchers) this._watchers = [];
     if(Array.isArray(uid)){
       for(var i =0, len = uid.length; i < len; i++){
@@ -4597,6 +4672,9 @@ var methods = {
         }
       }
     }
+  },
+  $expression: function(value){
+    return this._touchExpr(parseExpression(value))
   },
   /**
    * the whole digest loop ,just like angular, it just a dirty-check loop;
@@ -4715,7 +4793,7 @@ var methods = {
     if(path != null){
       var type = _.typeOf(path);
       if( type === 'string' || path.type === 'expression' ){
-        path = parseExpression(path);
+        path = this.$expression(path);
         path.set(this, value);
       }else if(type === 'function'){
         path.call(this, this.data);
@@ -4726,12 +4804,19 @@ var methods = {
       }
     }
   },
-  $get: function(expr){
-    return parseExpression(expr).get(this);
+  $get: function(expr)  {
+    return this.$expression(expr).get(this);
   },
   $update: function(){
     this.$set.apply(this, arguments);
-    if(this.$root) this.$root.$digest()
+    var rootParent = this;
+
+    do{
+      if(rootParent.data.isolate || !rootParent.$parent) break;
+      rootParent = rootParent.$parent;
+    } while(rootParent)
+
+    rootParent.$digest();
   },
   // auto collect watchers for logic-control.
   _record: function(){
@@ -4758,7 +4843,6 @@ require.register("regularjs/src/helper/event.js", function(exports, require, mod
 // simplest event emitter 60 lines
 // ===============================
 var slice = [].slice, _ = require("../util.js");
-var buildin = ['$inject', "$init", "$destroy", "$update"];
 var API = {
     $on: function(event, fn) {
         if(typeof event === "object"){
@@ -4805,18 +4889,11 @@ var API = {
         var type = event;
 
         if(!handles) return context;
-        // @deprecated 0.3.0
-        // will be removed when completely remove the old events('destroy' 'init') support
-
-        /*@remove 0.4.0*/
-        var isBuildin = ~buildin.indexOf(type);
         if(calls = handles[type.slice(1)]){
             for (var j = 0, len = calls.length; j < len; j++) {
                 calls[j].apply(context, args)
             }
         }
-        /*/remove*/
-
         if (!(calls = handles[type])) return context;
         for (var i = 0, len = calls.length; i < len; i++) {
             calls[i].apply(context, args)
@@ -4898,6 +4975,7 @@ animate.inject = function( node, refer ,direction, callback ){
     }
     dom.inject(fragment, refer, direction);
 
+    // if all nodes is done, we call the callback
     var enterCallback = function (){
       count++;
       if( count === len ) callback();
@@ -4917,11 +4995,6 @@ animate.inject = function( node, refer ,direction, callback ){
     }else{
       callback();
     }
-    // if( node.nodeType === 1 && callback !== false ){
-    //   return startClassAnimate( node, 'r-enter', callback , 2);
-    // }
-    // ignored else
-    
   }
 }
 
@@ -4932,15 +5005,18 @@ animate.inject = function( node, refer ,direction, callback ){
  * @return {[type]}            [description]
  */
 animate.remove = function(node, callback){
-  callback = callback || _.noop;
   if(node.onleave){
     node.onleave(function(){
-      dom.remove(node);
+      removeDone(node, callback)
     })
   }else{
-    dom.remove(node) 
-    callback && callback();
+    removeDone(node, callback)
   }
+}
+
+var removeDone = function (node, callback){
+    dom.remove(node);
+    callback && callback();
 }
 
 
@@ -4950,7 +5026,6 @@ animate.startClassAnimate = function ( node, className,  callback, mode ){
   if( (!animationEnd && !transitionEnd) || env.isRunning ){
     return callback();
   }
-
 
   onceAnim = _.once(function onAnimateEnd(){
     if(tid) clearTimeout(tid);
@@ -5394,6 +5469,71 @@ var entities = {
 
 module.exports  = entities;
 });
+require.register("regularjs/src/helper/filter.js", function(exports, require, module){
+
+var f = module.exports = {};
+
+// json:  two way 
+//  - get: JSON.stringify
+//  - set: JSON.parse
+//  - example: `{ title|json }`
+f.json = {
+  get: function( value ){
+    return typeof JSON !== 'undefined'? JSON.stringify(value): value;
+  },
+  set: function( value ){
+    return typeof JSON !== 'undefined'? JSON.parse(value) : value;
+  }
+}
+
+// last: one-way
+//  - get: return the last item in list
+//  - example: `{ list|last }`
+f.last = function(arr){
+  return arr && arr[arr.length - 1];
+}
+
+// average: one-way
+//  - get: copute the average of the list
+//  - example: `{ list| average: "score" }`
+f.average = function(array, key){
+  array = array || [];
+  return array.length? f.total(array, key)/ array.length : 0;
+}
+
+
+// total: one-way
+//  - get: copute the total of the list
+//  - example: `{ list| average: "score" }`
+f.total = function(array, key){
+  var total = 0;
+  if(!array) return;
+  array.forEach(function( item ){
+    total += key? item[key] : item;
+  })
+  return total;
+}
+
+// var basicSortFn = function(a, b){return b - a}
+
+// f.sort = function(array, key, reverse){
+//   var type = typeof key, sortFn; 
+//   switch(type){
+//     case 'function': sortFn = key; break;
+//     case 'string': sortFn = function(a, b){};break;
+//     default:
+//       sortFn = basicSortFn;
+//   }
+//   // need other refernce.
+//   return array.slice().sort(function(a,b){
+//     return reverse? -sortFn(a, b): sortFn(a, b);
+//   })
+//   return array
+// }
+
+
+
+});
 require.register("regularjs/src/directive/base.js", function(exports, require, module){
 // Regular
 var _ = require("../util.js");
@@ -5506,7 +5646,7 @@ Regular.directive("r-model", function(elem, value){
   var sign = tag;
   if(sign === "input") sign = elem.type || "text";
   else if(sign === "textarea") sign = "text";
-  if(typeof value === "string") value = Regular.expression(value);
+  if(typeof value === "string") value = this.$expression(value);
 
   if( modelHandlers[sign] ) return modelHandlers[sign].call(this, elem, value);
   else if(tag === "input"){
@@ -5520,9 +5660,7 @@ Regular.directive("r-model", function(elem, value){
 
 function initSelect( elem, parsed){
   var self = this;
-  var inProgress = false;
-  this.$watch(parsed, function(newValue){
-    if(inProgress) return;
+  var wc =this.$watch(parsed, function(newValue){
     var children = _.slice(elem.getElementsByTagName('option'))
     children.forEach(function(node, index){
       if(node.value == newValue){
@@ -5533,9 +5671,8 @@ function initSelect( elem, parsed){
 
   function handler(){
     parsed.set(self, this.value);
-    inProgress = true;
+    wc.last = this.value;
     self.$update();
-    inProgress = false;
   }
 
   dom.on(elem, "change", handler);
@@ -5551,10 +5688,8 @@ function initSelect( elem, parsed){
 // input,textarea binding
 
 function initText(elem, parsed){
-  var inProgress = false;
   var self = this;
-  this.$watch(parsed, function(newValue){
-    if(inProgress){ return; }
+  var wc = this.$watch(parsed, function(newValue){
     if(elem.value !== newValue) elem.value = newValue == null? "": "" + newValue;
   });
 
@@ -5565,16 +5700,15 @@ function initText(elem, parsed){
       _.nextTick(function(){
         var value = that.value
         parsed.set(self, value);
-        inProgress = true;
+        wc.last = value;
         self.$update();
       })
     }else{
         var value = that.value
         parsed.set(self, value);
-        inProgress = true;
+        wc.last = value;
         self.$update();
     }
-    inProgress = false;
   };
 
   if(dom.msie !== 9 && "oninput" in dom.tNode ){
@@ -5604,19 +5738,16 @@ function initText(elem, parsed){
 // input:checkbox  binding
 
 function initCheckBox(elem, parsed){
-  var inProgress = false;
   var self = this;
-  this.$watch(parsed, function(newValue){
-    if(inProgress) return;
+  var watcher = this.$watch(parsed, function(newValue){
     dom.attr(elem, 'checked', !!newValue);
   });
 
   var handler = function handler(){
     var value = this.checked;
     parsed.set(self, value);
-    inProgress= true;
+    watcher.last = value;
     self.$update();
-    inProgress = false;
   }
   if(parsed.set) dom.on(elem, "change", handler)
 
@@ -5634,9 +5765,7 @@ function initCheckBox(elem, parsed){
 
 function initRadio(elem, parsed){
   var self = this;
-  var inProgress = false;
-  this.$watch(parsed, function( newValue ){
-    if(inProgress) return;
+  var wc = this.$watch(parsed, function( newValue ){
     if(newValue == elem.value) elem.checked = true;
     else elem.checked = false;
   });
@@ -5645,14 +5774,14 @@ function initRadio(elem, parsed){
   var handler = function handler(){
     var value = this.value;
     parsed.set(self, value);
-    inProgress= true;
     self.$update();
-    inProgress = false;
   }
   if(parsed.set) dom.on(elem, "change", handler)
   // beacuse only after compile(init), the dom structrue is exsit. 
   if(parsed.get(self) === undefined){
-    if(elem.checked) parsed.set(self, elem.value);
+    if(elem.checked) {
+      parsed.set(self, elem.value);
+    }
   }
 
   return function destroy(){
@@ -5750,7 +5879,7 @@ Regular.animation({
     }
   },
   "call": function(step){
-    var fn = Regular.expression(step.param).get, self = this;
+    var fn = this.$expression(step.param).get, self = this;
     return function(done){
       // _.log(step.param, 'call')
       fn(self);
@@ -5760,13 +5889,19 @@ Regular.animation({
   },
   "emit": function(step){
     var param = step.param;
+    var tmp = param.split(","),
+      evt = tmp[0] || "",
+      args = tmp[1]? this.$expression(tmp[1]).get: null;
+
+    if(!evt) throw "you shoud specified a eventname in emit command";
+
     var self = this;
     return function(done){
-      self.$emit(param, step);
+      self.$emit(evt, args? args(self) : undefined);
       done();
     }
   },
-  // style: left {{10}}pxkk,
+  // style: left {10}px,
   style: function(step){
     var styles = {}, 
       param = step.param,
@@ -5817,8 +5952,8 @@ function processAnimate( element, value ){
 
   function animationDestroy(element){
     return function(){
-      element.onenter = undefined;
-      element.onleave = undefined;
+      delete element.onenter;
+      delete element.onleave;
     } 
   }
 
@@ -5839,16 +5974,20 @@ function processAnimate( element, value ){
 
     if( command === EVENT_COMMAND){
       reset(param);
-      if(param === "leave"){
+      if( param === "leave" ){
         element.onleave = seed.start;
-      }else if(param === "enter"){
+        destroies.push( animationDestroy(element) );
+      }else if( param === "enter" ){
         element.onenter = seed.start;
+        destroies.push( animationDestroy(element) );
       }else{
-        destroy = this._handleEvent( element, param, seed.start );
+        if( ("on" + param) in element){ // if dom have the event , we use dom event
+          destroies.push(this._handleEvent( element, param, seed.start ));
+        }else{ // otherwise, we use component event
+          this.$on(param, seed.start);
+          destroies.push(this.$off.bind(this, param, seed.start));
+        }
       }
-
-      destroies.push( destroy? destroy : animationDestroy(element) );
-      destroy = null;
       continue
     }
 
@@ -5877,7 +6016,7 @@ function processAnimate( element, value ){
 
 
 Regular.directive( "r-animation", processAnimate)
-
+Regular.directive( "r-sequence", processAnimate)
 
 
 });
@@ -5892,7 +6031,8 @@ var Regular = require("../Regular.js");
 
 Regular._addProtoInheritCache("event");
 
-Regular.event( "enter" , function(elem, fire) {
+Regular.event("enter", function(elem, fire) {
+  _.log("on-enter will be removed in 0.4.0", "error");
   function update( ev ) {
     if ( ev.which === 13 ) {
       ev.preventDefault();
@@ -6025,10 +6165,10 @@ if (typeof exports == 'object') {
 }})();
 define('rgl',{load: function(id){throw new Error("Dynamic load not allowed: " + id);}});
 
-define("rgl!module/app.html", function(){ return [{"type":"element","tag":"nav","attrs":[{"type":"attribute","name":"class","value":"navbar navbar-inverse navbar-fixed-top"}],"children":[{"type":"text","text":"\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"container-fluid"}],"children":[{"type":"text","text":"\n    "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"navbar-header"}],"children":[{"type":"text","text":"\n      "},{"type":"element","tag":"button","attrs":[{"type":"attribute","name":"type","value":"button"},{"type":"attribute","name":"class","value":"navbar-toggle collapsed"},{"type":"attribute","name":"data-toggle","value":"collapse"},{"type":"attribute","name":"data-target","value":"#navbar"},{"type":"attribute","name":"aria-expanded","value":"false"},{"type":"attribute","name":"aria-controls","value":"navbar"}],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"sr-only"}],"children":[{"type":"text","text":"Toggle navigation"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"icon-bar"}],"children":[]},{"type":"text","text":"\n        "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"icon-bar"}],"children":[]},{"type":"text","text":"\n        "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"icon-bar"}],"children":[]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n      "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"navbar-brand"},{"type":"attribute","name":"href","value":"#"}],"children":[{"type":"text","text":"theme from "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"http://getbootstrap.com/examples/dashboard/"}],"children":[{"type":"text","text":"[bootstrap]"}]},{"type":"text","text":" "}]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n    "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"id","value":"navbar"},{"type":"attribute","name":"class","value":"navbar-collapse collapse"}],"children":[{"type":"text","text":"\n      "},{"type":"if","test":{"type":"expression","body":"(!_c_._sg_('user', _c_._sg_('$state', _c_)))","constant":false,"setbody":false},"consequent":[{"type":"text","text":"\n      "},{"type":"element","tag":"form","attrs":[{"type":"attribute","name":"class","value":"navbar-form navbar-right"}],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"input","attrs":[{"type":"attribute","name":"type","value":"text"},{"type":"attribute","name":"class","value":"form-control"},{"type":"attribute","name":"placeholder","value":"User name"},{"type":"attribute","name":"r-model","value":"username"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"input","attrs":[{"type":"attribute","name":"type","value":"text"},{"type":"attribute","name":"class","value":"form-control"},{"type":"attribute","name":"placeholder","value":"Password..."},{"type":"attribute","name":"r-model","value":"password"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"javascript:;"},{"type":"attribute","name":"class","value":"btn btn-primary"},{"type":"attribute","name":"on-click","value":{"type":"expression","body":"_c_['login'](_c_._sg_('username', _d_, 1),_c_._sg_('password', _d_, 1))","constant":false,"setbody":false}}],"children":[{"type":"text","text":"login"}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n      "}],"alternate":[{"type":"text","text":"\n      "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"navbar-brand navbar-right"}],"children":[{"type":"text","text":"Welcome, "},{"type":"expression","body":"_c_._sg_('name', _c_._sg_('user', _c_._sg_('$state', _c_)))","constant":false,"setbody":"_c_._ss_('name',_p_,_c_._sg_('user', _c_._sg_('$state', _c_)), '=', 0)"},{"type":"text","text":" "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"#"},{"type":"attribute","name":"class","value":"btn btn-primary"},{"type":"attribute","name":"on-click","value":{"type":"expression","body":"_c_['logout']()","constant":false,"setbody":false}}],"children":[{"type":"text","text":"logout"}]}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n"}]},{"type":"text","text":"\n"},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"container-fluid"}],"children":[{"type":"text","text":"\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"row"}],"children":[{"type":"text","text":"\n    "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"col-sm-3 col-md-2 sidebar"}],"children":[{"type":"text","text":"\n      "},{"type":"element","tag":"app-menu","attrs":[{"type":"attribute","name":"menus","value":{"type":"expression","body":"_c_._sg_('menus', _d_, 1)","constant":false,"setbody":"_c_._ss_('menus',_p_,_d_, '=', 1)"}},{"type":"attribute","name":"state","value":{"type":"expression","body":"_c_._sg_('$state', _c_)","constant":false,"setbody":"_c_._ss_('$state',_p_,_c_, '=', 0)","once":true}}],"children":[]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n    "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main"}],"children":[{"type":"text","text":"\n      "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"ref","value":"view"}],"children":[]},{"type":"text","text":"\n      "},{"type":"element","tag":"footer","attrs":[],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"p","attrs":[],"children":[{"type":"text","text":"© Company 2014"}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n"}]}] });
+define("rgl!module/app.html", function(){ return [{"type":"element","tag":"nav","attrs":[{"type":"attribute","name":"class","value":"navbar navbar-inverse navbar-fixed-top"}],"children":[{"type":"text","text":"\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"container-fluid"}],"children":[{"type":"text","text":"\n    "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"navbar-header"}],"children":[{"type":"text","text":"\n      "},{"type":"element","tag":"button","attrs":[{"type":"attribute","name":"type","value":"button"},{"type":"attribute","name":"class","value":"navbar-toggle collapsed"},{"type":"attribute","name":"data-toggle","value":"collapse"},{"type":"attribute","name":"data-target","value":"#navbar"},{"type":"attribute","name":"aria-expanded","value":"false"},{"type":"attribute","name":"aria-controls","value":"navbar"}],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"sr-only"}],"children":[{"type":"text","text":"Toggle navigation"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"icon-bar"}],"children":[]},{"type":"text","text":"\n        "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"icon-bar"}],"children":[]},{"type":"text","text":"\n        "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"icon-bar"}],"children":[]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n      "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"navbar-brand"},{"type":"attribute","name":"href","value":"#"}],"children":[{"type":"text","text":"theme from "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"http://getbootstrap.com/examples/dashboard/"}],"children":[{"type":"text","text":"[bootstrap]"}]},{"type":"text","text":" "}]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n    "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"id","value":"navbar"},{"type":"attribute","name":"class","value":"navbar-collapse collapse"}],"children":[{"type":"text","text":"\n      "},{"type":"if","test":{"type":"expression","body":"(!c._sg_('user', c._sg_('$state', c)))","constant":false,"setbody":false},"consequent":[{"type":"text","text":"\n      "},{"type":"element","tag":"form","attrs":[{"type":"attribute","name":"class","value":"navbar-form navbar-right"}],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"input","attrs":[{"type":"attribute","name":"type","value":"text"},{"type":"attribute","name":"class","value":"form-control"},{"type":"attribute","name":"placeholder","value":"User name"},{"type":"attribute","name":"r-model","value":"username"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"input","attrs":[{"type":"attribute","name":"type","value":"text"},{"type":"attribute","name":"class","value":"form-control"},{"type":"attribute","name":"placeholder","value":"Password..."},{"type":"attribute","name":"r-model","value":"password"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"javascript:;"},{"type":"attribute","name":"class","value":"btn btn-primary"},{"type":"attribute","name":"on-click","value":{"type":"expression","body":"c['login'](c._sg_('username', d, e),c._sg_('password', d, e))","constant":false,"setbody":false}}],"children":[{"type":"text","text":"login"}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n      "}],"alternate":[{"type":"text","text":"\n      "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"navbar-brand navbar-right"}],"children":[{"type":"text","text":"Welcome, "},{"type":"expression","body":"c._sg_('name', c._sg_('user', c._sg_('$state', c)))","constant":false,"setbody":"c._ss_('name',p_,c._sg_('user', c._sg_('$state', c)), '=', 0)"},{"type":"text","text":" "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"#"},{"type":"attribute","name":"class","value":"btn btn-primary"},{"type":"attribute","name":"on-click","value":{"type":"expression","body":"c['logout']()","constant":false,"setbody":false}}],"children":[{"type":"text","text":"logout"}]}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n"}]},{"type":"text","text":"\n"},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"container-fluid"}],"children":[{"type":"text","text":"\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"row"}],"children":[{"type":"text","text":"\n    "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"col-sm-3 col-md-2 sidebar"}],"children":[{"type":"text","text":"\n      "},{"type":"element","tag":"app-menu","attrs":[{"type":"attribute","name":"menus","value":{"type":"expression","body":"c._sg_('menus', d, e)","constant":false,"setbody":"c._ss_('menus',p_,d, '=', 1)"}},{"type":"attribute","name":"state","value":{"type":"expression","body":"c._sg_('$state', c)","constant":false,"setbody":"c._ss_('$state',p_,c, '=', 0)","once":true}}],"children":[]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n    "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main"}],"children":[{"type":"text","text":"\n      "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"ref","value":"view"}],"children":[]},{"type":"text","text":"\n      "},{"type":"element","tag":"footer","attrs":[],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"p","attrs":[],"children":[{"type":"text","text":"© Company 2014"}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n"}]}] });
 
 
-define("rgl!components/menu.html", function(){ return [{"type":"element","tag":"ul","attrs":[{"type":"attribute","name":"class","value":"nav nav-sidebar"}],"children":[{"type":"text","text":"\n  "},{"type":"list","sequence":{"type":"expression","body":"_c_._sg_('menus', _d_, 1)","constant":false,"setbody":"_c_._ss_('menus',_p_,_d_, '=', 1)"},"variable":"menu","body":[{"type":"text","text":"\n    "},{"type":"element","tag":"li","attrs":[{"type":"attribute","name":"class","value":{"type":"expression","body":"_c_._sg_('state', _d_, 1)['is'](_c_._sg_('state', _c_._sg_('menu', _d_, 1)))?'active':''","constant":false,"setbody":false}}],"children":[{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":{"type":"expression","body":"['#!',_c_._sg_('url', _c_._sg_('menu', _d_, 1))].join('')","constant":false,"setbody":false}}],"children":[{"type":"expression","body":"_c_._sg_('name', _c_._sg_('menu', _d_, 1))","constant":false,"setbody":"_c_._ss_('name',_p_,_c_._sg_('menu', _d_, 1), '=', 0)"}]}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n"}]}] });
+define("rgl!components/menu.html", function(){ return [{"type":"element","tag":"ul","attrs":[{"type":"attribute","name":"class","value":"nav nav-sidebar"}],"children":[{"type":"text","text":"\n  "},{"type":"list","sequence":{"type":"expression","body":"c._sg_('menus', d, e)","constant":false,"setbody":"c._ss_('menus',p_,d, '=', 1)"},"variable":"menu","body":[{"type":"text","text":"\n    "},{"type":"element","tag":"li","attrs":[{"type":"attribute","name":"class","value":{"type":"expression","body":"c._sg_('state', d, e)['is'](c._sg_('state', c._sg_('menu', d, e)))?'active':''","constant":false,"setbody":false}}],"children":[{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":{"type":"expression","body":"['#!',c._sg_('url', c._sg_('menu', d, e))].join('')","constant":false,"setbody":false}}],"children":[{"type":"expression","body":"c._sg_('name', c._sg_('menu', d, e))","constant":false,"setbody":"c._ss_('name',p_,c._sg_('menu', d, e), '=', 0)"}]}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n"}]}] });
 
 define('components/menu.js',["regularjs", "rgl!./menu.html"], function( Regular, tpl ){
 
@@ -6082,7 +6222,7 @@ define('module/app.js',["regularjs", "rgl!./app.html", "../components/menu.js"],
   })
 });
 
-define("rgl!module/blog.html", function(){ return [{"type":"element","tag":"h1","attrs":[{"type":"attribute","name":"class","value":"page-header"}],"children":[{"type":"text","text":"Blog"}]},{"type":"text","text":"\n"},{"type":"element","tag":"nav","attrs":[{"type":"attribute","name":"class","value":"navbar navbar-default"}],"children":[{"type":"text","text":"\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"container-fluid"}],"children":[{"type":"text","text":"\n    "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"id","value":"navbar"},{"type":"attribute","name":"class","value":"navbar-collapse collapse"}],"children":[{"type":"text","text":"\n      "},{"type":"element","tag":"ul","attrs":[{"type":"attribute","name":"class","value":"nav navbar-nav"}],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"li","attrs":[{"type":"attribute","name":"class","value":{"type":"expression","body":"_c_._sg_('$state', _c_)['is']('app.blog.list')?'active':''","constant":false,"setbody":false}}],"children":[{"type":"text","text":"\n          "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":{"type":"expression","body":"(function(_t_){_t_ = _c_._f_('encode' ).get.call( _c_,_t_);return _t_})('app.blog.list')","constant":true,"setbody":false}}],"children":[{"type":"text","text":"List"}]},{"type":"text","text":"\n        "}]},{"type":"text","text":"\n        "},{"type":"element","tag":"li","attrs":[{"type":"attribute","name":"class","value":{"type":"expression","body":"_c_._sg_('$state', _c_)['is']('app.blog.detail')?'active':''","constant":false,"setbody":false}}],"children":[{"type":"text","text":"\n          "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"javascript:;"}],"children":[{"type":"text","text":"Detail"}]},{"type":"text","text":"\n        "}]},{"type":"text","text":"\n        "},{"type":"element","tag":"li","attrs":[{"type":"attribute","name":"class","value":{"type":"expression","body":"_c_._sg_('$state', _c_)['is']('app.blog.edit')?'active':''","constant":false,"setbody":false}}],"children":[{"type":"text","text":"\n          "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":{"type":"expression","body":"(function(_t_){_t_ = _c_._f_('encode' ).get.call( _c_,_t_, {'id':(-1)});return _t_})('app.blog.edit')","constant":true,"setbody":false}}],"children":[{"type":"text","text":"Edit"}]},{"type":"text","text":"\n        "}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n"},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"col-sm-12"},{"type":"attribute","name":"ref","value":"view"}],"children":[]},{"type":"text","text":"\n\n\n\n\n"}] });
+define("rgl!module/blog.html", function(){ return [{"type":"element","tag":"h1","attrs":[{"type":"attribute","name":"class","value":"page-header"}],"children":[{"type":"text","text":"Blog"}]},{"type":"text","text":"\n"},{"type":"element","tag":"nav","attrs":[{"type":"attribute","name":"class","value":"navbar navbar-default"}],"children":[{"type":"text","text":"\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"container-fluid"}],"children":[{"type":"text","text":"\n    "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"id","value":"navbar"},{"type":"attribute","name":"class","value":"navbar-collapse collapse"}],"children":[{"type":"text","text":"\n      "},{"type":"element","tag":"ul","attrs":[{"type":"attribute","name":"class","value":"nav navbar-nav"}],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"li","attrs":[{"type":"attribute","name":"class","value":{"type":"expression","body":"c._sg_('$state', c)['is']('app.blog.list')?'active':''","constant":false,"setbody":false}}],"children":[{"type":"text","text":"\n          "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":{"type":"expression","body":"(function(t){t = c._f_('encode' ).get.call( c,t);return t})('app.blog.list')","constant":true,"setbody":false}}],"children":[{"type":"text","text":"List"}]},{"type":"text","text":"\n        "}]},{"type":"text","text":"\n        "},{"type":"element","tag":"li","attrs":[{"type":"attribute","name":"class","value":{"type":"expression","body":"c._sg_('$state', c)['is']('app.blog.detail')?'active':''","constant":false,"setbody":false}}],"children":[{"type":"text","text":"\n          "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"javascript:;"}],"children":[{"type":"text","text":"Detail"}]},{"type":"text","text":"\n        "}]},{"type":"text","text":"\n        "},{"type":"element","tag":"li","attrs":[{"type":"attribute","name":"class","value":{"type":"expression","body":"c._sg_('$state', c)['is']('app.blog.edit')?'active':''","constant":false,"setbody":false}}],"children":[{"type":"text","text":"\n          "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":{"type":"expression","body":"(function(t){t = c._f_('encode' ).get.call( c,t, {'id':(-1)});return t})('app.blog.edit')","constant":true,"setbody":false}}],"children":[{"type":"text","text":"Edit"}]},{"type":"text","text":"\n        "}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n"},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"col-sm-12"},{"type":"attribute","name":"ref","value":"view"}],"children":[]},{"type":"text","text":"\n\n\n\n\n"}] });
 
 define('module/blog.js',["regularjs", "rgl!./blog.html"], function( Regular, tpl ){
   return Regular.extend({
@@ -6164,7 +6304,7 @@ define('mock.js',[],function(){
   }
 });
 
-define("rgl!module/chat.html", function(){ return [{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"panel panel-primary"}],"children":[{"type":"text","text":"\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"panel-heading"}],"children":[{"type":"text","text":"\n    "},{"type":"element","tag":"h3","attrs":[{"type":"attribute","name":"class","value":"panel-title"}],"children":[{"type":"text","text":"Chat Room "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"badge"}],"children":[{"type":"expression","body":"_c_._sg_('length', _c_._sg_('messages', _d_, 1))","constant":false,"setbody":"_c_._ss_('length',_p_,_c_._sg_('messages', _d_, 1), '=', 0)"}]}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"panel-body"}],"children":[{"type":"text","text":"\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"message-list"}],"children":[{"type":"text","text":"\n  "},{"type":"list","sequence":{"type":"expression","body":"_c_._sg_('messages', _d_, 1)","constant":false,"setbody":"_c_._ss_('messages',_p_,_d_, '=', 1)"},"variable":"message","body":[{"type":"text","text":"\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"media"},{"type":"attribute","name":"r-animation","value":"on: enter; class: animated fadeInY; on: leave; class: animated fadeOutY;"}],"children":[{"type":"text","text":"\n    "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"class","value":"media-left"},{"type":"attribute","name":"href","value":"#"}],"children":[{"type":"text","text":"\n      "},{"type":"element","tag":"img","attrs":[{"type":"attribute","name":"src","value":{"type":"expression","body":"_c_._sg_('avatar', _c_._sg_('user', _c_._sg_('message', _d_, 1)))","constant":false,"setbody":"_c_._ss_('avatar',_p_,_c_._sg_('user', _c_._sg_('message', _d_, 1)), '=', 0)"}},{"type":"attribute","name":"style","value":"width: 64px; height: 64px;"}]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n    "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"media-body"}],"children":[{"type":"text","text":"\n      "},{"type":"element","tag":"h4","attrs":[{"type":"attribute","name":"class","value":"media-heading"}],"children":[{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":{"type":"expression","body":"['#!/user/',_c_._sg_('id', _c_._sg_('user', _c_._sg_('message', _d_, 1)))].join('')","constant":false,"setbody":false}}],"children":[{"type":"expression","body":"_c_._sg_('name', _c_._sg_('user', _c_._sg_('message', _d_, 1)))","constant":false,"setbody":"_c_._ss_('name',_p_,_c_._sg_('user', _c_._sg_('message', _d_, 1)), '=', 0)"}]},{"type":"text","text":" \n      "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"small"}],"children":[{"type":"expression","body":"(function(_t_){_t_ = _c_._f_('format' ).get.call( _c_,_t_);return _t_})(_c_._sg_('time', _c_._sg_('message', _d_, 1)))","constant":false,"setbody":"_c_._ss_('time',(function(_t_){_t_ = _c_._f_('format' ).set.call( _c_,_t_);return _t_})(_p_),_c_._sg_('message', _d_, 1), '=', 0)"}]},{"type":"text","text":"\n      "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"#"},{"type":"attribute","name":"r-hide","value":{"type":"expression","body":"_c_._sg_('user', _c_._sg_('message', _d_, 1))!==_c_._sg_('user', _c_._sg_('$state', _c_))","constant":false,"setbody":false}},{"type":"attribute","name":"on-click","value":{"type":"expression","body":"_c_['remove'](_c_._sg_('message_index', _d_, 1))","constant":false,"setbody":false}}],"children":[{"type":"text","text":"delete"}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n      "},{"type":"expression","body":"_c_._sg_('content', _c_._sg_('message', _d_, 1))","constant":false,"setbody":"_c_._ss_('content',_p_,_c_._sg_('message', _d_, 1), '=', 0)"},{"type":"text","text":" \n    "}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n    \n  "}]},{"type":"text","text":"\n    "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"row"}],"children":[{"type":"text","text":"\n      "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"col-sm-12"}],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"input-group"}],"children":[{"type":"text","text":"\n          "},{"type":"element","tag":"input","attrs":[{"type":"attribute","name":"type","value":"text"},{"type":"attribute","name":"class","value":"form-control"},{"type":"attribute","name":"r-model","value":{"type":"expression","body":"_c_._sg_('text', _d_, 1)","constant":false,"setbody":"_c_._ss_('text',_p_,_d_, '=', 1)"}},{"type":"attribute","name":"placeholder","value":"Say something for..."}]},{"type":"text","text":"\n          "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"input-group-btn"}],"children":[{"type":"text","text":"\n            "},{"type":"element","tag":"button","attrs":[{"type":"attribute","name":"class","value":"btn btn-primary"},{"type":"attribute","name":"type","value":"button"},{"type":"attribute","name":"on-click","value":{"type":"expression","body":"_c_['post'](_c_._sg_('text', _d_, 1))","constant":false,"setbody":false}}],"children":[{"type":"text","text":"Post Message!"}]},{"type":"text","text":"\n          "}]},{"type":"text","text":"\n        "}]}]}]}]}] });
+define("rgl!module/chat.html", function(){ return [{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"panel panel-primary"}],"children":[{"type":"text","text":"\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"panel-heading"}],"children":[{"type":"text","text":"\n    "},{"type":"element","tag":"h3","attrs":[{"type":"attribute","name":"class","value":"panel-title"}],"children":[{"type":"text","text":"Chat Room "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"badge"}],"children":[{"type":"expression","body":"c._sg_('length', c._sg_('messages', d, e))","constant":false,"setbody":"c._ss_('length',p_,c._sg_('messages', d, e), '=', 0)"}]}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"panel-body"}],"children":[{"type":"text","text":"\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"message-list"}],"children":[{"type":"text","text":"\n  "},{"type":"list","sequence":{"type":"expression","body":"c._sg_('messages', d, e)","constant":false,"setbody":"c._ss_('messages',p_,d, '=', 1)"},"variable":"message","body":[{"type":"text","text":"\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"media"},{"type":"attribute","name":"r-animation","value":"on: enter; class: animated fadeInY; on: leave; class: animated fadeOutY;"}],"children":[{"type":"text","text":"\n    "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"class","value":"media-left"},{"type":"attribute","name":"href","value":"#"}],"children":[{"type":"text","text":"\n      "},{"type":"element","tag":"img","attrs":[{"type":"attribute","name":"src","value":{"type":"expression","body":"c._sg_('avatar', c._sg_('user', c._sg_('message', d, e)))","constant":false,"setbody":"c._ss_('avatar',p_,c._sg_('user', c._sg_('message', d, e)), '=', 0)"}},{"type":"attribute","name":"style","value":"width: 64px; height: 64px;"}]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n    "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"media-body"}],"children":[{"type":"text","text":"\n      "},{"type":"element","tag":"h4","attrs":[{"type":"attribute","name":"class","value":"media-heading"}],"children":[{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":{"type":"expression","body":"['#!/user/',c._sg_('id', c._sg_('user', c._sg_('message', d, e)))].join('')","constant":false,"setbody":false}}],"children":[{"type":"expression","body":"c._sg_('name', c._sg_('user', c._sg_('message', d, e)))","constant":false,"setbody":"c._ss_('name',p_,c._sg_('user', c._sg_('message', d, e)), '=', 0)"}]},{"type":"text","text":" \n      "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"small"}],"children":[{"type":"expression","body":"(function(t){t = c._f_('format' ).get.call( c,t);return t})(c._sg_('time', c._sg_('message', d, e)))","constant":false,"setbody":"c._ss_('time',(function(t){t = c._f_('format' ).set.call( c,t);return t})(p_),c._sg_('message', d, e), '=', 0)"}]},{"type":"text","text":"\n      "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"#"},{"type":"attribute","name":"r-hide","value":{"type":"expression","body":"c._sg_('user', c._sg_('message', d, e))!==c._sg_('user', c._sg_('$state', c))","constant":false,"setbody":false}},{"type":"attribute","name":"on-click","value":{"type":"expression","body":"c['remove'](c._sg_('message_index', d, e))","constant":false,"setbody":false}}],"children":[{"type":"text","text":"delete"}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n      "},{"type":"expression","body":"c._sg_('content', c._sg_('message', d, e))","constant":false,"setbody":"c._ss_('content',p_,c._sg_('message', d, e), '=', 0)"},{"type":"text","text":" \n    "}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n    \n  "}]},{"type":"text","text":"\n    "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"row"}],"children":[{"type":"text","text":"\n      "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"col-sm-12"}],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"input-group"}],"children":[{"type":"text","text":"\n          "},{"type":"element","tag":"input","attrs":[{"type":"attribute","name":"type","value":"text"},{"type":"attribute","name":"class","value":"form-control"},{"type":"attribute","name":"r-model","value":{"type":"expression","body":"c._sg_('text', d, e)","constant":false,"setbody":"c._ss_('text',p_,d, '=', 1)"}},{"type":"attribute","name":"placeholder","value":"Say something for..."}]},{"type":"text","text":"\n          "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"input-group-btn"}],"children":[{"type":"text","text":"\n            "},{"type":"element","tag":"button","attrs":[{"type":"attribute","name":"class","value":"btn btn-primary"},{"type":"attribute","name":"type","value":"button"},{"type":"attribute","name":"on-click","value":{"type":"expression","body":"c['post'](c._sg_('text', d, e))","constant":false,"setbody":false}}],"children":[{"type":"text","text":"Post Message!"}]},{"type":"text","text":"\n          "}]},{"type":"text","text":"\n        "}]}]}]}]}] });
 
 define('module/chat.js',['require','../mock.js','rgl!./chat.html'],function(require){
   var mock = require("../mock.js");
@@ -6206,7 +6346,7 @@ define('module/user.js',["regularjs", "rgl!./user.html"], function( Regular, tpl
 
 });
 
-define("rgl!module/blog.detail.html", function(){ return [{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"blog-post"}],"children":[{"type":"text","text":"\n  "},{"type":"element","tag":"h2","attrs":[{"type":"attribute","name":"class","value":"blog-post-title"}],"children":[{"type":"expression","body":"_c_._sg_('title', _c_._sg_('blog', _d_, 1))","constant":false,"setbody":"_c_._ss_('title',_p_,_c_._sg_('blog', _d_, 1), '=', 0)"},{"type":"text","text":"\n  "},{"type":"if","test":{"type":"expression","body":"_c_._sg_('preview', _d_, 1)","constant":false,"setbody":"_c_._ss_('preview',_p_,_d_, '=', 1)"},"consequent":[{"type":"text","text":"\n  "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"badge"}],"children":[{"type":"text","text":"preview"}]},{"type":"text","text":"\n  "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":{"type":"expression","body":"(function(_t_){_t_ = _c_._f_('encode' ).get.call( _c_,_t_, {'id':_c_._sg_('id', _c_._sg_('blog', _d_, 1))});return _t_})('app.blog.edit')","constant":false,"setbody":false}}],"children":[{"type":"text","text":"Return Edit"}]},{"type":"text","text":"\n  "}],"alternate":[{"type":"text","text":"\n  "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":{"type":"expression","body":"(function(_t_){_t_ = _c_._f_('encode' ).get.call( _c_,_t_, {'id':_c_._sg_('id', _c_._sg_('blog', _d_, 1))});return _t_})('app.blog.edit')","constant":false,"setbody":false}}],"children":[{"type":"text","text":"Edit"}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n"}]},{"type":"text","text":"\n"},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"blog-post-meta"}],"children":[{"type":"text","text":"\n  "},{"type":"expression","body":"(function(_t_){_t_ = _c_._f_('format' ).get.call( _c_,_t_);return _t_})(_c_._sg_('time', _c_._sg_('blog', _d_, 1)))","constant":false,"setbody":"_c_._ss_('time',(function(_t_){_t_ = _c_._f_('format' ).set.call( _c_,_t_);return _t_})(_p_),_c_._sg_('blog', _d_, 1), '=', 0)"},{"type":"text","text":"\n  "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"javascript:;"}],"children":[{"type":"expression","body":"_c_._sg_('name', _c_._sg_('user', _c_._sg_('blog', _d_, 1)))","constant":false,"setbody":"_c_._ss_('name',_p_,_c_._sg_('user', _c_._sg_('blog', _d_, 1)), '=', 0)"}]},{"type":"text","text":"\n\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"content"},{"type":"attribute","name":"r-html","value":{"type":"expression","body":"_c_._sg_('content', _c_._sg_('blog', _d_, 1))","constant":false,"setbody":"_c_._ss_('content',_p_,_c_._sg_('blog', _d_, 1), '=', 0)"}}],"children":[]},{"type":"text","text":"\n"}]},{"type":"text","text":"\n\n"}]}] });
+define("rgl!module/blog.detail.html", function(){ return [{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"blog-post"}],"children":[{"type":"text","text":"\n  "},{"type":"element","tag":"h2","attrs":[{"type":"attribute","name":"class","value":"blog-post-title"}],"children":[{"type":"expression","body":"c._sg_('title', c._sg_('blog', d, e))","constant":false,"setbody":"c._ss_('title',p_,c._sg_('blog', d, e), '=', 0)"},{"type":"text","text":"\n  "},{"type":"if","test":{"type":"expression","body":"c._sg_('preview', d, e)","constant":false,"setbody":"c._ss_('preview',p_,d, '=', 1)"},"consequent":[{"type":"text","text":"\n  "},{"type":"element","tag":"span","attrs":[{"type":"attribute","name":"class","value":"badge"}],"children":[{"type":"text","text":"preview"}]},{"type":"text","text":"\n  "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":{"type":"expression","body":"(function(t){t = c._f_('encode' ).get.call( c,t, {'id':c._sg_('id', c._sg_('blog', d, e))});return t})('app.blog.edit')","constant":false,"setbody":false}}],"children":[{"type":"text","text":"Return Edit"}]},{"type":"text","text":"\n  "}],"alternate":[{"type":"text","text":"\n  "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":{"type":"expression","body":"(function(t){t = c._f_('encode' ).get.call( c,t, {'id':c._sg_('id', c._sg_('blog', d, e))});return t})('app.blog.edit')","constant":false,"setbody":false}}],"children":[{"type":"text","text":"Edit"}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n"}]},{"type":"text","text":"\n"},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"blog-post-meta"}],"children":[{"type":"text","text":"\n  "},{"type":"expression","body":"(function(t){t = c._f_('format' ).get.call( c,t);return t})(c._sg_('time', c._sg_('blog', d, e)))","constant":false,"setbody":"c._ss_('time',(function(t){t = c._f_('format' ).set.call( c,t);return t})(p_),c._sg_('blog', d, e), '=', 0)"},{"type":"text","text":"\n  "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"javascript:;"}],"children":[{"type":"expression","body":"c._sg_('name', c._sg_('user', c._sg_('blog', d, e)))","constant":false,"setbody":"c._ss_('name',p_,c._sg_('user', c._sg_('blog', d, e)), '=', 0)"}]},{"type":"text","text":"\n\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"content"},{"type":"attribute","name":"r-html","value":{"type":"expression","body":"c._sg_('content', c._sg_('blog', d, e))","constant":false,"setbody":"c._ss_('content',p_,c._sg_('blog', d, e), '=', 0)"}}],"children":[]},{"type":"text","text":"\n"}]},{"type":"text","text":"\n\n"}]}] });
 
 
 define('module/blog.detail.js',["regularjs", "rgl!./blog.detail.html",'../mock.js'], function( Regular, tpl , mock){
@@ -6234,10 +6374,10 @@ define('module/blog.detail.js',["regularjs", "rgl!./blog.detail.html",'../mock.j
   })
 });
 
-define("rgl!module/blog.list.html", function(){ return [{"type":"element","tag":"h2","attrs":[{"type":"attribute","name":"class","value":"sub-header"}],"children":[{"type":"text","text":"Bloging List"}]},{"type":"text","text":"\n"},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"table-responsive"}],"children":[{"type":"text","text":"\n"},{"type":"element","tag":"pager","attrs":[{"type":"attribute","name":"total","value":{"type":"expression","body":"_c_._sg_('total', _d_, 1)","constant":false,"setbody":"_c_._ss_('total',_p_,_d_, '=', 1)"}},{"type":"attribute","name":"current","value":{"type":"expression","body":"_c_._sg_('current', _d_, 1)","constant":false,"setbody":"_c_._ss_('current',_p_,_d_, '=', 1)"}},{"type":"attribute","name":"on-nav","value":{"type":"expression","body":"_c_['refresh'](_c_._sg_('page', _c_._sg_('$event', _d_, 1)),true)","constant":false,"setbody":false}}],"children":[]},{"type":"text","text":"\n  "},{"type":"element","tag":"table","attrs":[{"type":"attribute","name":"class","value":"table table-striped"}],"children":[{"type":"text","text":"\n    "},{"type":"element","tag":"thead","attrs":[],"children":[{"type":"text","text":"\n      "},{"type":"element","tag":"tr","attrs":[],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"th","attrs":[],"children":[{"type":"text","text":"id"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"th","attrs":[],"children":[{"type":"text","text":"author"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"th","attrs":[],"children":[{"type":"text","text":"time"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"th","attrs":[],"children":[{"type":"text","text":"title"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"th","attrs":[],"children":[{"type":"text","text":"abstract"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"th","attrs":[],"children":[{"type":"text","text":"action"}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n    "},{"type":"element","tag":"tbody","attrs":[],"children":[{"type":"text","text":"\n      "},{"type":"list","sequence":{"type":"expression","body":"_c_._sg_('blogs', _d_, 1)","constant":false,"setbody":"_c_._ss_('blogs',_p_,_d_, '=', 1)"},"variable":"blog","body":[{"type":"text","text":"\n      "},{"type":"element","tag":"tr","attrs":[],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"expression","body":"_c_._sg_('id', _c_._sg_('blog', _d_, 1))","constant":false,"setbody":"_c_._ss_('id',_p_,_c_._sg_('blog', _d_, 1), '=', 0)"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"expression","body":"_c_._sg_('name', _c_._sg_('user', _c_._sg_('blog', _d_, 1)))","constant":false,"setbody":"_c_._ss_('name',_p_,_c_._sg_('user', _c_._sg_('blog', _d_, 1)), '=', 0)"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"expression","body":"(function(_t_){_t_ = _c_._f_('format' ).get.call( _c_,_t_);return _t_})(_c_._sg_('time', _c_._sg_('blog', _d_, 1)))","constant":false,"setbody":"_c_._ss_('time',(function(_t_){_t_ = _c_._f_('format' ).set.call( _c_,_t_);return _t_})(_p_),_c_._sg_('blog', _d_, 1), '=', 0)"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"expression","body":"_c_._sg_('title', _c_._sg_('blog', _d_, 1))","constant":false,"setbody":"_c_._ss_('title',_p_,_c_._sg_('blog', _d_, 1), '=', 0)"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"expression","body":"_c_._sg_('content', _c_._sg_('blog', _d_, 1))['slice'](0,30)+'...'","constant":false,"setbody":false}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"btn-group"},{"type":"attribute","name":"role","value":"group"},{"type":"attribute","name":"aria-label","value":"..."}],"children":[{"type":"text","text":"\n          "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":{"type":"expression","body":"(function(_t_){_t_ = _c_._f_('encode' ).get.call( _c_,_t_, {'id':_c_._sg_('id', _c_._sg_('blog', _d_, 1))});return _t_})('app.blog.edit')","constant":false,"setbody":false}},{"type":"attribute","name":"class","value":"btn btn-default"}],"children":[{"type":"text","text":"edit"}]},{"type":"text","text":"\n          "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":{"type":"expression","body":"(function(_t_){_t_ = _c_._f_('encode' ).get.call( _c_,_t_, {'id':_c_._sg_('id', _c_._sg_('blog', _d_, 1))});return _t_})('app.blog.detail')","constant":false,"setbody":false}},{"type":"attribute","name":"class","value":"btn btn-default"}],"children":[{"type":"text","text":"view"}]},{"type":"text","text":"\n          "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"#"},{"type":"attribute","name":"on-click","value":{"type":"expression","body":"_c_['remove'](_c_._sg_('blog', _d_, 1),_c_._sg_('blog_index', _d_, 1))","constant":false,"setbody":false}},{"type":"attribute","name":"class","value":"btn btn-danger"}],"children":[{"type":"text","text":"delete"}]},{"type":"text","text":"\n        "}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n  "},{"type":"element","tag":"pager","attrs":[{"type":"attribute","name":"total","value":{"type":"expression","body":"_c_._sg_('total', _d_, 1)","constant":false,"setbody":"_c_._ss_('total',_p_,_d_, '=', 1)"}},{"type":"attribute","name":"current","value":{"type":"expression","body":"_c_._sg_('current', _d_, 1)","constant":false,"setbody":"_c_._ss_('current',_p_,_d_, '=', 1)"}},{"type":"attribute","name":"on-nav","value":{"type":"expression","body":"_c_['refresh'](_c_._sg_('page', _c_._sg_('$event', _d_, 1)),true)","constant":false,"setbody":false}}],"children":[]},{"type":"text","text":"\n"}]}] });
+define("rgl!module/blog.list.html", function(){ return [{"type":"element","tag":"h2","attrs":[{"type":"attribute","name":"class","value":"sub-header"}],"children":[{"type":"text","text":"Bloging List"}]},{"type":"text","text":"\n"},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"table-responsive"}],"children":[{"type":"text","text":"\n"},{"type":"element","tag":"pager","attrs":[{"type":"attribute","name":"total","value":{"type":"expression","body":"c._sg_('total', d, e)","constant":false,"setbody":"c._ss_('total',p_,d, '=', 1)"}},{"type":"attribute","name":"current","value":{"type":"expression","body":"c._sg_('current', d, e)","constant":false,"setbody":"c._ss_('current',p_,d, '=', 1)"}},{"type":"attribute","name":"on-nav","value":{"type":"expression","body":"c['refresh'](c._sg_('page', c._sg_('$event', d, e)),true)","constant":false,"setbody":false}}],"children":[]},{"type":"text","text":"\n  "},{"type":"element","tag":"table","attrs":[{"type":"attribute","name":"class","value":"table table-striped"}],"children":[{"type":"text","text":"\n    "},{"type":"element","tag":"thead","attrs":[],"children":[{"type":"text","text":"\n      "},{"type":"element","tag":"tr","attrs":[],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"th","attrs":[],"children":[{"type":"text","text":"id"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"th","attrs":[],"children":[{"type":"text","text":"author"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"th","attrs":[],"children":[{"type":"text","text":"time"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"th","attrs":[],"children":[{"type":"text","text":"title"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"th","attrs":[],"children":[{"type":"text","text":"abstract"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"th","attrs":[],"children":[{"type":"text","text":"action"}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n    "},{"type":"element","tag":"tbody","attrs":[],"children":[{"type":"text","text":"\n      "},{"type":"list","sequence":{"type":"expression","body":"c._sg_('blogs', d, e)","constant":false,"setbody":"c._ss_('blogs',p_,d, '=', 1)"},"variable":"blog","body":[{"type":"text","text":"\n      "},{"type":"element","tag":"tr","attrs":[],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"expression","body":"c._sg_('id', c._sg_('blog', d, e))","constant":false,"setbody":"c._ss_('id',p_,c._sg_('blog', d, e), '=', 0)"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"expression","body":"c._sg_('name', c._sg_('user', c._sg_('blog', d, e)))","constant":false,"setbody":"c._ss_('name',p_,c._sg_('user', c._sg_('blog', d, e)), '=', 0)"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"expression","body":"(function(t){t = c._f_('format' ).get.call( c,t);return t})(c._sg_('time', c._sg_('blog', d, e)))","constant":false,"setbody":"c._ss_('time',(function(t){t = c._f_('format' ).set.call( c,t);return t})(p_),c._sg_('blog', d, e), '=', 0)"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"expression","body":"c._sg_('title', c._sg_('blog', d, e))","constant":false,"setbody":"c._ss_('title',p_,c._sg_('blog', d, e), '=', 0)"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"expression","body":"c._sg_('content', c._sg_('blog', d, e))['slice'](0,30)+'...'","constant":false,"setbody":false}]},{"type":"text","text":"\n        "},{"type":"element","tag":"td","attrs":[],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"btn-group"},{"type":"attribute","name":"role","value":"group"},{"type":"attribute","name":"aria-label","value":"..."}],"children":[{"type":"text","text":"\n          "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":{"type":"expression","body":"(function(t){t = c._f_('encode' ).get.call( c,t, {'id':c._sg_('id', c._sg_('blog', d, e))});return t})('app.blog.edit')","constant":false,"setbody":false}},{"type":"attribute","name":"class","value":"btn btn-default"}],"children":[{"type":"text","text":"edit"}]},{"type":"text","text":"\n          "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":{"type":"expression","body":"(function(t){t = c._f_('encode' ).get.call( c,t, {'id':c._sg_('id', c._sg_('blog', d, e))});return t})('app.blog.detail')","constant":false,"setbody":false}},{"type":"attribute","name":"class","value":"btn btn-default"}],"children":[{"type":"text","text":"view"}]},{"type":"text","text":"\n          "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"#"},{"type":"attribute","name":"on-click","value":{"type":"expression","body":"c['remove'](c._sg_('blog', d, e),c._sg_('blog_index', d, e))","constant":false,"setbody":false}},{"type":"attribute","name":"class","value":"btn btn-danger"}],"children":[{"type":"text","text":"delete"}]},{"type":"text","text":"\n        "}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n  "},{"type":"element","tag":"pager","attrs":[{"type":"attribute","name":"total","value":{"type":"expression","body":"c._sg_('total', d, e)","constant":false,"setbody":"c._ss_('total',p_,d, '=', 1)"}},{"type":"attribute","name":"current","value":{"type":"expression","body":"c._sg_('current', d, e)","constant":false,"setbody":"c._ss_('current',p_,d, '=', 1)"}},{"type":"attribute","name":"on-nav","value":{"type":"expression","body":"c['refresh'](c._sg_('page', c._sg_('$event', d, e)),true)","constant":false,"setbody":false}}],"children":[]},{"type":"text","text":"\n"}]}] });
 
 
-define("rgl!components/pager.html", function(){ return [{"type":"element","tag":"ul","attrs":[{"type":"attribute","name":"class","value":"pagination"}],"children":[{"type":"text","text":"\n  "},{"type":"element","tag":"li","attrs":[{"type":"attribute","name":"on-click","value":{"type":"expression","body":"_c_['nav'](_c_._sg_('current', _d_, 1)-1)","constant":false,"setbody":false}},{"type":"attribute","name":"class","value":{"type":"expression","body":"['pageprv ',_c_._sg_('current', _d_, 1)==1?'disabled':''].join('')","constant":false,"setbody":false}}],"children":[{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"#"}],"children":[{"type":"text","text":"PREV"}]}]},{"type":"text","text":"\n  "},{"type":"if","test":{"type":"expression","body":"_c_._sg_('total', _d_, 1)-5>_c_._sg_('show', _d_, 1)*2","constant":false,"setbody":false},"consequent":[{"type":"text","text":" \n  "},{"type":"element","tag":"li","attrs":[{"type":"attribute","name":"on-click","value":{"type":"expression","body":"_c_['nav'](1)","constant":false,"setbody":false}},{"type":"attribute","name":"class","value":{"type":"expression","body":"_c_._sg_('current', _d_, 1)==1?'active':''","constant":false,"setbody":false}}],"children":[{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"#"}],"children":[{"type":"text","text":"1"}]}]},{"type":"text","text":"\n  "},{"type":"element","tag":"li","attrs":[],"children":[{"type":"if","test":{"type":"expression","body":"_c_._sg_('begin', _d_, 1)>2","constant":false,"setbody":false},"consequent":[{"type":"element","tag":"a","attrs":[],"children":[{"type":"text","text":"..."}]}],"alternate":[]}]},{"type":"text","text":"\n  "},{"type":"list","sequence":{"type":"expression","body":"(function(start,end){var res = [],step=end>start?1:-1; for(var i = start; end>start?i <= end: i>=end; i=i+step){res.push(i); } return res })(_c_._sg_('begin', _d_, 1),_c_._sg_('end', _d_, 1))","constant":false,"setbody":false},"variable":"i","body":[{"type":"text","text":"\n    "},{"type":"element","tag":"li","attrs":[{"type":"attribute","name":"on-click","value":{"type":"expression","body":"_c_['nav'](_c_._sg_('i', _d_, 1))","constant":false,"setbody":false}},{"type":"attribute","name":"class","value":{"type":"expression","body":"_c_._sg_('current', _d_, 1)==_c_._sg_('i', _d_, 1)?'active':''","constant":false,"setbody":false}}],"children":[{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"#"}],"children":[{"type":"expression","body":"_c_._sg_('i', _d_, 1)","constant":false,"setbody":"_c_._ss_('i',_p_,_d_, '=', 1)"}]}]},{"type":"text","text":" \n  "}]},{"type":"text","text":"\n  "},{"type":"if","test":{"type":"expression","body":"(_c_._sg_('end', _d_, 1)<_c_._sg_('total', _d_, 1)-1)","constant":false,"setbody":false},"consequent":[{"type":"element","tag":"li","attrs":[],"children":[{"type":"element","tag":"a","attrs":[],"children":[{"type":"text","text":"..."}]}]},{"type":"text","text":" "}],"alternate":[]},{"type":"text","text":"\n  "},{"type":"element","tag":"li","attrs":[{"type":"attribute","name":"on-click","value":{"type":"expression","body":"_c_['nav'](_c_._sg_('total', _d_, 1))","constant":false,"setbody":false}},{"type":"attribute","name":"class","value":{"type":"expression","body":"_c_._sg_('current', _d_, 1)==_c_._sg_('total', _d_, 1)?'active':''","constant":false,"setbody":false}}],"children":[{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"#"}],"children":[{"type":"expression","body":"_c_._sg_('total', _d_, 1)","constant":false,"setbody":"_c_._ss_('total',_p_,_d_, '=', 1)"}]}]},{"type":"text","text":" \n  "}],"alternate":[{"type":"text","text":"\n  "},{"type":"list","sequence":{"type":"expression","body":"(function(start,end){var res = [],step=end>start?1:-1; for(var i = start; end>start?i <= end: i>=end; i=i+step){res.push(i); } return res })(1,_c_._sg_('total', _d_, 1))","constant":false,"setbody":false},"variable":"i","body":[{"type":"text","text":" \n  "},{"type":"element","tag":"li","attrs":[{"type":"attribute","name":"on-click","value":{"type":"expression","body":"_c_['nav'](_c_._sg_('i', _d_, 1))","constant":false,"setbody":false}},{"type":"attribute","name":"class","value":{"type":"expression","body":"_c_._sg_('current', _d_, 1)==_c_._sg_('i', _d_, 1)?'active':''","constant":false,"setbody":false}}],"children":[{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"#"}],"children":[{"type":"expression","body":"_c_._sg_('i', _d_, 1)","constant":false,"setbody":"_c_._ss_('i',_p_,_d_, '=', 1)"}]}]},{"type":"text","text":" \n  "}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n  "},{"type":"element","tag":"li","attrs":[{"type":"attribute","name":"on-click","value":{"type":"expression","body":"_c_['nav'](_c_._sg_('current', _d_, 1)+1)","constant":false,"setbody":false}},{"type":"attribute","name":"class","value":{"type":"expression","body":"['pagenxt ',_c_._sg_('current', _d_, 1)==_c_._sg_('total', _d_, 1)?'disabled':''].join('')","constant":false,"setbody":false}}],"children":[{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"#"}],"children":[{"type":"text","text":"NEXT"}]}]},{"type":"text","text":"\n"}]}] });
+define("rgl!components/pager.html", function(){ return [{"type":"element","tag":"ul","attrs":[{"type":"attribute","name":"class","value":"pagination"}],"children":[{"type":"text","text":"\n  "},{"type":"element","tag":"li","attrs":[{"type":"attribute","name":"on-click","value":{"type":"expression","body":"c['nav'](c._sg_('current', d, e)-1)","constant":false,"setbody":false}},{"type":"attribute","name":"class","value":{"type":"expression","body":"['pageprv ',c._sg_('current', d, e)==1?'disabled':''].join('')","constant":false,"setbody":false}}],"children":[{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"#"}],"children":[{"type":"text","text":"PREV"}]}]},{"type":"text","text":"\n  "},{"type":"if","test":{"type":"expression","body":"c._sg_('total', d, e)-5>c._sg_('show', d, e)*2","constant":false,"setbody":false},"consequent":[{"type":"text","text":" \n  "},{"type":"element","tag":"li","attrs":[{"type":"attribute","name":"on-click","value":{"type":"expression","body":"c['nav'](1)","constant":false,"setbody":false}},{"type":"attribute","name":"class","value":{"type":"expression","body":"c._sg_('current', d, e)==1?'active':''","constant":false,"setbody":false}}],"children":[{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"#"}],"children":[{"type":"text","text":"1"}]}]},{"type":"text","text":"\n  "},{"type":"element","tag":"li","attrs":[],"children":[{"type":"if","test":{"type":"expression","body":"c._sg_('begin', d, e)>2","constant":false,"setbody":false},"consequent":[{"type":"element","tag":"a","attrs":[],"children":[{"type":"text","text":"..."}]}],"alternate":[]}]},{"type":"text","text":"\n  "},{"type":"list","sequence":{"type":"expression","body":"(function(start,end){var res = [],step=end>start?1:-1; for(var i = start; end>start?i <= end: i>=end; i=i+step){res.push(i); } return res })(c._sg_('begin', d, e),c._sg_('end', d, e))","constant":false,"setbody":false},"variable":"i","body":[{"type":"text","text":"\n    "},{"type":"element","tag":"li","attrs":[{"type":"attribute","name":"on-click","value":{"type":"expression","body":"c['nav'](c._sg_('i', d, e))","constant":false,"setbody":false}},{"type":"attribute","name":"class","value":{"type":"expression","body":"c._sg_('current', d, e)==c._sg_('i', d, e)?'active':''","constant":false,"setbody":false}}],"children":[{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"#"}],"children":[{"type":"expression","body":"c._sg_('i', d, e)","constant":false,"setbody":"c._ss_('i',p_,d, '=', 1)"}]}]},{"type":"text","text":" \n  "}]},{"type":"text","text":"\n  "},{"type":"if","test":{"type":"expression","body":"(c._sg_('end', d, e)<c._sg_('total', d, e)-1)","constant":false,"setbody":false},"consequent":[{"type":"element","tag":"li","attrs":[],"children":[{"type":"element","tag":"a","attrs":[],"children":[{"type":"text","text":"..."}]}]},{"type":"text","text":" "}],"alternate":[]},{"type":"text","text":"\n  "},{"type":"element","tag":"li","attrs":[{"type":"attribute","name":"on-click","value":{"type":"expression","body":"c['nav'](c._sg_('total', d, e))","constant":false,"setbody":false}},{"type":"attribute","name":"class","value":{"type":"expression","body":"c._sg_('current', d, e)==c._sg_('total', d, e)?'active':''","constant":false,"setbody":false}}],"children":[{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"#"}],"children":[{"type":"expression","body":"c._sg_('total', d, e)","constant":false,"setbody":"c._ss_('total',p_,d, '=', 1)"}]}]},{"type":"text","text":" \n  "}],"alternate":[{"type":"text","text":"\n  "},{"type":"list","sequence":{"type":"expression","body":"(function(start,end){var res = [],step=end>start?1:-1; for(var i = start; end>start?i <= end: i>=end; i=i+step){res.push(i); } return res })(1,c._sg_('total', d, e))","constant":false,"setbody":false},"variable":"i","body":[{"type":"text","text":" \n  "},{"type":"element","tag":"li","attrs":[{"type":"attribute","name":"on-click","value":{"type":"expression","body":"c['nav'](c._sg_('i', d, e))","constant":false,"setbody":false}},{"type":"attribute","name":"class","value":{"type":"expression","body":"c._sg_('current', d, e)==c._sg_('i', d, e)?'active':''","constant":false,"setbody":false}}],"children":[{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"#"}],"children":[{"type":"expression","body":"c._sg_('i', d, e)","constant":false,"setbody":"c._ss_('i',p_,d, '=', 1)"}]}]},{"type":"text","text":" \n  "}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n  "},{"type":"element","tag":"li","attrs":[{"type":"attribute","name":"on-click","value":{"type":"expression","body":"c['nav'](c._sg_('current', d, e)+1)","constant":false,"setbody":false}},{"type":"attribute","name":"class","value":{"type":"expression","body":"['pagenxt ',c._sg_('current', d, e)==c._sg_('total', d, e)?'disabled':''].join('')","constant":false,"setbody":false}}],"children":[{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"href","value":"#"}],"children":[{"type":"text","text":"NEXT"}]}]},{"type":"text","text":"\n"}]}] });
 
 define('components/pager.js',["regularjs", "rgl!./pager.html"], function( Regular, tpl ){
 
@@ -6319,7 +6459,7 @@ define('module/blog.list.js',[
 
 ;
 
-define("rgl!module/blog.edit.html", function(){ return [{"type":"element","tag":"h2","attrs":[],"children":[{"type":"expression","body":"_c_._sg_('id', _c_._sg_('$param', _d_, 1))=='-1'?'Add':'Edit'","constant":false,"setbody":false},{"type":"text","text":" Post"}]},{"type":"text","text":"\n"},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"row"}],"children":[{"type":"text","text":"\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"col-md-10"}],"children":[{"type":"text","text":"\n    "},{"type":"element","tag":"form","attrs":[],"children":[{"type":"text","text":"\n      "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"form-group"}],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"label","attrs":[{"type":"attribute","name":"for","value":"title"}],"children":[{"type":"text","text":"Title"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"input","attrs":[{"type":"attribute","name":"type","value":"text"},{"type":"attribute","name":"class","value":"form-control"},{"type":"attribute","name":"r-model","value":{"type":"expression","body":"_c_._sg_('title', _d_, 1)","constant":false,"setbody":"_c_._ss_('title',_p_,_d_, '=', 1)"}},{"type":"attribute","name":"placeholder","value":"Enter Title"}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n      "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"form-group"}],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"label","attrs":[{"type":"attribute","name":"for","value":"content"}],"children":[{"type":"text","text":"Tag"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"input","attrs":[{"type":"attribute","name":"r-model","value":{"type":"expression","body":"(function(_t_){_t_ = _c_._f_('split' ).get.call( _c_,_t_);return _t_})(_c_._sg_('tags', _d_, 1))","constant":false,"setbody":"_c_._ss_('tags',(function(_t_){_t_ = _c_._f_('split' ).set.call( _c_,_t_);return _t_})(_p_),_d_, '=', 1)"}},{"type":"attribute","name":"placeholder","value":"Blog Content"},{"type":"attribute","name":"class","value":"form-control"},{"type":"attribute","name":"rows","value":"20"}]},{"type":"text","text":"\n        "},{"type":"expression","body":"(function(_t_){_t_ = _c_._f_('json' ).get.call( _c_,_t_);return _t_})(_c_._sg_('tags', _d_, 1))","constant":false,"setbody":"_c_._ss_('tags',(function(_t_){_t_ = _c_._f_('json' ).set.call( _c_,_t_);return _t_})(_p_),_d_, '=', 1)"},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n      "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"form-group"}],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"label","attrs":[{"type":"attribute","name":"for","value":"content"}],"children":[{"type":"text","text":"Content"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"textarea","attrs":[{"type":"attribute","name":"r-model","value":{"type":"expression","body":"_c_._sg_('content', _d_, 1)","constant":false,"setbody":"_c_._ss_('content',_p_,_d_, '=', 1)"}},{"type":"attribute","name":"placeholder","value":"Blog Content"},{"type":"attribute","name":"class","value":"form-control"},{"type":"attribute","name":"rows","value":"20"}],"children":[]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n       "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"class","value":"btn btn-primary"},{"type":"attribute","name":"on-click","value":{"type":"expression","body":"_c_['submit'](_c_._sg_('title', _d_, 1),_c_._sg_('content', _d_, 1),_c_._sg_('id', _c_._sg_('$param', _d_, 1)))","constant":false,"setbody":false}}],"children":[{"type":"text","text":"Submit"}]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n"}]}] });
+define("rgl!module/blog.edit.html", function(){ return [{"type":"element","tag":"h2","attrs":[],"children":[{"type":"expression","body":"c._sg_('id', c._sg_('$param', d, e))=='-1'?'Add':'Edit'","constant":false,"setbody":false},{"type":"text","text":" Post"}]},{"type":"text","text":"\n"},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"row"}],"children":[{"type":"text","text":"\n  "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"col-md-10"}],"children":[{"type":"text","text":"\n    "},{"type":"element","tag":"form","attrs":[],"children":[{"type":"text","text":"\n      "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"form-group"}],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"label","attrs":[{"type":"attribute","name":"for","value":"title"}],"children":[{"type":"text","text":"Title"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"input","attrs":[{"type":"attribute","name":"type","value":"text"},{"type":"attribute","name":"class","value":"form-control"},{"type":"attribute","name":"r-model","value":{"type":"expression","body":"c._sg_('title', d, e)","constant":false,"setbody":"c._ss_('title',p_,d, '=', 1)"}},{"type":"attribute","name":"placeholder","value":"Enter Title"}]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n      "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"form-group"}],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"label","attrs":[{"type":"attribute","name":"for","value":"content"}],"children":[{"type":"text","text":"Tag"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"input","attrs":[{"type":"attribute","name":"r-model","value":{"type":"expression","body":"(function(t){t = c._f_('split' ).get.call( c,t);return t})(c._sg_('tags', d, e))","constant":false,"setbody":"c._ss_('tags',(function(t){t = c._f_('split' ).set.call( c,t);return t})(p_),d, '=', 1)"}},{"type":"attribute","name":"placeholder","value":"Blog Content"},{"type":"attribute","name":"class","value":"form-control"},{"type":"attribute","name":"rows","value":"20"}]},{"type":"text","text":"\n        "},{"type":"expression","body":"(function(t){t = c._f_('json' ).get.call( c,t);return t})(c._sg_('tags', d, e))","constant":false,"setbody":"c._ss_('tags',(function(t){t = c._f_('json' ).set.call( c,t);return t})(p_),d, '=', 1)"},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n      "},{"type":"element","tag":"div","attrs":[{"type":"attribute","name":"class","value":"form-group"}],"children":[{"type":"text","text":"\n        "},{"type":"element","tag":"label","attrs":[{"type":"attribute","name":"for","value":"content"}],"children":[{"type":"text","text":"Content"}]},{"type":"text","text":"\n        "},{"type":"element","tag":"textarea","attrs":[{"type":"attribute","name":"r-model","value":{"type":"expression","body":"c._sg_('content', d, e)","constant":false,"setbody":"c._ss_('content',p_,d, '=', 1)"}},{"type":"attribute","name":"placeholder","value":"Blog Content"},{"type":"attribute","name":"class","value":"form-control"},{"type":"attribute","name":"rows","value":"20"}],"children":[]},{"type":"text","text":"\n      "}]},{"type":"text","text":"\n       "},{"type":"element","tag":"a","attrs":[{"type":"attribute","name":"class","value":"btn btn-primary"},{"type":"attribute","name":"on-click","value":{"type":"expression","body":"c['submit'](c._sg_('title', d, e),c._sg_('content', d, e),c._sg_('id', c._sg_('$param', d, e)))","constant":false,"setbody":false}}],"children":[{"type":"text","text":"Submit"}]},{"type":"text","text":"\n    "}]},{"type":"text","text":"\n  "}]},{"type":"text","text":"\n"}]}] });
 
 define('module/blog.edit.js',["regularjs", "rgl!./blog.edit.html", "./blog.detail.js" ,"../mock.js"], function( Regular, tpl , BlogDetail , mock){
   return Regular.extend({
@@ -6465,7 +6605,7 @@ require([
 
     // blog
     .state("app.blog", Blog)
-    .state("app.blog.detail", BlogDetail, ":id/detail")
+    .state("app.blog.detail", BlogDetail, {url: ":id/detail", rebuild: true })
     .state("app.blog.list", BlogList, "")
     .state("app.blog.edit", BlogEdit, ":id/edit")
 
