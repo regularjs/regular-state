@@ -11,7 +11,9 @@
         // Browser globals (root is window)
         root.restate = factory(root.StateMan);
     }
+
 }(this, function (StateMan) {
+
 
   var _ = StateMan.util;
 
@@ -54,6 +56,16 @@
         }
         var state = {
           component: null,
+          // life cycle
+          canEnter: function(){
+            
+          },
+          canLeave: function(){
+
+          },
+          canUpdate: function(){
+
+          },
           enter: function( step ){
             var data = { $param: step.param },
               component = this.component,

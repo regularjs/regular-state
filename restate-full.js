@@ -1,6 +1,6 @@
 /**
 @author	leeluolee
-@version	0.0.1
+@version	0.1.0
 @homepage	https://github.com/regularjs/regular-state
 */
 (function webpackUniversalModuleDefinition(root, factory) {
@@ -72,7 +72,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	        // Browser globals (root is window)
 	        root.restate = factory(root.StateMan);
 	    }
+
 	}(this, function (StateMan) {
+
 
 	  var _ = StateMan.util;
 
@@ -115,6 +117,16 @@ return /******/ (function(modules) { // webpackBootstrap
 	        }
 	        var state = {
 	          component: null,
+	          // life cycle
+	          canEnter: function(){
+	            
+	          },
+	          canLeave: function(){
+
+	          },
+	          canUpdate: function(){
+
+	          },
 	          enter: function( step ){
 	            var data = { $param: step.param },
 	              component = this.component,
@@ -186,6 +198,7 @@ return /******/ (function(modules) { // webpackBootstrap
 /* 1 */
 /***/ function(module, exports, __webpack_require__) {
 
+	
 	var StateMan = __webpack_require__(2);
 	StateMan.Histery = __webpack_require__(3);
 	StateMan.util = __webpack_require__(4);
@@ -202,26 +215,42 @@ return /******/ (function(modules) { // webpackBootstrap
 	  Histery = __webpack_require__(3),
 	  brow = __webpack_require__(6),
 	  _ = __webpack_require__(4),
+	  baseTitle = document.title,
 	  stateFn = State.prototype.state;
 
 
-
 	function StateMan(options){
+
 	  if(this instanceof StateMan === false){ return new StateMan(options)}
 	  options = options || {};
-	  if(options.history) this.history = options.history;
+	  // if(options.history) this.history = options.history;
+
 	  this._states = {};
 	  this._stashCallback = [];
+	  this.strict = options.strict;
 	  this.current = this.active = this;
+	  this.title = options.title;
+	  this.on("end", function(){
+	    var cur = this.current,title;
+	    while( cur ){
+	      title = cur.title;
+	      if(title) break; 
+	      cur = cur.parent;
+	    }
+	    document.title = typeof title === "function"? cur.title(): String( title || baseTitle ) ;
+	  })
+
 	}
 
 
 	_.extend( _.emitable( StateMan ), {
-	    // start StateMan
+	    // keep blank
+	    name: '',
 
 	    state: function(stateName, config){
+
 	      var active = this.active;
-	      if(typeof stateName === "string" && active.name){
+	      if(typeof stateName === "string" && active){
 	         stateName = stateName.replace("~", active.name)
 	         if(active.parent) stateName = stateName.replace("^", active.parent.name || "");
 	      }
@@ -229,25 +258,27 @@ return /******/ (function(modules) { // webpackBootstrap
 	      // ~ represent  current
 	      // only 
 	      return stateFn.apply(this, arguments);
+
 	    },
 	    start: function(options){
+
 	      if( !this.history ) this.history = new Histery(options); 
 	      if( !this.history.isStart ){
 	        this.history.on("change", _.bind(this._afterPathChange, this));
 	        this.history.start();
 	      } 
 	      return this;
+
 	    },
 	    stop: function(){
 	      this.history.stop();
-	    },
-	    async: function(){
-	      return this.active && this.active.async();
 	    },
 	    // @TODO direct go the point state
 	    go: function(state, option, callback){
 	      option = option || {};
 	      if(typeof state === "string") state = this.state(state);
+
+	      if(!state) return;
 
 	      if(typeof option === "function"){
 	        callback = option;
@@ -256,10 +287,12 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	      if(option.encode !== false){
 	        var url = state.encode(option.param)
+	        option.path = url;
 	        this.nav(url, {silent: true, replace: option.replace});
-	        this.path = url;
 	      }
+
 	      this._go(state, option, callback);
+
 	      return this;
 	    },
 	    nav: function(url, options, callback){
@@ -267,22 +300,28 @@ return /******/ (function(modules) { // webpackBootstrap
 	        callback = options;
 	        options = {};
 	      }
-	      callback && (this._cb = callback)
+	      options = options || {};
 
-	      this.history.nav( url, options);
-	      this._cb = null;
+	      options.path = url;
+
+	      this.history.nav( url, _.extend({silent: true}, options));
+	      if(!options.silent) this._afterPathChange( _.cleanPath(url) , options , callback)
+
 	      return this;
 	    },
 	    decode: function(path){
+
 	      var pathAndQuery = path.split("?");
 	      var query = this._findQuery(pathAndQuery[1]);
 	      path = pathAndQuery[0];
 	      var state = this._findState(this, path);
 	      if(state) _.extend(state.param, query);
 	      return state;
+
 	    },
 	    encode: function(stateName, param){
-	      return this.state(stateName).encode(param);
+	      var state = this.state(stateName);
+	      return state? state.encode(param) : '';
 	    },
 	    // notify specify state
 	    // check the active statename whether to match the passed condition (stateName and param)
@@ -295,102 +334,285 @@ return /******/ (function(modules) { // webpackBootstrap
 	    },
 	    // after pathchange changed
 	    // @TODO: afterPathChange need based on decode
-	    _afterPathChange: function(path){
+	    _afterPathChange: function(path, options ,callback){
 
 	      this.emit("history:change", path);
 
+	      var found = this.decode(path);
 
-	      var found = this.decode(path), callback = this._cb;
+	      options = options || {};
 
-	      this.path = path;
+	      options.path = path;
 
 	      if(!found){
 	        // loc.nav("$default", {silent: true})
-	        var $notfound = this.state("$notfound");
-	        if($notfound) this._go($notfound, {path: path}, callback);
-
-	        return this.emit("notfound", {path: path});
+	        return this._notfound(options);
 	      }
 
+	      options.param = found.param;
 
-	      this._go( found, { param: found.param}, callback );
+	      this._go( found, options, callback );
 	    },
+	    _notfound: function(options){
 
+	      // var $notfound = this.state("$notfound");
+
+	      // if( $notfound ) this._go($notfound, options);
+
+	      return this.emit("notfound", options);
+	    },
 	    // goto the state with some option
 	    _go: function(state, option, callback){
+
 	      var over;
 
-	      if(typeof state === "string") state = this.state(state);
+	      // if(typeof state === "string") state = this.state(state);
 
+	      // if(!state) return _.log("destination is not defined")
 
-	      if(!state) return _.log("destination is not defined")
+	      if(state.hasNext && this.strict) return this._notfound({name: state.name});
 
 	      // not touch the end in previous transtion
 
-	      if(this.active !== this.current){
-	        // we need return
-
-	        _.log("naving to [" + this.current.name + "] will be stoped, trying to ["+state.name+"] now");
-	        if(this.active.done){
-	          this.active.done(false);
-	        }
-	        this.current = this.active;
-	        // back to before
-	      }
+	      // if( this.pending ){
+	      //   var pendingCurrent = this.pending.current;
+	      //   this.pending.stop();
+	      //   _.log("naving to [" + pendingCurrent.name + "] will be stoped, trying to ["+state.name+"] now");
+	      // }
+	      // if(this.active !== this.current){
+	      //   // we need return
+	      //   _.log("naving to [" + this.current.name + "] will be stoped, trying to ["+state.name+"] now");
+	      //   this.current = this.active;
+	      //   // back to before
+	      // }
 	      option.param = option.param || {};
-	      this.param = option.param;
 
 	      var current = this.current,
 	        baseState = this._findBase(current, state),
+	        prepath = this.path,
 	        self = this;
+
 
 	      if( typeof callback === "function" ) this._stashCallback.push(callback);
 	      // if we done the navigating when start
-	      var done = function(success){
+	      function done(success){
 	        over = true;
-	        self.current = self.active;
-	        if( success !== false ) self.emit("end")
-	        self._popStash();
+	        if( success !== false ) self.emit("end");
+	        self.pending = null;
+	        self._popStash(option);
 	      }
 	      
+	      option.previous = current;
+	      option.current = state;
+
 	      if(current !== state){
-	        self.emit("begin", {
-	          previous: current,
-	          current: state,
-	          param: option.param,
-	          stop: function(){
-	            done(false);
-	          }
-	        });
-	        if(over === true){
-	          return current !== this && 
-	            this.nav(current.encode(current.param), {silent:true});
+	        option.stop = function(){
+	          done(false);
+	          self.nav( prepath? prepath: "/", {silent:true});
 	        }
-	        this.previous = current;
-	        this.current = state;
-	        this._leave(baseState, option, function(success){
-	          self._checkQueryAndParam(baseState, option);
-	          if(success === false) return done(success)
-	          self._enter(state, option, done)
-	        })
+	        self.emit("begin", option);
+
+	      }
+	      // if we stop it in 'begin' listener
+	      if(over === true) return;
+
+	      if(current !== state){
+	        // option as transition object.
+
+	        option.phase = 'permission';
+	        this._walk(current, state, option, true , _.bind( function( notRejected ){
+
+	          if( notRejected===false ){
+	            // if reject in callForPermission, we will return to old 
+	            prepath && this.nav( prepath, {silent: true})
+
+	            done(false, 2)
+
+	            return this.emit('abort', option);
+
+	          } 
+
+	          // stop previous pending.
+	          if(this.pending) this.pending.stop() 
+	          this.pending = option;
+	          this.path = option.path;
+	          this.current = option.current;
+	          this.param = option.param;
+	          this.previous = option.previous;
+	          option.phase = 'navigation';
+	          this._walk(current, state, option, false, _.bind(function( notRejected ){
+
+	            if( notRejected === false ){
+	              this.current = this.active;
+	              done(false)
+	              return this.emit('abort', option);
+	            }
+
+
+	            this.active = option.current;
+
+	            option.phase = 'completion';
+	            return done()
+
+	          }, this) )
+
+	        }, this) )
+
 	      }else{
 	        self._checkQueryAndParam(baseState, option);
+	        this.pending = null;
 	        done();
 	      }
 	      
 	    },
-	    _popStash: function(){
+	    _popStash: function(option){
+
 	      var stash = this._stashCallback, len = stash.length;
+
 	      this._stashCallback = [];
+
 	      if(!len) return;
 
 	      for(var i = 0; i < len; i++){
-	        stash[i].call(this)
+	        stash[i].call(this, option)
 	      }
+	    },
+
+	    // the transition logic  Used in Both canLeave canEnter && leave enter LifeCycle
+
+	    _walk: function(from, to, option, callForPermit , callback){
+
+	      // nothing -> app.state
+	      var parent = this._findBase(from , to);
+
+
+	      option.basckward = true;
+	      this._transit( from, parent, option, callForPermit , _.bind( function( notRejected ){
+
+	        if( notRejected === false ) return callback( notRejected );
+
+	        // only actual transiton need update base state;
+	        if( !callForPermit )  this._checkQueryAndParam(parent, option)
+
+	        option.basckward = false;
+	        this._transit( parent, to, option, callForPermit,  callback)
+
+	      }, this) )
+
+	    },
+
+	    _transit: function(from, to, option, callForPermit, callback){
+	      //  touch the ending
+	      if( from === to ) return callback();
+
+	      var back = from.name.length > to.name.length;
+	      var method = back? 'leave': 'enter';
+	      var applied;
+
+	      // use canEnter to detect permission
+	      if( callForPermit) method = 'can' + method.replace(/^\w/, function(a){ return a.toUpperCase() });
+
+	      var loop = _.bind(function( notRejected ){
+
+
+	        // stop transition or touch the end
+	        if( applied === to || notRejected === false ) return callback(notRejected);
+
+	        if( !applied ) {
+
+	          applied = back? from : this._computeNext(from, to);
+
+	        }else{
+
+	          applied = this._computeNext(applied, to);
+	        }
+
+	        if( (back && applied === to) || !applied )return callback( notRejected )
+
+	        this._moveOn( applied, method, option, loop );
+
+	      }, this);
+
+	      loop();
+	    },
+
+	    _moveOn: function( applied, method, option, callback){
+
+	      var isDone = false;
+	      var isPending = false;
+
+	      option.async = function(){
+
+	        isPending = true;
+
+	        return done;
+	      }
+
+	      function done( notRejected ){
+	        if( isDone ) return;
+	        isPending = false;
+	        isDone = true;
+	        callback( notRejected );
+	      }
+
+	      
+
+	      option.stop = function(){
+	        done( false );
+	      }
+
+
+	      this.active = applied;
+	      var retValue = applied[method]? applied[method]( option ): true;
+
+	      if(method === 'enter') applied.visited = true;
+	      // promise
+	      // need breadk , if we call option.stop first;
+
+	      if( _.isPromise(retValue) ){
+
+	        return this._wrapPromise(retValue, done); 
+
+	      }
+
+	      // if haven't call option.async yet
+	      if( !isPending ) done( retValue )
+
+	    },
+
+
+	    _wrapPromise: function( promise, next ){
+
+	      return promise.then( next, function(){next(false)}) ;
+
+	    },
+
+	    _computeNext: function( from, to ){
+
+	      var fname = from.name;
+	      var tname = to.name;
+
+	      var tsplit = tname.split('.')
+	      var fsplit = fname.split('.')
+
+	      var tlen = tsplit.length;
+	      var flen = fsplit.length;
+
+	      if(fname === '') flen = 0;
+	      if(tname === '') tlen = 0;
+
+	      if( flen < tlen ){
+	        fsplit[flen] = tsplit[flen];
+	      }else{
+	        fsplit.pop();
+	      }
+
+	      return this.state(fsplit.join('.'))
 
 	    },
 
 	    _findQuery: function(querystr){
+
 	      var queries = querystr && querystr.split("&"), query= {};
 	      if(queries){
 	        var len = queries.length;
@@ -401,6 +623,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        }
 	      }
 	      return query;
+
 	    },
 	    _findState: function(state, path){
 	      var states = state._states, found, param;
@@ -412,6 +635,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	          if( found ) return found;
 	        }
 	      }
+	      // in strict mode only leaf can be touched
+	      // if all children is don. will try it self
 	      param = state.regexp && state.decode(path);
 	      if(param){
 	        state.param = param;
@@ -422,6 +647,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    },
 	    // find the same branch;
 	    _findBase: function(now, before){
+
 	      if(!now || !before || now == this || before == this) return this;
 	      var np = now, bp = before, tmp;
 	      while(np && bp){
@@ -432,78 +658,16 @@ return /******/ (function(modules) { // webpackBootstrap
 	        }
 	        np = np.parent;
 	      }
-	      return this;
-	    },
-	    _enter: function(end, options, callback){
-
-	      callback = callback || _.noop;
-
-	      var active = this.active;
-
-	      if(active == end) return callback();
-	      var stage = [];
-	      while(end !== active && end){
-	        stage.push(end);
-	        end = end.parent;
-	      }
-	      this._enterOne(stage, options, callback)
-	    },
-	    _enterOne: function(stage, options, callback){
-
-	      var cur = stage.pop(), self = this;
-	      if(!cur) return callback();
-
-	      this.active = cur;
-
-	      cur.done = function(success){
-	        cur._pending = false;
-	        cur.done = null;
-	        cur.visited = true;
-	        if(success !== false){
-	          self._enterOne(stage, options, callback)
-	          
-	        }else{
-	          return callback(success);
-	        }
-	      }
-
-	      if(!cur.enter) cur.done();
-	      else {
-	        var success = cur.enter(options);
-	        if(!cur._pending && cur.done) cur.done(success);
-	      }
-	    },
-	    _leave: function(end, options, callback){
-	      callback = callback || _.noop;
-	      if(end == this.active) return callback();
-	      this._leaveOne(end, options,callback)
-	    },
-	    _leaveOne: function(end, options, callback){
-	      if( end === this.active ) return callback();
-	      var cur = this.active, self = this;
-	      cur.done = function( success ){
-	        cur._pending = false;
-	        cur.done = null;
-	        if(success !== false){
-	          if(cur.parent) self.active = cur.parent;
-	          self._leaveOne(end, options, callback)
-	        }else{
-	          return callback(success);
-	        }
-	      }
-	      if(!cur.leave) cur.done();
-	      else{
-	        var success = cur.leave(options);
-	        if( !cur._pending && cur.done) cur.done(success);
-	      }
 	    },
 	    // check the query and Param
 	    _checkQueryAndParam: function(baseState, options){
+
 	      var from = baseState;
 	      while( from !== this ){
 	        from.update && from.update(options);
 	        from = from.parent;
 	      }
+
 	    }
 
 	}, true)
@@ -511,6 +675,8 @@ return /******/ (function(modules) { // webpackBootstrap
 
 
 	module.exports = StateMan;
+
+
 
 /***/ },
 /* 3 */
@@ -663,6 +829,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    // if(this.mode !== 2) return;
 	    var prefix = this.prefix, self = this;
 	    browser.on( document.body, "click", function(ev){
+
 	      var target = ev.target || ev.srcElement;
 	      if( target.tagName.toLowerCase() !== "a" ) return;
 	      var tmp = (browser.getHref(target)||"").match(self.rPrefix);
@@ -747,13 +914,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	}
 
 
-	// Object.create shim
-	_.ocreate = Object.create || function(o) {
-	  var Foo = function(){};
-	  Foo.prototype = o;
-	  return new Foo;
-	}
-
 
 	_.slice = function(arr, index){
 	  return slice.call(arr, index);
@@ -781,6 +941,10 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	// small emitter 
 	_.emitable = (function(){
+	  function norm(ev){
+	    var eventAndNamespace = (ev||'').split(':');
+	    return {event: eventAndNamespace[0], namespace: eventAndNamespace[1]}
+	  }
 	  var API = {
 	    once: function(event, fn){
 	      var callback = function(){
@@ -794,40 +958,48 @@ return /******/ (function(modules) { // webpackBootstrap
 	        for (var i in event) {
 	          this.on(i, event[i]);
 	        }
-	      }else{
+	        return this;
+	      }
+	      var ne = norm(event);
+	      event=ne.event;
+	      if(event && typeof fn === 'function' ){
 	        var handles = this._handles || (this._handles = {}),
 	          calls = handles[event] || (handles[event] = []);
+	        fn._ns = ne.namespace;
 	        calls.push(fn);
 	      }
 	      return this;
 	    },
 	    off: function(event, fn) {
+	      var ne = norm(event); event = ne.event;
 	      if(!event || !this._handles) this._handles = {};
-	      if(!this._handles) return;
 
 	      var handles = this._handles , calls;
 
 	      if (calls = handles[event]) {
-	        if (!fn) {
+	        if (!fn && !ne.namespace) {
 	          handles[event] = [];
-	          return this;
-	        }
-	        for (var i = 0, len = calls.length; i < len; i++) {
-	          if (fn === calls[i]) {
-	            calls.splice(i, 1);
-	            return this;
+	        }else{
+	          for (var i = 0, len = calls.length; i < len; i++) {
+	            if ( (!fn || fn === calls[i]) && (!ne.namespace || calls[i]._ns === ne.namespace) ) {
+	              calls.splice(i, 1);
+	              return this;
+	            }
 	          }
 	        }
 	      }
 	      return this;
 	    },
 	    emit: function(event){
+	      var ne = norm(event); event = ne.event;
+
 	      var args = _.slice(arguments, 1),
 	        handles = this._handles, calls;
 
 	      if (!handles || !(calls = handles[event])) return this;
 	      for (var i = 0, len = calls.length; i < len; i++) {
-	        calls[i].apply(this, args)
+	        var fn = calls[i];
+	        if( !ne.namespace || fn._ns === ne.namespace ) fn.apply(this, args)
 	      }
 	      return this;
 	    }
@@ -839,7 +1011,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	})();
 
 
-	_.noop = function(){}
 
 	_.bind = function(fn, context){
 	  return function(){
@@ -902,6 +1073,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	  typeof console !== "undefined" && console[type || "log"](msg)
 	}
 
+	_.isPromise = function( obj ){
+
+	  return !!obj && (typeof obj === 'object' || typeof obj === 'function') && typeof obj.then === 'function';
+
+	}
+
+
 
 	_.normalize = normalizePath;
 
@@ -912,6 +1090,8 @@ return /******/ (function(modules) { // webpackBootstrap
 /***/ function(module, exports, __webpack_require__) {
 
 	var _ = __webpack_require__(4);
+
+
 
 	function State(option){
 	  this._states = {};
@@ -970,7 +1150,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  },
 
 	  config: function(configure){
-	    if(!configure ) return;
+
 	    configure = this._getConfig(configure);
 
 	    for(var i in configure){
@@ -1053,10 +1233,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	      return false;
 	    }
 	  },
+	  // by default, all lifecycle is permitted
+
 	  async: function(){
-	    var self = this;
-	    this._pending = true;
-	    return this.done;
+	    throw new Error( 'please use option.async instead')
 	  }
 
 	})
