@@ -1,32 +1,11 @@
-# regularjs-state
+# regular-state
+
+regular-state是基于[stateman](https://github.com/leeluolee/stateman) 和 Regular的单页应用框架.
 
 
-now, use regularjs to create single page application with no pain.
+## 文档
 
-
-## Example 
-
-
-```javascript
-
-var stateman = restate();
-
-
-stateman.state("app", Application)
-  .state("app.blog", Blog)
-  .state("app.blog", User)
-  .state("app.chat", Chat)
-  .state("app.chat.detail", Chat)
-
-
-```
-
-
-
-## 
-
-
-
+请见[如何开发基于Regularjs的单页应用](http://regularjs.github.io/guide/zh/spa/stateman.html)
 
 
 
