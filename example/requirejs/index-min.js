@@ -1135,6 +1135,7 @@ return /******/ (function(modules) { // webpackBootstrap
 /******/ ])
 });
 ;
+
 (function (root, factory) {
     if (typeof define === 'function' && define.amd) {
         // AMD. Register as an anonymous module.
@@ -1146,13 +1147,27 @@ return /******/ (function(modules) { // webpackBootstrap
         module.exports = factory(require('stateman'));
     } else {
         // Browser globals (root is window)
-        root.restate = factory(root.StateMan);
+        root.restate = factory( root.StateMan);
     }
-
 }(this, function (StateMan) {
 
-
   var _ = StateMan.util;
+
+
+  // get all state match the pattern
+  function getMatchStates(stateman, pattern){
+    var current = stateman;
+    var allStates = [];
+
+    var currentStates = current._states;
+
+    for(var i in currentStates){
+      var state = currentStates[i];
+      if(pattern.test(state.stateName)) allStates.push( state );
+      if(state._states) allStates = allStates.concat(getMatchStates( state, pattern))
+    }
+    return allStates
+  }
 
   var restate = function(option){
     option = option || {};
@@ -1168,7 +1183,9 @@ return /******/ (function(modules) { // webpackBootstrap
     }
 
     stateman.state = function(name, Component, config){
+
       if(typeof config === 'undefined') config = {};
+
 
       if(!Component) return preStae.call(stateman, name);
 
@@ -1193,50 +1210,123 @@ return /******/ (function(modules) { // webpackBootstrap
         }
         var state = {
           component: null,
-          // life cycle
-          canEnter: function(){
-            
-          },
-          canLeave: function(){
 
-          },
+          // @TODO:
           canUpdate: function(){
 
+            var canUpdate = this.component && this.component.canUpdate;
+
+            if( canUpdate ) return this.component.canUpdate();
           },
-          enter: function( step ){
-            var data = { $param: step.param },
+
+
+          canLeave: function(){
+
+            var canLeave = this.component && this.component.canLeave;
+
+            if( canLeave ) return this.component.canLeave();
+
+          },
+
+          canEnter: function( option ){
+            var data = { $param: option.param },
               component = this.component,
-              // if component is not exsit or need autoreset
-              noComponent = !component || config.autoreset, 
+              noComponent = !component, 
               view;
 
             if(noComponent){
+
               component = this.component = new Component({
                 data: data,
-                $state: stateman
-              });
 
+                $state: stateman,
+
+                $stateName: name,
+
+                /**
+                 * notify other module
+                 * @param  {String} stateName module's stateName
+                 *         you can pass wildcard(*) for 
+                 *       
+                 * @param  {Whatever} param   event param
+                 * @return {Component} this 
+                 */
+                $notify: function(stateName, type, param){
+
+                  var pattern, eventObj, state;
+
+                  if(!stateName) return;
+
+                  if(~stateName.indexOf('*')){
+
+                    pattern = new RegExp(
+                      stateName
+                        .replace('.', '\\.')
+                        .replace(/\*\*|\*/, function(cap){
+                          if(cap === '**') return '.*';
+                          else return '[^.]*';
+                        })
+                    );
+
+                    getMatchStates.forEach(function(state){
+                      if(state.component) state.component.$emit(type, {
+                        param: param,
+                        from: name,
+                        to: state.stateName
+                      })
+                    })
+
+                  }else{
+                    state = stateman.state(stateName);
+                    if(!state || !state.component) return 
+                    state.component.$emit(type, {
+                      param: param,
+                      from: name,
+                      to: stateName
+                    })
+                  }
+                  
+                }
+              });
             }
+            var canEnter = this.component && this.component.canEnter;
+
+            if( canEnter ) return this.component.canEnter();
+          },
+
+          enter: function( option ){
+
+
+
+            var data = { $param: option.param };
+            var component = this.component;
+            var parent = this.parent, view;
+
+            if(!component) return;
+
             _.extend(component.data, data, true);
 
-            var parent = this.parent, view;
             if(parent.component){
-              var view = parent.component.$refs.view;
+              view = parent.component.$refs.view;
               if(!view) throw this.parent.name + " should have a element with [ref=view]";
+            }else{
+              view = globalView;
             }
-            component.$inject( view || globalView )
-            var result = component.enter && component.enter(step);
-            component.$mute(false);
-            if(noComponent) component.$update();
+            
+            component.$inject(view);
+            var result = component.enter && component.enter(option);
+
+            component.$update(function(){
+              component.$mute(false);
+            })
+
             return result;
           },
           leave: function( option){
             var component = this.component;
             if(!component) return;
-
-            if( config.autoreset) component.destroy();
-            component.$inject(false);
             component.leave && component.leave(option);
+            component.$inject(false);
             component.$mute(true);
           },
           update: function(option){
@@ -1246,7 +1336,6 @@ return /******/ (function(modules) { // webpackBootstrap
             component.$update({
               $param: option.param
             })
-            component.$emit("state:update", option);
           }
         }
 
