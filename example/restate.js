@@ -35,7 +35,7 @@
   var restate = function(option){
     option = option || {};
     var stateman = option.stateman || new StateMan(option);
-    var preStae = stateman.state;
+    var preState = stateman.state;
     var BaseComponent = option.Component;
     var globalView = option.view || document.body;
 
@@ -46,11 +46,16 @@
     }
 
     stateman.state = function(name, Component, config){
+      if(typeof config === "string"){
+        config = {url: config};
+      }
 
-      if(typeof config === 'undefined') config = {};
+      config = config || {};
 
+      // Use global option.rebuild if config.rebuild is not defined.
+      if(config.rebuild === undefined) config.rebuild = option.rebuild;
 
-      if(!Component) return preStae.call(stateman, name);
+      if(!Component) return preState.call(stateman, name);
 
       if(BaseComponent){
         // 1. regular template or parsed ast
@@ -59,7 +64,7 @@
             template: Component
           })
         }
-        // 2. it a Object, but need regularifi
+        // 2. it an Object, but need regularify
         if(typeof Component === "object" && Component.regularify ){
           Component = BaseComponent.extend( Component );
         }
@@ -94,7 +99,8 @@
           canEnter: function( option ){
             var data = { $param: option.param },
               component = this.component,
-              noComponent = !component, 
+              // if component is not exist or required to be rebuilded when entering.
+              noComponent = !component,
               view;
 
             if(noComponent){
@@ -188,7 +194,12 @@
           leave: function( option){
             var component = this.component;
             if(!component) return;
+
             component.leave && component.leave(option);
+            if( config.rebuild){
+              this.component = null;
+              return component.destroy();
+            } 
             component.$inject(false);
             component.$mute(true);
           },
@@ -202,13 +213,12 @@
           }
         }
 
-        if(typeof config === "string") config = {url: config};
         _.extend(state, config || {});
 
-        preStae.call(stateman, name, state);
+        preState.call(stateman, name, state);
 
       }else{
-        preStae.call(stateman, name, Component);
+        preState.call(stateman, name, Component);
       }
       return this;
     }
