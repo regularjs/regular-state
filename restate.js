@@ -14,6 +14,7 @@
     }
 }(this, function (StateMan) {
 
+
   var _ = StateMan.util;
 
 
@@ -32,18 +33,78 @@
     return allStates
   }
 
+
+  function bindTo(stateman){
+
+
+    stateman.notify = function(stateName, param){
+
+      var pattern, eventObj, states;
+
+      if(!stateName) return;
+
+      if(~stateName.indexOf('*')){
+
+        pattern = new RegExp(
+          stateName
+            .replace('.', '\\.')
+            .replace(/\*\*|\*/, function(cap){
+              if(cap === '**') return '.*';
+              else return '[^.]*';
+            })
+        );
+
+        states = getMatchStates(stateman, pattern);
+
+      }else{
+        states = [stateman.state(stateName)];
+      }
+
+      states.forEach(function(state){
+        if(!state || !state.component ) return;
+        state.component.$emit('notify', param);
+      })
+      return this;
+    }
+
+    return function(Component){
+      if(!Component || Component.__stateman__) return Component;
+
+      // 
+      Component
+        .filter({
+          encode: function(value, param){
+            return stateman.history.prefix + (stateman.encode(value, param || {}) || "");
+          }
+        })
+        .directive({
+          // <a href='app.blog({id: $param.id})'
+          'r-href': function( element, value ){
+            var pattern = /([\w-](\.[\w-])*)\s*\((.*)\)$/
+            var test = pattern.exec(value);
+          }
+        })
+        .implement({
+          __stateman__: true,
+          $notify: stateman.notify
+        })
+    }
+
+  }
+
   var restate = function(option){
+
     option = option || {};
+
     var stateman = option.stateman || new StateMan(option);
     var preState = stateman.state;
     var BaseComponent = option.Component;
     var globalView = option.view || document.body;
 
-    var filters = {
-      encode: function(value, param){
-        return stateman.history.prefix + (stateman.encode(value, param || {}) || "");
-      }
-    }
+    var linkToComponent = bindTo(stateman);
+
+    linkToComponent(BaseComponent);
+
 
     stateman.state = function(name, Component, config){
       if(typeof config === "string"){
@@ -73,9 +134,8 @@
       // 3. duck check is a Regular Component
       if( Component.extend && Component.__after__ ){
 
-        if(!Component.filter("encode")){
-          Component.filter(filters);
-        }
+        linkToComponent(Component);
+
         var state = {
           component: null,
 
@@ -97,70 +157,25 @@
           },
 
           canEnter: function( option ){
-            var data = { $param: option.param },
-              component = this.component,
-              // if component is not exist or required to be rebuilded when entering.
-              noComponent = !component,
-              view;
 
             if(noComponent){
 
               component = this.component = new Component({
+
                 data: data,
 
                 $state: stateman,
 
-                $stateName: name,
+                $stateName: name
 
-                /**
-                 * notify other module
-                 * @param  {String} stateName module's stateName
-                 *         you can pass wildcard(*) for 
-                 *       
-                 * @param  {Whatever} param   event param
-                 * @return {Component} this 
-                 */
-                $notify: function(stateName, type, param){
-
-                  var pattern, eventObj, state;
-
-                  if(!stateName) return;
-
-                  if(~stateName.indexOf('*')){
-
-                    pattern = new RegExp(
-                      stateName
-                        .replace('.', '\\.')
-                        .replace(/\*\*|\*/, function(cap){
-                          if(cap === '**') return '.*';
-                          else return '[^.]*';
-                        })
-                    );
-
-                    getMatchStates.forEach(function(state){
-                      if(state.component) state.component.$emit(type, {
-                        param: param,
-                        from: name,
-                        to: state.stateName
-                      })
-                    })
-
-                  }else{
-                    state = stateman.state(stateName);
-                    if(!state || !state.component) return 
-                    state.component.$emit(type, {
-                      param: param,
-                      from: name,
-                      to: stateName
-                    })
-                  }
-                  
-                }
               });
+
             }
+
             var canEnter = this.component && this.component.canEnter;
 
-            if( canEnter ) return this.component.canEnter();
+            if( canEnter ) return this.component.canEnter(option);
+
           },
 
           enter: function( option ){
