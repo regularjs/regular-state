@@ -1,6 +1,6 @@
 {
   "name": "regular-state",
-  "version": "0.0.1",
+  "version": "0.0.1-beta.1",
   "description": "an SPA(single page application) foundation for regularjs that powerd by stateman",
   "keywords": [
     "stateman",
