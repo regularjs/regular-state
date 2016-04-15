@@ -45,21 +45,72 @@
 /***/ function(module, exports, __webpack_require__) {
 
 	__webpack_require__(1);
-	__webpack_require__(38);
+	__webpack_require__(48);
 
 /***/ },
 /* 1 */
 /***/ function(module, exports, __webpack_require__) {
 
+	__webpack_require__(2).polyfill();
 	
-	var restate = __webpack_require__(2);
-	var Regular = __webpack_require__(9);
+	var server = __webpack_require__(7);
+	var client = __webpack_require__(42);
+	var Regular = __webpack_require__(12);
+	var blogConfig = __webpack_require__(47).blog;
+	var manager = server(blogConfig);
 	
 	
 	describe("Simple Test", function(){
-	  it("behavior purpose here", function( done){
-	    expect(1).to.be.equal(1);
-	    done();
+	
+	  
+	
+	  it("renderToString -> rerender", function( done){
+	    var container = document.createElement('div');
+	    manager.run('/blog/1/detail?rid=3').then(function(arg){
+	      container.innerHTML = arg.html
+	      expect(container.firstElementChild.tagName.toLowerCase()).to.equal('div')
+	      history.pushState({}, '标题', '/blog/1/detail?rid=3')
+	      blogConfig.view = container;
+	      blogConfig.ssr = true;
+	      client(blogConfig)
+	        .on('end', function(){
+	          expect(container.querySelector('.hook').innerHTML).to.equal('修改后的title');
+	          done()
+	        })
+	        .start({
+	        html5: true
+	      })
+	    }).catch(function(err){
+	      throw err;
+	    })
+	  })
+	
+	  it("renderToString -> rerender with server Data", function( done){
+	
+	    var container = document.createElement('div');
+	    manager.run('/blog/1/detail?rid=3').then(function(arg){
+	      container.innerHTML = arg.html
+	      expect(container.firstElementChild.tagName.toLowerCase()).to.equal('div')
+	      history.pushState({}, '标题', '/blog/1/detail?rid=3')
+	      var myConfig = Regular.util.extend({
+	        view:container,
+	        ssr: true,
+	        dataProvider: function(option){
+	          return arg.data[option.state.name]
+	        }
+	      }, blogConfig)
+	      client(myConfig)
+	        .on('end', function(){
+	          expect(container.querySelector('.hook').innerHTML).to.equal('修改后的title');
+	          done()
+	        })
+	        .start({
+	        html5: true
+	      })
+	    }).catch(function(err){
+	      throw err;
+	    })
+	
 	  })
 	})
 
@@ -67,948 +118,1247 @@
 /* 2 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;
-	(function (root, factory) {
-	    if (true) {
-	        // AMD. Register as an anonymous module.
-	        !(__WEBPACK_AMD_DEFINE_ARRAY__ = [__webpack_require__(3)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
-	    } else if (typeof exports === 'object') {
-	        // Node. Does not work with strict CommonJS, but
-	        // only CommonJS-like environments that support module.exports,
-	        // like Node.
-	        module.exports = factory(require('stateman'));
+	var require;var __WEBPACK_AMD_DEFINE_RESULT__;/* WEBPACK VAR INJECTION */(function(process, global, module) {/*!
+	 * @overview es6-promise - a tiny implementation of Promises/A+.
+	 * @copyright Copyright (c) 2014 Yehuda Katz, Tom Dale, Stefan Penner and contributors (Conversion to ES6 API by Jake Archibald)
+	 * @license   Licensed under MIT license
+	 *            See https://raw.githubusercontent.com/jakearchibald/es6-promise/master/LICENSE
+	 * @version   3.1.2
+	 */
+	
+	(function() {
+	    "use strict";
+	    function lib$es6$promise$utils$$objectOrFunction(x) {
+	      return typeof x === 'function' || (typeof x === 'object' && x !== null);
+	    }
+	
+	    function lib$es6$promise$utils$$isFunction(x) {
+	      return typeof x === 'function';
+	    }
+	
+	    function lib$es6$promise$utils$$isMaybeThenable(x) {
+	      return typeof x === 'object' && x !== null;
+	    }
+	
+	    var lib$es6$promise$utils$$_isArray;
+	    if (!Array.isArray) {
+	      lib$es6$promise$utils$$_isArray = function (x) {
+	        return Object.prototype.toString.call(x) === '[object Array]';
+	      };
 	    } else {
-	        // Browser globals (root is window)
-	        root.restate = factory( root.StateMan);
-	    }
-	}(this, function (StateMan) {
-	
-	
-	  var _ = StateMan.util;
-	
-	
-	  // get all state match the pattern
-	  function getMatchStates(stateman, pattern){
-	    var current = stateman;
-	    var allStates = [];
-	
-	    var currentStates = current._states;
-	
-	    for(var i in currentStates){
-	      var state = currentStates[i];
-	      if(pattern.test(state.stateName)) allStates.push( state );
-	      if(state._states) allStates = allStates.concat(getMatchStates( state, pattern))
-	    }
-	    return allStates
-	  }
-	
-	
-	  function bindTo(stateman){
-	
-	
-	    stateman.notify = function(stateName, param){
-	
-	      var pattern, eventObj, states;
-	
-	      if(!stateName) return;
-	
-	      if(~stateName.indexOf('*')){
-	
-	        pattern = new RegExp(
-	          stateName
-	            .replace('.', '\\.')
-	            .replace(/\*\*|\*/, function(cap){
-	              if(cap === '**') return '.*';
-	              else return '[^.]*';
-	            })
-	        );
-	
-	        states = getMatchStates(stateman, pattern);
-	
-	      }else{
-	        states = [stateman.state(stateName)];
-	      }
-	
-	      states.forEach(function(state){
-	        if(!state || !state.component ) return;
-	        state.component.$emit('notify', param);
-	      })
-	      return this;
+	      lib$es6$promise$utils$$_isArray = Array.isArray;
 	    }
 	
-	    return function(Component){
-	      if(!Component || Component.__stateman__) return Component;
+	    var lib$es6$promise$utils$$isArray = lib$es6$promise$utils$$_isArray;
+	    var lib$es6$promise$asap$$len = 0;
+	    var lib$es6$promise$asap$$vertxNext;
+	    var lib$es6$promise$asap$$customSchedulerFn;
 	
-	      // 
-	      Component
-	        .filter({
-	          encode: function(value, param){
-	            return stateman.history.prefix + (stateman.encode(value, param || {}) || "");
-	          }
-	        })
-	        .directive({
-	          // <a href='app.blog({id: $param.id})'
-	          'r-href': function( element, value ){
-	            var pattern = /([\w-](\.[\w-])*)\s*\((.*)\)$/
-	            var test = pattern.exec(value);
-	          }
-	        })
-	        .implement({
-	          __stateman__: true,
-	          $notify: stateman.notify
-	        })
-	    }
-	
-	  }
-	
-	  var restate = function(option){
-	
-	    option = option || {};
-	
-	    var stateman = option.stateman || new StateMan(option);
-	    var preState = stateman.state;
-	    var BaseComponent = option.Component;
-	    var globalView = option.view || document.body;
-	
-	    var linkToComponent = bindTo(stateman);
-	
-	    linkToComponent(BaseComponent);
-	
-	
-	    stateman.state = function(name, Component, config){
-	      if(typeof config === "string"){
-	        config = {url: config};
-	      }
-	
-	      config = config || {};
-	
-	      // Use global option.rebuild if config.rebuild is not defined.
-	      if(config.rebuild === undefined) config.rebuild = option.rebuild;
-	
-	      if(!Component) return preState.call(stateman, name);
-	
-	      if(BaseComponent){
-	        // 1. regular template or parsed ast
-	        if(typeof Component === "string" || Array.isArray( Component )){
-	          Component = BaseComponent.extend({
-	            template: Component
-	          })
-	        }
-	        // 2. it an Object, but need regularify
-	        if(typeof Component === "object" && Component.regularify ){
-	          Component = BaseComponent.extend( Component );
+	    var lib$es6$promise$asap$$asap = function asap(callback, arg) {
+	      lib$es6$promise$asap$$queue[lib$es6$promise$asap$$len] = callback;
+	      lib$es6$promise$asap$$queue[lib$es6$promise$asap$$len + 1] = arg;
+	      lib$es6$promise$asap$$len += 2;
+	      if (lib$es6$promise$asap$$len === 2) {
+	        // If len is 2, that means that we need to schedule an async flush.
+	        // If additional callbacks are queued before the queue is flushed, they
+	        // will be processed by this flush that we are scheduling.
+	        if (lib$es6$promise$asap$$customSchedulerFn) {
+	          lib$es6$promise$asap$$customSchedulerFn(lib$es6$promise$asap$$flush);
+	        } else {
+	          lib$es6$promise$asap$$scheduleFlush();
 	        }
 	      }
+	    }
 	
-	      // 3. duck check is a Regular Component
-	      if( Component.extend && Component.__after__ ){
+	    function lib$es6$promise$asap$$setScheduler(scheduleFn) {
+	      lib$es6$promise$asap$$customSchedulerFn = scheduleFn;
+	    }
 	
-	        linkToComponent(Component);
+	    function lib$es6$promise$asap$$setAsap(asapFn) {
+	      lib$es6$promise$asap$$asap = asapFn;
+	    }
 	
-	        var state = {
-	          component: null,
+	    var lib$es6$promise$asap$$browserWindow = (typeof window !== 'undefined') ? window : undefined;
+	    var lib$es6$promise$asap$$browserGlobal = lib$es6$promise$asap$$browserWindow || {};
+	    var lib$es6$promise$asap$$BrowserMutationObserver = lib$es6$promise$asap$$browserGlobal.MutationObserver || lib$es6$promise$asap$$browserGlobal.WebKitMutationObserver;
+	    var lib$es6$promise$asap$$isNode = typeof process !== 'undefined' && {}.toString.call(process) === '[object process]';
 	
-	          // @TODO:
-	          canUpdate: function(){
+	    // test for web worker but not in IE10
+	    var lib$es6$promise$asap$$isWorker = typeof Uint8ClampedArray !== 'undefined' &&
+	      typeof importScripts !== 'undefined' &&
+	      typeof MessageChannel !== 'undefined';
 	
-	            var canUpdate = this.component && this.component.canUpdate;
+	    // node
+	    function lib$es6$promise$asap$$useNextTick() {
+	      // node version 0.10.x displays a deprecation warning when nextTick is used recursively
+	      // see https://github.com/cujojs/when/issues/410 for details
+	      return function() {
+	        process.nextTick(lib$es6$promise$asap$$flush);
+	      };
+	    }
 	
-	            if( canUpdate ) return this.component.canUpdate();
-	          },
+	    // vertx
+	    function lib$es6$promise$asap$$useVertxTimer() {
+	      return function() {
+	        lib$es6$promise$asap$$vertxNext(lib$es6$promise$asap$$flush);
+	      };
+	    }
+	
+	    function lib$es6$promise$asap$$useMutationObserver() {
+	      var iterations = 0;
+	      var observer = new lib$es6$promise$asap$$BrowserMutationObserver(lib$es6$promise$asap$$flush);
+	      var node = document.createTextNode('');
+	      observer.observe(node, { characterData: true });
+	
+	      return function() {
+	        node.data = (iterations = ++iterations % 2);
+	      };
+	    }
+	
+	    // web worker
+	    function lib$es6$promise$asap$$useMessageChannel() {
+	      var channel = new MessageChannel();
+	      channel.port1.onmessage = lib$es6$promise$asap$$flush;
+	      return function () {
+	        channel.port2.postMessage(0);
+	      };
+	    }
+	
+	    function lib$es6$promise$asap$$useSetTimeout() {
+	      return function() {
+	        setTimeout(lib$es6$promise$asap$$flush, 1);
+	      };
+	    }
+	
+	    var lib$es6$promise$asap$$queue = new Array(1000);
+	    function lib$es6$promise$asap$$flush() {
+	      for (var i = 0; i < lib$es6$promise$asap$$len; i+=2) {
+	        var callback = lib$es6$promise$asap$$queue[i];
+	        var arg = lib$es6$promise$asap$$queue[i+1];
+	
+	        callback(arg);
+	
+	        lib$es6$promise$asap$$queue[i] = undefined;
+	        lib$es6$promise$asap$$queue[i+1] = undefined;
+	      }
+	
+	      lib$es6$promise$asap$$len = 0;
+	    }
+	
+	    function lib$es6$promise$asap$$attemptVertx() {
+	      try {
+	        var r = require;
+	        var vertx = __webpack_require__(5);
+	        lib$es6$promise$asap$$vertxNext = vertx.runOnLoop || vertx.runOnContext;
+	        return lib$es6$promise$asap$$useVertxTimer();
+	      } catch(e) {
+	        return lib$es6$promise$asap$$useSetTimeout();
+	      }
+	    }
+	
+	    var lib$es6$promise$asap$$scheduleFlush;
+	    // Decide what async method to use to triggering processing of queued callbacks:
+	    if (lib$es6$promise$asap$$isNode) {
+	      lib$es6$promise$asap$$scheduleFlush = lib$es6$promise$asap$$useNextTick();
+	    } else if (lib$es6$promise$asap$$BrowserMutationObserver) {
+	      lib$es6$promise$asap$$scheduleFlush = lib$es6$promise$asap$$useMutationObserver();
+	    } else if (lib$es6$promise$asap$$isWorker) {
+	      lib$es6$promise$asap$$scheduleFlush = lib$es6$promise$asap$$useMessageChannel();
+	    } else if (lib$es6$promise$asap$$browserWindow === undefined && "function" === 'function') {
+	      lib$es6$promise$asap$$scheduleFlush = lib$es6$promise$asap$$attemptVertx();
+	    } else {
+	      lib$es6$promise$asap$$scheduleFlush = lib$es6$promise$asap$$useSetTimeout();
+	    }
+	    function lib$es6$promise$then$$then(onFulfillment, onRejection) {
+	      var parent = this;
+	      var state = parent._state;
+	
+	      if (state === lib$es6$promise$$internal$$FULFILLED && !onFulfillment || state === lib$es6$promise$$internal$$REJECTED && !onRejection) {
+	        return this;
+	      }
+	
+	      var child = new this.constructor(lib$es6$promise$$internal$$noop);
+	      var result = parent._result;
+	
+	      if (state) {
+	        var callback = arguments[state - 1];
+	        lib$es6$promise$asap$$asap(function(){
+	          lib$es6$promise$$internal$$invokeCallback(state, child, callback, result);
+	        });
+	      } else {
+	        lib$es6$promise$$internal$$subscribe(parent, child, onFulfillment, onRejection);
+	      }
+	
+	      return child;
+	    }
+	    var lib$es6$promise$then$$default = lib$es6$promise$then$$then;
+	    function lib$es6$promise$promise$resolve$$resolve(object) {
+	      /*jshint validthis:true */
+	      var Constructor = this;
+	
+	      if (object && typeof object === 'object' && object.constructor === Constructor) {
+	        return object;
+	      }
+	
+	      var promise = new Constructor(lib$es6$promise$$internal$$noop);
+	      lib$es6$promise$$internal$$resolve(promise, object);
+	      return promise;
+	    }
+	    var lib$es6$promise$promise$resolve$$default = lib$es6$promise$promise$resolve$$resolve;
+	
+	    function lib$es6$promise$$internal$$noop() {}
+	
+	    var lib$es6$promise$$internal$$PENDING   = void 0;
+	    var lib$es6$promise$$internal$$FULFILLED = 1;
+	    var lib$es6$promise$$internal$$REJECTED  = 2;
+	
+	    var lib$es6$promise$$internal$$GET_THEN_ERROR = new lib$es6$promise$$internal$$ErrorObject();
+	
+	    function lib$es6$promise$$internal$$selfFulfillment() {
+	      return new TypeError("You cannot resolve a promise with itself");
+	    }
+	
+	    function lib$es6$promise$$internal$$cannotReturnOwn() {
+	      return new TypeError('A promises callback cannot return that same promise.');
+	    }
+	
+	    function lib$es6$promise$$internal$$getThen(promise) {
+	      try {
+	        return promise.then;
+	      } catch(error) {
+	        lib$es6$promise$$internal$$GET_THEN_ERROR.error = error;
+	        return lib$es6$promise$$internal$$GET_THEN_ERROR;
+	      }
+	    }
+	
+	    function lib$es6$promise$$internal$$tryThen(then, value, fulfillmentHandler, rejectionHandler) {
+	      try {
+	        then.call(value, fulfillmentHandler, rejectionHandler);
+	      } catch(e) {
+	        return e;
+	      }
+	    }
+	
+	    function lib$es6$promise$$internal$$handleForeignThenable(promise, thenable, then) {
+	       lib$es6$promise$asap$$asap(function(promise) {
+	        var sealed = false;
+	        var error = lib$es6$promise$$internal$$tryThen(then, thenable, function(value) {
+	          if (sealed) { return; }
+	          sealed = true;
+	          if (thenable !== value) {
+	            lib$es6$promise$$internal$$resolve(promise, value);
+	          } else {
+	            lib$es6$promise$$internal$$fulfill(promise, value);
+	          }
+	        }, function(reason) {
+	          if (sealed) { return; }
+	          sealed = true;
+	
+	          lib$es6$promise$$internal$$reject(promise, reason);
+	        }, 'Settle: ' + (promise._label || ' unknown promise'));
+	
+	        if (!sealed && error) {
+	          sealed = true;
+	          lib$es6$promise$$internal$$reject(promise, error);
+	        }
+	      }, promise);
+	    }
+	
+	    function lib$es6$promise$$internal$$handleOwnThenable(promise, thenable) {
+	      if (thenable._state === lib$es6$promise$$internal$$FULFILLED) {
+	        lib$es6$promise$$internal$$fulfill(promise, thenable._result);
+	      } else if (thenable._state === lib$es6$promise$$internal$$REJECTED) {
+	        lib$es6$promise$$internal$$reject(promise, thenable._result);
+	      } else {
+	        lib$es6$promise$$internal$$subscribe(thenable, undefined, function(value) {
+	          lib$es6$promise$$internal$$resolve(promise, value);
+	        }, function(reason) {
+	          lib$es6$promise$$internal$$reject(promise, reason);
+	        });
+	      }
+	    }
+	
+	    function lib$es6$promise$$internal$$handleMaybeThenable(promise, maybeThenable, then) {
+	      if (maybeThenable.constructor === promise.constructor &&
+	          then === lib$es6$promise$then$$default &&
+	          constructor.resolve === lib$es6$promise$promise$resolve$$default) {
+	        lib$es6$promise$$internal$$handleOwnThenable(promise, maybeThenable);
+	      } else {
+	        if (then === lib$es6$promise$$internal$$GET_THEN_ERROR) {
+	          lib$es6$promise$$internal$$reject(promise, lib$es6$promise$$internal$$GET_THEN_ERROR.error);
+	        } else if (then === undefined) {
+	          lib$es6$promise$$internal$$fulfill(promise, maybeThenable);
+	        } else if (lib$es6$promise$utils$$isFunction(then)) {
+	          lib$es6$promise$$internal$$handleForeignThenable(promise, maybeThenable, then);
+	        } else {
+	          lib$es6$promise$$internal$$fulfill(promise, maybeThenable);
+	        }
+	      }
+	    }
+	
+	    function lib$es6$promise$$internal$$resolve(promise, value) {
+	      if (promise === value) {
+	        lib$es6$promise$$internal$$reject(promise, lib$es6$promise$$internal$$selfFulfillment());
+	      } else if (lib$es6$promise$utils$$objectOrFunction(value)) {
+	        lib$es6$promise$$internal$$handleMaybeThenable(promise, value, lib$es6$promise$$internal$$getThen(value));
+	      } else {
+	        lib$es6$promise$$internal$$fulfill(promise, value);
+	      }
+	    }
+	
+	    function lib$es6$promise$$internal$$publishRejection(promise) {
+	      if (promise._onerror) {
+	        promise._onerror(promise._result);
+	      }
+	
+	      lib$es6$promise$$internal$$publish(promise);
+	    }
+	
+	    function lib$es6$promise$$internal$$fulfill(promise, value) {
+	      if (promise._state !== lib$es6$promise$$internal$$PENDING) { return; }
+	
+	      promise._result = value;
+	      promise._state = lib$es6$promise$$internal$$FULFILLED;
+	
+	      if (promise._subscribers.length !== 0) {
+	        lib$es6$promise$asap$$asap(lib$es6$promise$$internal$$publish, promise);
+	      }
+	    }
+	
+	    function lib$es6$promise$$internal$$reject(promise, reason) {
+	      if (promise._state !== lib$es6$promise$$internal$$PENDING) { return; }
+	      promise._state = lib$es6$promise$$internal$$REJECTED;
+	      promise._result = reason;
+	
+	      lib$es6$promise$asap$$asap(lib$es6$promise$$internal$$publishRejection, promise);
+	    }
+	
+	    function lib$es6$promise$$internal$$subscribe(parent, child, onFulfillment, onRejection) {
+	      var subscribers = parent._subscribers;
+	      var length = subscribers.length;
+	
+	      parent._onerror = null;
+	
+	      subscribers[length] = child;
+	      subscribers[length + lib$es6$promise$$internal$$FULFILLED] = onFulfillment;
+	      subscribers[length + lib$es6$promise$$internal$$REJECTED]  = onRejection;
+	
+	      if (length === 0 && parent._state) {
+	        lib$es6$promise$asap$$asap(lib$es6$promise$$internal$$publish, parent);
+	      }
+	    }
+	
+	    function lib$es6$promise$$internal$$publish(promise) {
+	      var subscribers = promise._subscribers;
+	      var settled = promise._state;
+	
+	      if (subscribers.length === 0) { return; }
+	
+	      var child, callback, detail = promise._result;
+	
+	      for (var i = 0; i < subscribers.length; i += 3) {
+	        child = subscribers[i];
+	        callback = subscribers[i + settled];
+	
+	        if (child) {
+	          lib$es6$promise$$internal$$invokeCallback(settled, child, callback, detail);
+	        } else {
+	          callback(detail);
+	        }
+	      }
+	
+	      promise._subscribers.length = 0;
+	    }
+	
+	    function lib$es6$promise$$internal$$ErrorObject() {
+	      this.error = null;
+	    }
+	
+	    var lib$es6$promise$$internal$$TRY_CATCH_ERROR = new lib$es6$promise$$internal$$ErrorObject();
+	
+	    function lib$es6$promise$$internal$$tryCatch(callback, detail) {
+	      try {
+	        return callback(detail);
+	      } catch(e) {
+	        lib$es6$promise$$internal$$TRY_CATCH_ERROR.error = e;
+	        return lib$es6$promise$$internal$$TRY_CATCH_ERROR;
+	      }
+	    }
+	
+	    function lib$es6$promise$$internal$$invokeCallback(settled, promise, callback, detail) {
+	      var hasCallback = lib$es6$promise$utils$$isFunction(callback),
+	          value, error, succeeded, failed;
+	
+	      if (hasCallback) {
+	        value = lib$es6$promise$$internal$$tryCatch(callback, detail);
+	
+	        if (value === lib$es6$promise$$internal$$TRY_CATCH_ERROR) {
+	          failed = true;
+	          error = value.error;
+	          value = null;
+	        } else {
+	          succeeded = true;
+	        }
+	
+	        if (promise === value) {
+	          lib$es6$promise$$internal$$reject(promise, lib$es6$promise$$internal$$cannotReturnOwn());
+	          return;
+	        }
+	
+	      } else {
+	        value = detail;
+	        succeeded = true;
+	      }
+	
+	      if (promise._state !== lib$es6$promise$$internal$$PENDING) {
+	        // noop
+	      } else if (hasCallback && succeeded) {
+	        lib$es6$promise$$internal$$resolve(promise, value);
+	      } else if (failed) {
+	        lib$es6$promise$$internal$$reject(promise, error);
+	      } else if (settled === lib$es6$promise$$internal$$FULFILLED) {
+	        lib$es6$promise$$internal$$fulfill(promise, value);
+	      } else if (settled === lib$es6$promise$$internal$$REJECTED) {
+	        lib$es6$promise$$internal$$reject(promise, value);
+	      }
+	    }
+	
+	    function lib$es6$promise$$internal$$initializePromise(promise, resolver) {
+	      try {
+	        resolver(function resolvePromise(value){
+	          lib$es6$promise$$internal$$resolve(promise, value);
+	        }, function rejectPromise(reason) {
+	          lib$es6$promise$$internal$$reject(promise, reason);
+	        });
+	      } catch(e) {
+	        lib$es6$promise$$internal$$reject(promise, e);
+	      }
+	    }
+	
+	    function lib$es6$promise$promise$all$$all(entries) {
+	      return new lib$es6$promise$enumerator$$default(this, entries).promise;
+	    }
+	    var lib$es6$promise$promise$all$$default = lib$es6$promise$promise$all$$all;
+	    function lib$es6$promise$promise$race$$race(entries) {
+	      /*jshint validthis:true */
+	      var Constructor = this;
+	
+	      var promise = new Constructor(lib$es6$promise$$internal$$noop);
+	
+	      if (!lib$es6$promise$utils$$isArray(entries)) {
+	        lib$es6$promise$$internal$$reject(promise, new TypeError('You must pass an array to race.'));
+	        return promise;
+	      }
+	
+	      var length = entries.length;
+	
+	      function onFulfillment(value) {
+	        lib$es6$promise$$internal$$resolve(promise, value);
+	      }
+	
+	      function onRejection(reason) {
+	        lib$es6$promise$$internal$$reject(promise, reason);
+	      }
+	
+	      for (var i = 0; promise._state === lib$es6$promise$$internal$$PENDING && i < length; i++) {
+	        lib$es6$promise$$internal$$subscribe(Constructor.resolve(entries[i]), undefined, onFulfillment, onRejection);
+	      }
+	
+	      return promise;
+	    }
+	    var lib$es6$promise$promise$race$$default = lib$es6$promise$promise$race$$race;
+	    function lib$es6$promise$promise$reject$$reject(reason) {
+	      /*jshint validthis:true */
+	      var Constructor = this;
+	      var promise = new Constructor(lib$es6$promise$$internal$$noop);
+	      lib$es6$promise$$internal$$reject(promise, reason);
+	      return promise;
+	    }
+	    var lib$es6$promise$promise$reject$$default = lib$es6$promise$promise$reject$$reject;
+	
+	    var lib$es6$promise$promise$$counter = 0;
+	
+	    function lib$es6$promise$promise$$needsResolver() {
+	      throw new TypeError('You must pass a resolver function as the first argument to the promise constructor');
+	    }
+	
+	    function lib$es6$promise$promise$$needsNew() {
+	      throw new TypeError("Failed to construct 'Promise': Please use the 'new' operator, this object constructor cannot be called as a function.");
+	    }
+	
+	    var lib$es6$promise$promise$$default = lib$es6$promise$promise$$Promise;
+	    /**
+	      Promise objects represent the eventual result of an asynchronous operation. The
+	      primary way of interacting with a promise is through its `then` method, which
+	      registers callbacks to receive either a promise's eventual value or the reason
+	      why the promise cannot be fulfilled.
+	
+	      Terminology
+	      -----------
+	
+	      - `promise` is an object or function with a `then` method whose behavior conforms to this specification.
+	      - `thenable` is an object or function that defines a `then` method.
+	      - `value` is any legal JavaScript value (including undefined, a thenable, or a promise).
+	      - `exception` is a value that is thrown using the throw statement.
+	      - `reason` is a value that indicates why a promise was rejected.
+	      - `settled` the final resting state of a promise, fulfilled or rejected.
+	
+	      A promise can be in one of three states: pending, fulfilled, or rejected.
+	
+	      Promises that are fulfilled have a fulfillment value and are in the fulfilled
+	      state.  Promises that are rejected have a rejection reason and are in the
+	      rejected state.  A fulfillment value is never a thenable.
+	
+	      Promises can also be said to *resolve* a value.  If this value is also a
+	      promise, then the original promise's settled state will match the value's
+	      settled state.  So a promise that *resolves* a promise that rejects will
+	      itself reject, and a promise that *resolves* a promise that fulfills will
+	      itself fulfill.
 	
 	
-	          canLeave: function(){
+	      Basic Usage:
+	      ------------
 	
-	            var canLeave = this.component && this.component.canLeave;
+	      ```js
+	      var promise = new Promise(function(resolve, reject) {
+	        // on success
+	        resolve(value);
 	
-	            if( canLeave ) return this.component.canLeave();
+	        // on failure
+	        reject(reason);
+	      });
 	
-	          },
+	      promise.then(function(value) {
+	        // on fulfillment
+	      }, function(reason) {
+	        // on rejection
+	      });
+	      ```
 	
-	          canEnter: function( option ){
+	      Advanced Usage:
+	      ---------------
 	
-	            if(noComponent){
+	      Promises shine when abstracting away asynchronous interactions such as
+	      `XMLHttpRequest`s.
 	
-	              component = this.component = new Component({
+	      ```js
+	      function getJSON(url) {
+	        return new Promise(function(resolve, reject){
+	          var xhr = new XMLHttpRequest();
 	
-	                data: data,
+	          xhr.open('GET', url);
+	          xhr.onreadystatechange = handler;
+	          xhr.responseType = 'json';
+	          xhr.setRequestHeader('Accept', 'application/json');
+	          xhr.send();
 	
-	                $state: stateman,
-	
-	                $stateName: name
-	
-	              });
-	
+	          function handler() {
+	            if (this.readyState === this.DONE) {
+	              if (this.status === 200) {
+	                resolve(this.response);
+	              } else {
+	                reject(new Error('getJSON: `' + url + '` failed with status: [' + this.status + ']'));
+	              }
 	            }
+	          };
+	        });
+	      }
 	
-	            var canEnter = this.component && this.component.canEnter;
+	      getJSON('/posts.json').then(function(json) {
+	        // on fulfillment
+	      }, function(reason) {
+	        // on rejection
+	      });
+	      ```
 	
-	            if( canEnter ) return this.component.canEnter(option);
+	      Unlike callbacks, promises are great composable primitives.
 	
-	          },
+	      ```js
+	      Promise.all([
+	        getJSON('/posts'),
+	        getJSON('/comments')
+	      ]).then(function(values){
+	        values[0] // => postsJSON
+	        values[1] // => commentsJSON
 	
-	          enter: function( option ){
+	        return values;
+	      });
+	      ```
 	
+	      @class Promise
+	      @param {function} resolver
+	      Useful for tooling.
+	      @constructor
+	    */
+	    function lib$es6$promise$promise$$Promise(resolver) {
+	      this._id = lib$es6$promise$promise$$counter++;
+	      this._state = undefined;
+	      this._result = undefined;
+	      this._subscribers = [];
 	
+	      if (lib$es6$promise$$internal$$noop !== resolver) {
+	        typeof resolver !== 'function' && lib$es6$promise$promise$$needsResolver();
+	        this instanceof lib$es6$promise$promise$$Promise ? lib$es6$promise$$internal$$initializePromise(this, resolver) : lib$es6$promise$promise$$needsNew();
+	      }
+	    }
 	
-	            var data = { $param: option.param };
-	            var component = this.component;
-	            var parent = this.parent, view;
+	    lib$es6$promise$promise$$Promise.all = lib$es6$promise$promise$all$$default;
+	    lib$es6$promise$promise$$Promise.race = lib$es6$promise$promise$race$$default;
+	    lib$es6$promise$promise$$Promise.resolve = lib$es6$promise$promise$resolve$$default;
+	    lib$es6$promise$promise$$Promise.reject = lib$es6$promise$promise$reject$$default;
+	    lib$es6$promise$promise$$Promise._setScheduler = lib$es6$promise$asap$$setScheduler;
+	    lib$es6$promise$promise$$Promise._setAsap = lib$es6$promise$asap$$setAsap;
+	    lib$es6$promise$promise$$Promise._asap = lib$es6$promise$asap$$asap;
 	
-	            if(!component) return;
+	    lib$es6$promise$promise$$Promise.prototype = {
+	      constructor: lib$es6$promise$promise$$Promise,
 	
-	            _.extend(component.data, data, true);
+	    /**
+	      The primary way of interacting with a promise is through its `then` method,
+	      which registers callbacks to receive either a promise's eventual value or the
+	      reason why the promise cannot be fulfilled.
 	
-	            if(parent.component){
-	              view = parent.component.$refs.view;
-	              if(!view) throw this.parent.name + " should have a element with [ref=view]";
-	            }else{
-	              view = globalView;
-	            }
-	            
-	            component.$inject(view);
-	            var result = component.enter && component.enter(option);
+	      ```js
+	      findUser().then(function(user){
+	        // user is available
+	      }, function(reason){
+	        // user is unavailable, and you are given the reason why
+	      });
+	      ```
 	
-	            component.$update(function(){
-	              component.$mute(false);
-	            })
+	      Chaining
+	      --------
 	
-	            return result;
-	          },
-	          leave: function( option){
-	            var component = this.component;
-	            if(!component) return;
+	      The return value of `then` is itself a promise.  This second, 'downstream'
+	      promise is resolved with the return value of the first promise's fulfillment
+	      or rejection handler, or rejected if the handler throws an exception.
 	
-	            component.leave && component.leave(option);
-	            if( config.rebuild){
-	              this.component = null;
-	              return component.destroy();
-	            } 
-	            component.$inject(false);
-	            component.$mute(true);
-	          },
-	          update: function(option){
-	            var component = this.component;
-	            if(!component) return;
-	            component.update && component.update(option);
-	            component.$update({
-	              $param: option.param
-	            })
+	      ```js
+	      findUser().then(function (user) {
+	        return user.name;
+	      }, function (reason) {
+	        return 'default name';
+	      }).then(function (userName) {
+	        // If `findUser` fulfilled, `userName` will be the user's name, otherwise it
+	        // will be `'default name'`
+	      });
+	
+	      findUser().then(function (user) {
+	        throw new Error('Found user, but still unhappy');
+	      }, function (reason) {
+	        throw new Error('`findUser` rejected and we're unhappy');
+	      }).then(function (value) {
+	        // never reached
+	      }, function (reason) {
+	        // if `findUser` fulfilled, `reason` will be 'Found user, but still unhappy'.
+	        // If `findUser` rejected, `reason` will be '`findUser` rejected and we're unhappy'.
+	      });
+	      ```
+	      If the downstream promise does not specify a rejection handler, rejection reasons will be propagated further downstream.
+	
+	      ```js
+	      findUser().then(function (user) {
+	        throw new PedagogicalException('Upstream error');
+	      }).then(function (value) {
+	        // never reached
+	      }).then(function (value) {
+	        // never reached
+	      }, function (reason) {
+	        // The `PedgagocialException` is propagated all the way down to here
+	      });
+	      ```
+	
+	      Assimilation
+	      ------------
+	
+	      Sometimes the value you want to propagate to a downstream promise can only be
+	      retrieved asynchronously. This can be achieved by returning a promise in the
+	      fulfillment or rejection handler. The downstream promise will then be pending
+	      until the returned promise is settled. This is called *assimilation*.
+	
+	      ```js
+	      findUser().then(function (user) {
+	        return findCommentsByAuthor(user);
+	      }).then(function (comments) {
+	        // The user's comments are now available
+	      });
+	      ```
+	
+	      If the assimliated promise rejects, then the downstream promise will also reject.
+	
+	      ```js
+	      findUser().then(function (user) {
+	        return findCommentsByAuthor(user);
+	      }).then(function (comments) {
+	        // If `findCommentsByAuthor` fulfills, we'll have the value here
+	      }, function (reason) {
+	        // If `findCommentsByAuthor` rejects, we'll have the reason here
+	      });
+	      ```
+	
+	      Simple Example
+	      --------------
+	
+	      Synchronous Example
+	
+	      ```javascript
+	      var result;
+	
+	      try {
+	        result = findResult();
+	        // success
+	      } catch(reason) {
+	        // failure
+	      }
+	      ```
+	
+	      Errback Example
+	
+	      ```js
+	      findResult(function(result, err){
+	        if (err) {
+	          // failure
+	        } else {
+	          // success
+	        }
+	      });
+	      ```
+	
+	      Promise Example;
+	
+	      ```javascript
+	      findResult().then(function(result){
+	        // success
+	      }, function(reason){
+	        // failure
+	      });
+	      ```
+	
+	      Advanced Example
+	      --------------
+	
+	      Synchronous Example
+	
+	      ```javascript
+	      var author, books;
+	
+	      try {
+	        author = findAuthor();
+	        books  = findBooksByAuthor(author);
+	        // success
+	      } catch(reason) {
+	        // failure
+	      }
+	      ```
+	
+	      Errback Example
+	
+	      ```js
+	
+	      function foundBooks(books) {
+	
+	      }
+	
+	      function failure(reason) {
+	
+	      }
+	
+	      findAuthor(function(author, err){
+	        if (err) {
+	          failure(err);
+	          // failure
+	        } else {
+	          try {
+	            findBoooksByAuthor(author, function(books, err) {
+	              if (err) {
+	                failure(err);
+	              } else {
+	                try {
+	                  foundBooks(books);
+	                } catch(reason) {
+	                  failure(reason);
+	                }
+	              }
+	            });
+	          } catch(error) {
+	            failure(err);
+	          }
+	          // success
+	        }
+	      });
+	      ```
+	
+	      Promise Example;
+	
+	      ```javascript
+	      findAuthor().
+	        then(findBooksByAuthor).
+	        then(function(books){
+	          // found books
+	      }).catch(function(reason){
+	        // something went wrong
+	      });
+	      ```
+	
+	      @method then
+	      @param {Function} onFulfilled
+	      @param {Function} onRejected
+	      Useful for tooling.
+	      @return {Promise}
+	    */
+	      then: lib$es6$promise$then$$default,
+	
+	    /**
+	      `catch` is simply sugar for `then(undefined, onRejection)` which makes it the same
+	      as the catch block of a try/catch statement.
+	
+	      ```js
+	      function findAuthor(){
+	        throw new Error('couldn't find that author');
+	      }
+	
+	      // synchronous
+	      try {
+	        findAuthor();
+	      } catch(reason) {
+	        // something went wrong
+	      }
+	
+	      // async with promises
+	      findAuthor().catch(function(reason){
+	        // something went wrong
+	      });
+	      ```
+	
+	      @method catch
+	      @param {Function} onRejection
+	      Useful for tooling.
+	      @return {Promise}
+	    */
+	      'catch': function(onRejection) {
+	        return this.then(null, onRejection);
+	      }
+	    };
+	    var lib$es6$promise$enumerator$$default = lib$es6$promise$enumerator$$Enumerator;
+	    function lib$es6$promise$enumerator$$Enumerator(Constructor, input) {
+	      this._instanceConstructor = Constructor;
+	      this.promise = new Constructor(lib$es6$promise$$internal$$noop);
+	
+	      if (Array.isArray(input)) {
+	        this._input     = input;
+	        this.length     = input.length;
+	        this._remaining = input.length;
+	
+	        this._result = new Array(this.length);
+	
+	        if (this.length === 0) {
+	          lib$es6$promise$$internal$$fulfill(this.promise, this._result);
+	        } else {
+	          this.length = this.length || 0;
+	          this._enumerate();
+	          if (this._remaining === 0) {
+	            lib$es6$promise$$internal$$fulfill(this.promise, this._result);
 	          }
 	        }
-	
-	        _.extend(state, config || {});
-	
-	        preState.call(stateman, name, state);
-	
-	      }else{
-	        preState.call(stateman, name, Component);
+	      } else {
+	        lib$es6$promise$$internal$$reject(this.promise, this._validationError());
 	      }
-	      return this;
 	    }
-	    return stateman;
-	  }
 	
-	  restate.StateMan = StateMan;
+	    lib$es6$promise$enumerator$$Enumerator.prototype._validationError = function() {
+	      return new Error('Array Methods must be provided an Array');
+	    };
 	
-	  return restate;
+	    lib$es6$promise$enumerator$$Enumerator.prototype._enumerate = function() {
+	      var length  = this.length;
+	      var input   = this._input;
 	
-	}));
-
+	      for (var i = 0; this._state === lib$es6$promise$$internal$$PENDING && i < length; i++) {
+	        this._eachEntry(input[i], i);
+	      }
+	    };
+	
+	    lib$es6$promise$enumerator$$Enumerator.prototype._eachEntry = function(entry, i) {
+	      var c = this._instanceConstructor;
+	      var resolve = c.resolve;
+	
+	      if (resolve === lib$es6$promise$promise$resolve$$default) {
+	        var then = lib$es6$promise$$internal$$getThen(entry);
+	
+	        if (then === lib$es6$promise$then$$default &&
+	            entry._state !== lib$es6$promise$$internal$$PENDING) {
+	          this._settledAt(entry._state, i, entry._result);
+	        } else if (typeof then !== 'function') {
+	          this._remaining--;
+	          this._result[i] = entry;
+	        } else if (c === lib$es6$promise$promise$$default) {
+	          var promise = new c(lib$es6$promise$$internal$$noop);
+	          lib$es6$promise$$internal$$handleMaybeThenable(promise, entry, then);
+	          this._willSettleAt(promise, i);
+	        } else {
+	          this._willSettleAt(new c(function(resolve) { resolve(entry); }), i);
+	        }
+	      } else {
+	        this._willSettleAt(resolve(entry), i);
+	      }
+	    };
+	
+	    lib$es6$promise$enumerator$$Enumerator.prototype._settledAt = function(state, i, value) {
+	      var promise = this.promise;
+	
+	      if (promise._state === lib$es6$promise$$internal$$PENDING) {
+	        this._remaining--;
+	
+	        if (state === lib$es6$promise$$internal$$REJECTED) {
+	          lib$es6$promise$$internal$$reject(promise, value);
+	        } else {
+	          this._result[i] = value;
+	        }
+	      }
+	
+	      if (this._remaining === 0) {
+	        lib$es6$promise$$internal$$fulfill(promise, this._result);
+	      }
+	    };
+	
+	    lib$es6$promise$enumerator$$Enumerator.prototype._willSettleAt = function(promise, i) {
+	      var enumerator = this;
+	
+	      lib$es6$promise$$internal$$subscribe(promise, undefined, function(value) {
+	        enumerator._settledAt(lib$es6$promise$$internal$$FULFILLED, i, value);
+	      }, function(reason) {
+	        enumerator._settledAt(lib$es6$promise$$internal$$REJECTED, i, reason);
+	      });
+	    };
+	    function lib$es6$promise$polyfill$$polyfill() {
+	      var local;
+	
+	      if (typeof global !== 'undefined') {
+	          local = global;
+	      } else if (typeof self !== 'undefined') {
+	          local = self;
+	      } else {
+	          try {
+	              local = Function('return this')();
+	          } catch (e) {
+	              throw new Error('polyfill failed because global object is unavailable in this environment');
+	          }
+	      }
+	
+	      var P = local.Promise;
+	
+	      if (P && Object.prototype.toString.call(P.resolve()) === '[object Promise]' && !P.cast) {
+	        return;
+	      }
+	
+	      local.Promise = lib$es6$promise$promise$$default;
+	    }
+	    var lib$es6$promise$polyfill$$default = lib$es6$promise$polyfill$$polyfill;
+	
+	    var lib$es6$promise$umd$$ES6Promise = {
+	      'Promise': lib$es6$promise$promise$$default,
+	      'polyfill': lib$es6$promise$polyfill$$default
+	    };
+	
+	    /* global define:true module:true window: true */
+	    if ("function" === 'function' && __webpack_require__(6)['amd']) {
+	      !(__WEBPACK_AMD_DEFINE_RESULT__ = function() { return lib$es6$promise$umd$$ES6Promise; }.call(exports, __webpack_require__, exports, module), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+	    } else if (typeof module !== 'undefined' && module['exports']) {
+	      module['exports'] = lib$es6$promise$umd$$ES6Promise;
+	    } else if (typeof this !== 'undefined') {
+	      this['ES6Promise'] = lib$es6$promise$umd$$ES6Promise;
+	    }
+	
+	    lib$es6$promise$polyfill$$default();
+	}).call(this);
+	
+	
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(3), (function() { return this; }()), __webpack_require__(4)(module)))
 
 /***/ },
 /* 3 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ function(module, exports) {
 
-	var StateMan = __webpack_require__(4);
+	// shim for using process in browser
 	
-	StateMan.History = __webpack_require__(8);
-	StateMan.util = __webpack_require__(7);
-	StateMan.State = __webpack_require__(6);
+	var process = module.exports = {};
+	var queue = [];
+	var draining = false;
+	var currentQueue;
+	var queueIndex = -1;
 	
-	module.exports = StateMan;
+	function cleanUpNextTick() {
+	    draining = false;
+	    if (currentQueue.length) {
+	        queue = currentQueue.concat(queue);
+	    } else {
+	        queueIndex = -1;
+	    }
+	    if (queue.length) {
+	        drainQueue();
+	    }
+	}
+	
+	function drainQueue() {
+	    if (draining) {
+	        return;
+	    }
+	    var timeout = setTimeout(cleanUpNextTick);
+	    draining = true;
+	
+	    var len = queue.length;
+	    while(len) {
+	        currentQueue = queue;
+	        queue = [];
+	        while (++queueIndex < len) {
+	            if (currentQueue) {
+	                currentQueue[queueIndex].run();
+	            }
+	        }
+	        queueIndex = -1;
+	        len = queue.length;
+	    }
+	    currentQueue = null;
+	    draining = false;
+	    clearTimeout(timeout);
+	}
+	
+	process.nextTick = function (fun) {
+	    var args = new Array(arguments.length - 1);
+	    if (arguments.length > 1) {
+	        for (var i = 1; i < arguments.length; i++) {
+	            args[i - 1] = arguments[i];
+	        }
+	    }
+	    queue.push(new Item(fun, args));
+	    if (queue.length === 1 && !draining) {
+	        setTimeout(drainQueue, 0);
+	    }
+	};
+	
+	// v8 likes predictible objects
+	function Item(fun, array) {
+	    this.fun = fun;
+	    this.array = array;
+	}
+	Item.prototype.run = function () {
+	    this.fun.apply(null, this.array);
+	};
+	process.title = 'browser';
+	process.browser = true;
+	process.env = {};
+	process.argv = [];
+	process.version = ''; // empty string to avoid regexp issues
+	process.versions = {};
+	
+	function noop() {}
+	
+	process.on = noop;
+	process.addListener = noop;
+	process.once = noop;
+	process.off = noop;
+	process.removeListener = noop;
+	process.removeAllListeners = noop;
+	process.emit = noop;
+	
+	process.binding = function (name) {
+	    throw new Error('process.binding is not supported');
+	};
+	
+	process.cwd = function () { return '/' };
+	process.chdir = function (dir) {
+	    throw new Error('process.chdir is not supported');
+	};
+	process.umask = function() { return 0; };
 
 
 /***/ },
 /* 4 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ function(module, exports) {
 
-	__webpack_require__(5);
-	
-	var State = __webpack_require__(6),
-	  History = __webpack_require__(8),
-	  _ = __webpack_require__(7),
-	  baseTitle = document.title,
-	  stateFn = State.prototype.state;
-	
-	function StateMan(options){
-	
-	  if(this instanceof StateMan === false){ return new StateMan(options); }
-	  options = options || {};
-	  // if(options.history) this.history = options.history;
-	
-	  this._states = {};
-	  this._stashCallback = [];
-	  this.strict = options.strict;
-	  this.current = this.active = this;
-	  this.title = options.title;
-	  this.on("end", function(){
-	    var cur = this.current,title;
-	    while( cur ){
-	      title = cur.title;
-	      if(title) break; 
-	      cur = cur.parent;
-	    }
-	    document.title = typeof title === "function"? cur.title(): String( title || baseTitle ) ;
-	  });
-	
+	module.exports = function(module) {
+		if(!module.webpackPolyfill) {
+			module.deprecate = function() {};
+			module.paths = [];
+			// module.parent = undefined by default
+			module.children = [];
+			module.webpackPolyfill = 1;
+		}
+		return module;
 	}
-	
-	_.extend( _.emitable( StateMan ), {
-	    // keep blank
-	    name: '',
-	
-	    state: function(stateName){
-	
-	      var active = this.active;
-	      var args = _.slice(arguments, 1);
-	
-	      if(typeof stateName === "string" && active){
-	         stateName = stateName.replace("~", active.name);
-	         if(active.parent) stateName = stateName.replace("^", active.parent.name || "");
-	      }
-	      // ^ represent current.parent
-	      // ~ represent  current
-	      // only 
-	      args.unshift(stateName);
-	      return stateFn.apply(this, args);
-	
-	    },
-	    start: function(options){
-	
-	      if( !this.history ) this.history = new History(options); 
-	      if( !this.history.isStart ){
-	        this.history.on("change", _.bind(this._afterPathChange, this));
-	        this.history.start();
-	      } 
-	      return this;
-	
-	    },
-	    stop: function(){
-	      this.history.stop();
-	    },
-	    // @TODO direct go the point state
-	    go: function(state, option, callback){
-	      option = option || {};
-	      var statename;
-	      if(typeof state === "string") {
-	         statename = state;
-	         state = this.state(state);
-	      }
-	
-	      if(!state) return this._notfound({state:statename});
-	
-	      if(typeof option === "function"){
-	        callback = option;
-	        option = {};
-	      }
-	
-	      if(option.encode !== false){
-	        var url = state.encode(option.param);
-	        option.path = url;
-	        this.nav(url, {silent: true, replace: option.replace});
-	      }
-	
-	      this._go(state, option, callback);
-	
-	      return this;
-	    },
-	    nav: function(url, options, callback){
-	      if(typeof options === "function"){
-	        callback = options;
-	        options = {};
-	      }
-	      options = options || {};
-	
-	      options.path = url;
-	
-	      this.history.nav( url, _.extend({silent: true}, options));
-	      if(!options.silent) this._afterPathChange( _.cleanPath(url) , options , callback);
-	
-	      return this;
-	    },
-	    decode: function(path){
-	
-	      var pathAndQuery = path.split("?");
-	      var query = this._findQuery(pathAndQuery[1]);
-	      path = pathAndQuery[0];
-	      var state = this._findState(this, path);
-	      if(state) _.extend(state.param, query);
-	      return state;
-	
-	    },
-	    encode: function(stateName, param){
-	      var state = this.state(stateName);
-	      return state? state.encode(param) : '';
-	    },
-	    // notify specify state
-	    // check the active statename whether to match the passed condition (stateName and param)
-	    is: function(stateName, param, isStrict){
-	      if(!stateName) return false;
-	      stateName = (stateName.name || stateName);
-	      var current = this.current, currentName = current.name;
-	      var matchPath = isStrict? currentName === stateName : (currentName + ".").indexOf(stateName + ".")===0;
-	      return matchPath && (!param || _.eql(param, this.param)); 
-	    },
-	    // after pathchange changed
-	    // @TODO: afterPathChange need based on decode
-	    _afterPathChange: function(path, options ,callback){
-	
-	      this.emit("history:change", path);
-	
-	      var found = this.decode(path);
-	
-	      options = options || {};
-	
-	      options.path = path;
-	
-	      if(!found){
-	        // loc.nav("$default", {silent: true})
-	        return this._notfound(options);
-	      }
-	
-	      options.param = found.param;
-	
-	      this._go( found, options, callback );
-	    },
-	    _notfound: function(options){
-	
-	      // var $notfound = this.state("$notfound");
-	
-	      // if( $notfound ) this._go($notfound, options);
-	
-	      return this.emit("notfound", options);
-	    },
-	    // goto the state with some option
-	    _go: function(state, option, callback){
-	
-	      var over;
-	
-	      // if(typeof state === "string") state = this.state(state);
-	
-	      // if(!state) return _.log("destination is not defined")
-	
-	      if(state.hasNext && this.strict) return this._notfound({name: state.name});
-	
-	      // not touch the end in previous transtion
-	
-	      // if( this.pending ){
-	      //   var pendingCurrent = this.pending.current;
-	      //   this.pending.stop();
-	      //   _.log("naving to [" + pendingCurrent.name + "] will be stoped, trying to ["+state.name+"] now");
-	      // }
-	      // if(this.active !== this.current){
-	      //   // we need return
-	      //   _.log("naving to [" + this.current.name + "] will be stoped, trying to ["+state.name+"] now");
-	      //   this.current = this.active;
-	      //   // back to before
-	      // }
-	      option.param = option.param || {};
-	
-	      var current = this.current,
-	        baseState = this._findBase(current, state),
-	        prepath = this.path,
-	        self = this;
-	
-	
-	      if( typeof callback === "function" ) this._stashCallback.push(callback);
-	      // if we done the navigating when start
-	      function done(success){
-	        over = true;
-	        if( success !== false ) self.emit("end");
-	        self.pending = null;
-	        self._popStash(option);
-	      }
-	      
-	      option.previous = current;
-	      option.current = state;
-	
-	      if(current !== state){
-	        option.stop = function(){
-	          done(false);
-	          self.nav( prepath? prepath: "/", {silent:true});
-	        };
-	        self.emit("begin", option);
-	
-	      }
-	      // if we stop it in 'begin' listener
-	      if(over === true) return;
-	
-	      option.phase = 'permission';
-	      this._walk(current, state, option, true , _.bind( function( notRejected ){
-	
-	        if( notRejected===false ){
-	          // if reject in callForPermission, we will return to old 
-	          prepath && this.nav( prepath, {silent: true});
-	
-	          done(false, 2);
-	
-	          return this.emit('abort', option);
-	
-	        } 
-	
-	        // stop previous pending.
-	        if(this.pending) this.pending.stop();
-	        this.pending = option;
-	        this.path = option.path;
-	        this.current = option.current;
-	        this.param = option.param;
-	        this.previous = option.previous;
-	        option.phase = 'navigation';
-	        this._walk(current, state, option, false, _.bind(function( notRejected ){
-	
-	          if( notRejected === false ){
-	            this.current = this.active;
-	            done(false);
-	            return this.emit('abort', option);
-	          }
-	
-	
-	          this.active = option.current;
-	
-	          option.phase = 'completion';
-	          return done();
-	
-	        }, this) );
-	
-	      }, this) );
-	
-	      // }
-	      // else{
-	      //   this.param = option.param;
-	      //   this.path = option.path;
-	      //   self._walkUpdate(baseState, option);
-	      //   this.pending = null;
-	      //   done();
-	      // }
-	
-	    },
-	    _popStash: function(option){
-	
-	      var stash = this._stashCallback, len = stash.length;
-	
-	      this._stashCallback = [];
-	
-	      if(!len) return;
-	
-	      for(var i = 0; i < len; i++){
-	        stash[i].call(this, option);
-	      }
-	    },
-	
-	    // the transition logic  Used in Both canLeave canEnter && leave enter LifeCycle
-	
-	    _walk: function(from, to, option, callForPermit , callback){
-	      // if(from === to) return callback();
-	
-	      // nothing -> app.state
-	      var parent = this._findBase(from , to);
-	      var self = this;
-	
-	
-	      option.backward = true;
-	      this._transit( from, parent, option, callForPermit , function( notRejected ){
-	
-	        if( notRejected === false ) return callback( notRejected );
-	
-	        // only actual transiton need update base state;
-	        option.backward = false;
-	        self._walkUpdate(parent, option, callForPermit, function(notRejected){
-	          if(notRejected === false) return callback(notRejected);
-	
-	          self._transit( parent, to, option, callForPermit,  callback);
-	
-	        });
-	
-	
-	      });
-	
-	    },
-	
-	    _transit: function(from, to, option, callForPermit, callback){
-	      //  touch the ending
-	      if( from === to ) return callback();
-	
-	      var back = from.name.length > to.name.length;
-	      var method = back? 'leave': 'enter';
-	      var applied;
-	
-	      // use canEnter to detect permission
-	      if( callForPermit) method = 'can' + method.replace(/^\w/, function(a){ return a.toUpperCase(); });
-	
-	      var loop = _.bind(function( notRejected ){
-	
-	
-	        // stop transition or touch the end
-	        if( applied === to || notRejected === false ) return callback(notRejected);
-	
-	        if( !applied ) {
-	
-	          applied = back? from : this._computeNext(from, to);
-	
-	        }else{
-	
-	          applied = this._computeNext(applied, to);
-	        }
-	
-	        if( (back && applied === to) || !applied )return callback( notRejected );
-	
-	        this._moveOn( applied, method, option, loop );
-	
-	      }, this);
-	
-	      loop();
-	    },
-	
-	    _moveOn: function( applied, method, option, callback){
-	
-	      var isDone = false;
-	      var isPending = false;
-	
-	      option.async = function(){
-	
-	        isPending = true;
-	
-	        return done;
-	      };
-	
-	      function done( notRejected ){
-	        if( isDone ) return;
-	        isPending = false;
-	        isDone = true;
-	        callback( notRejected );
-	      }
-	
-	      option.stop = function(){
-	        done( false );
-	      };
-	
-	
-	      this.active = applied;
-	      var retValue = applied[method]? applied[method]( option ): true;
-	
-	      if(method === 'enter') applied.visited = true;
-	      // promise
-	      // need breadk , if we call option.stop first;
-	
-	      if( _.isPromise(retValue) ){
-	
-	        return this._wrapPromise(retValue, done); 
-	
-	      }
-	
-	      // if haven't call option.async yet
-	      if( !isPending ) done( retValue );
-	
-	    },
-	
-	
-	    _wrapPromise: function( promise, next ){
-	
-	      return promise.then( next, function(){ next(false); }) ;
-	
-	    },
-	
-	    _computeNext: function( from, to ){
-	
-	      var fname = from.name;
-	      var tname = to.name;
-	
-	      var tsplit = tname.split('.');
-	      var fsplit = fname.split('.');
-	
-	      var tlen = tsplit.length;
-	      var flen = fsplit.length;
-	
-	      if(fname === '') flen = 0;
-	      if(tname === '') tlen = 0;
-	
-	      if( flen < tlen ){
-	        fsplit[flen] = tsplit[flen];
-	      }else{
-	        fsplit.pop();
-	      }
-	
-	      return this.state(fsplit.join('.'));
-	
-	    },
-	
-	    _findQuery: function(querystr){
-	
-	      var queries = querystr && querystr.split("&"), query= {};
-	      if(queries){
-	        var len = queries.length;
-	        for(var i =0; i< len; i++){
-	          var tmp = queries[i].split("=");
-	          query[tmp[0]] = tmp[1];
-	        }
-	      }
-	      return query;
-	
-	    },
-	    _findState: function(state, path){
-	      var states = state._states, found, param;
-	
-	      // leaf-state has the high priority upon branch-state
-	      if(state.hasNext){
-	
-	        var stateList = _.values( states ).sort( this._sortState );
-	        var len = stateList.length;
-	
-	        for(var i = 0; i < len; i++){
-	
-	          found = this._findState( stateList[i], path );
-	          if( found ) return found;
-	        }
-	
-	      }
-	      // in strict mode only leaf can be touched
-	      // if all children is don. will try it self
-	      param = state.regexp && state.decode(path);
-	      if(param){
-	        state.param = param;
-	        return state;
-	      }else{
-	        return false;
-	      }
-	    },
-	    _sortState: function( a, b ){
-	      return ( b.priority || 0 ) - ( a.priority || 0 );
-	    },
-	    // find the same branch;
-	    _findBase: function(now, before){
-	
-	      if(!now || !before || now == this || before == this) return this;
-	      var np = now, bp = before, tmp;
-	      while(np && bp){
-	        tmp = bp;
-	        while(tmp){
-	          if(np === tmp) return tmp;
-	          tmp = tmp.parent;
-	        }
-	        np = np.parent;
-	      }
-	    },
-	    // check the query and Param
-	    _walkUpdate: function(baseState, options, callForPermit,  done){
-	
-	      var method = callForPermit? 'canUpdate': 'update';
-	      var from = baseState;
-	      var self = this;
-	
-	      if(from === this) return done();
-	
-	      var loop = function(notRejected){
-	        if(notRejected === false) return done(false);
-	        from = from.parent;
-	        if(from === self) return done();
-	        self._moveOn(from, method, options, loop)
-	      }
-	
-	      self._moveOn(from, method, options, loop)
-	    }
-	
-	}, true);
-	
-	module.exports = StateMan;
 
 
 /***/ },
 /* 5 */
 /***/ function(module, exports) {
 
-	var win = window,
-	    doc = document;
-	
-	module.exports = {
-	  hash: "onhashchange" in win && (!doc.documentMode || doc.documentMode > 7),
-	  history: win.history && "onpopstate" in win,
-	  location: win.location,
-	  isSameDomain: function(url){
-	    var matched = url.match(/^.*?:\/\/([^/]*)/);
-	    if(matched){
-	      return matched[0] == this.location.origin;
-	    }
-	    return true;
-	  },
-	  getHref: function(node){
-	    return "href" in node ? node.getAttribute("href", 2) : node.getAttribute("href");
-	  },
-	  on: "addEventListener" in win ?  // IE10 attachEvent is not working when binding the onpopstate, so we need check addEventLister first
-	      function(node,type,cb){return node.addEventListener( type, cb )}
-	    : function(node,type,cb){return node.attachEvent( "on" + type, cb )},
-	
-	  off: "removeEventListener" in win ? 
-	      function(node,type,cb){return node.removeEventListener( type, cb )}
-	    : function(node,type,cb){return node.detachEvent( "on" + type, cb )}
-	}
-
+	/* (ignored) */
 
 /***/ },
 /* 6 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ function(module, exports) {
 
-	var _ = __webpack_require__(7);
-	
-	function State(option){
-	  this._states = {};
-	  this._pending = false;
-	  this.visited = false;
-	  if(option) this.config(option);
-	}
-	
-	//regexp cache
-	State.rCache = {};
-	
-	_.extend( _.emitable( State ), {
-	
-	  state: function(stateName, config){
-	    if(_.typeOf(stateName) === "object"){
-	      for(var j in stateName){
-	        this.state(j, stateName[j]);
-	      }
-	      return this;
-	    }
-	    var current = this, next, nextName, states = this._states, i=0;
-	
-	    if( typeof stateName === "string" ) stateName = stateName.split(".");
-	
-	    var slen = stateName.length;
-	    var stack = [];
-	
-	    do{
-	      nextName = stateName[i];
-	      next = states[nextName];
-	      stack.push(nextName);
-	      if(!next){
-	        if(!config) return;
-	        next = states[nextName] = new State();
-	        _.extend(next, {
-	          parent: current,
-	          manager: current.manager || current,
-	          name: stack.join("."),
-	          currentName: nextName
-	        });
-	        current.hasNext = true;
-	        next.configUrl();
-	      }
-	      current = next;
-	      states = next._states;
-	    }while((++i) < slen )
-	
-	    if(config){
-	       next.config(config);
-	       return this;
-	    } else {
-	      return current;
-	    }
-	  },
-	
-	  config: function(configure){
-	
-	    configure = this._getConfig(configure);
-	
-	    for(var i in configure){
-	      var prop = configure[i];
-	      switch(i){
-	        case "url":
-	          if(typeof prop === "string"){
-	            this.url = prop;
-	            this.configUrl();
-	          }
-	          break;
-	        case "events":
-	          this.on(prop);
-	          break;
-	        default:
-	          this[i] = prop;
-	      }
-	    }
-	  },
-	
-	  // children override
-	  _getConfig: function(configure){
-	    return typeof configure === "function"? {enter: configure} : configure;
-	  },
-	
-	  //from url
-	  configUrl: function(){
-	    var url = "" , base = this;
-	
-	    while( base ){
-	
-	      url = (typeof base.url === "string" ? base.url: (base.currentName || "")) + "/" + url;
-	
-	      // means absolute;
-	      if(url.indexOf("^/") === 0) {
-	        url = url.slice(1);
-	        break;
-	      }
-	      base = base.parent;
-	    }
-	    this.pattern = _.cleanPath("/" + url);
-	    var pathAndQuery = this.pattern.split("?");
-	    this.pattern = pathAndQuery[0];
-	    // some Query we need watched
-	
-	    _.extend(this, _.normalize(this.pattern), true);
-	  },
-	  encode: function(param){
-	    var state = this;
-	    param = param || {};
-	
-	    var matched = "%";
-	
-	    var url = state.matches.replace(/\(([\w-]+)\)/g, function(all, capture){
-	      var sec = param[capture] || "";
-	      matched+= capture + "%";
-	      return sec;
-	    }) + "?";
-	
-	    // remained is the query, we need concat them after url as query
-	    for(var i in param) {
-	      if( matched.indexOf("%"+i+"%") === -1) url += i + "=" + param[i] + "&";
-	    }
-	    return _.cleanPath( url.replace(/(?:\?|&)$/,"") );
-	  },
-	  decode: function( path ){
-	    var matched = this.regexp.exec(path),
-	      keys = this.keys;
-	
-	    if(matched){
-	
-	      var param = {};
-	      for(var i =0,len=keys.length;i<len;i++){
-	        param[keys[i]] = matched[i+1];
-	      }
-	      return param;
-	    }else{
-	      return false;
-	    }
-	  },
-	  // by default, all lifecycle is permitted
-	
-	  async: function(){
-	    throw new Error( 'please use option.async instead');
-	  }
-	
-	});
-	
-	module.exports = State;
+	module.exports = function() { throw new Error("define cannot be used indirect"); };
 
 
 /***/ },
 /* 7 */
+/***/ function(module, exports, __webpack_require__) {
+
+	
+	
+	var stateman = __webpack_require__(8);
+	var Regular = __webpack_require__(12);
+	var SSR = __webpack_require__(41);
+	var global = typeof window !== 'undefined'? window: global;
+	
+	
+	
+	
+	
+	function isPromise(obj){
+	  return !!obj && (typeof obj === 'object' || typeof obj === 'function') && typeof obj.then === 'function';
+	}
+	
+	
+	function Server( options ){
+	  if( !(this instanceof Server)) return new Server(options)
+	  stateman.call(this, options);
+	  this.dataProvider = options.dataProvider;
+	}
+	
+	
+	var so = Server.prototype =  Object.create(stateman.prototype) 
+	
+	so.install = function( option ){
+	  var type = typeof  this.dataProvider, ret,  
+	    state = option.state;
+	  option.server = true;
+	  if( type === 'function' ){
+	    ret = this.dataProvider( option );
+	  }
+	  if(type === 'object'){
+	    var dataProvider = this.dataProvider[state.name];
+	    ret = dataProvider && dataProvider(option);
+	  }
+	  ret =  this._normPromise(ret)
+	  return ret;
+	}
+	
+	so._normPromise = function(ret){
+	  if( isPromise(ret) ){
+	    return ret
+	  }else{
+	    return Promise.resolve(ret);
+	  }
+	}
+	
+	so.run = function(path){
+	  var executed = this.exec(path);
+	  var param = executed.param;
+	  var self = this;
+	  if(!executed){
+	    return Promise.reject();
+	  }else{
+	    var promises = executed.states.map(function(state){
+	      var Component = state.view;
+	      return new Promise(function( resolve, reject ){
+	
+	        return self.install({
+	          state: state,
+	          param: param
+	        }).then(function( data ){
+	          var html = SSR.render( Component, {data: data } )
+	          resolve( {
+	            name: state.name,
+	            html: html,
+	            data: data
+	          });
+	        })['catch'](reject)
+	
+	      })
+	      // if( typeof Component === 'function' && !( Component instanceof Regular ) ){
+	      //   var delayComponent = Component({param: executed.param});
+	      //   delayComponent.then(function(Compo){
+	
+	      //   })['catch'](function(){})
+	      // }
+	    })
+	
+	
+	    return Promise.all( promises).then(function( rendereds ){
+	
+	      var retView,  data = {};
+	      for(var len = rendereds.length, i = 0; i < len-1; i++ ){
+	
+	        var rendered = rendereds[i], nextRendered = rendereds[i + 1];
+	
+	        if(i ===0){
+	          retView = rendereds[i].html;
+	          data[rendered.name] = rendered.data
+	        }
+	        // <rg-view/> 或者 <rg-view></rg-view> 
+	        retView = retView.replace(/rg-view([^>]*\>)/, function(all ,capture){
+	
+	          return capture + nextRendered.html;
+	        } )
+	        data[nextRendered.name] = nextRendered.data
+	      }
+	      return Promise.resolve( {
+	        html: retView,
+	        data: data
+	      } )
+	    })
+	  }
+	}
+	
+	
+	
+	
+	
+	module.exports =  Server;
+
+/***/ },
+/* 8 */
+/***/ function(module, exports, __webpack_require__) {
+
+	
+	var _ = __webpack_require__(9);
+	var Base = __webpack_require__(10);
+	
+	function ServerManager( options ){
+	  if(this instanceof ServerManager === false){ return new ServerManager(options); }
+	  Base.apply( this, arguments );
+	}
+	
+	var o =_.inherit( ServerManager, Base.prototype );
+	
+	_.extend(o , {
+	  exec: function ( path ){
+	    var found = this.decode(path);
+	    if( !found ) return;
+	    var param = found.param;
+	    var states = [];
+	    var state = found.state;
+	    this.current = state;
+	
+	    while(state && !state.root){
+	      states.unshift( state );
+	      state = state.parent;
+	    }
+	
+	    return {
+	      states: states,
+	      param: param
+	    }
+	  }
+	})
+	
+	
+	module.exports = ServerManager
+
+/***/ },
+/* 9 */
 /***/ function(module, exports) {
 
 	var _ = module.exports = {};
@@ -1029,6 +1379,14 @@
 	  }
 	  return keys;
 	};
+	
+	_.inherit = function( cstor, o ){
+	  function Faker(){}
+	  Faker.prototype = o;
+	  cstor.prototype = new Faker();
+	  cstor.prototype.constructor = cstor;
+	  return o;
+	}
 	
 	_.slice = function(arr, index){
 	  return slice.call(arr, index);
@@ -1197,243 +1555,329 @@
 
 
 /***/ },
-/* 8 */
+/* 10 */
 /***/ function(module, exports, __webpack_require__) {
 
 	
-	// MIT
-	// Thx Backbone.js 1.1.2  and https://github.com/cowboy/jquery-hashchange/blob/master/jquery.ba-hashchange.js
-	// for iframe patches in old ie.
+	var State = __webpack_require__(11),
+	  _ = __webpack_require__(9),
+	  stateFn = State.prototype.state;
 	
-	var browser = __webpack_require__(5);
-	var _ = __webpack_require__(7);
+	function BaseMan( options ){
 	
-	
-	// the mode const
-	var QUIRK = 3,
-	  HASH = 1,
-	  HISTORY = 2;
-	
-	// extract History for test
-	// resolve the conficlt with the Native History
-	function History(options){
 	  options = options || {};
 	
-	  // Trick from backbone.history for anchor-faked testcase
-	  this.location = options.location || browser.location;
+	  this._states = {};
 	
-	  // mode config, you can pass absolute mode (just for test);
-	  this.html5 = options.html5;
-	  this.mode = options.html5 && browser.history ? HISTORY: HASH;
-	  if( !browser.hash ) this.mode = QUIRK;
-	  if(options.mode) this.mode = options.mode;
+	  this.strict = options.strict;
+	  this.title = options.title;
 	
-	  // hash prefix , used for hash or quirk mode
-	  this.prefix = "#" + (options.prefix || "") ;
-	  this.rPrefix = new RegExp(this.prefix + '(.*)$');
-	  this.interval = options.interval || 66;
+	  if(options.routes) this.state(options.routes);
 	
-	  // the root regexp for remove the root for the path. used in History mode
-	  this.root = options.root ||  "/" ;
-	  this.rRoot = new RegExp("^" +  this.root);
-	
-	  this._fixInitState();
-	
-	  this.autolink = options.autolink!==false;
-	
-	  this.curPath = undefined;
 	}
 	
-	_.extend( _.emitable(History), {
-	  // check the
-	  start: function(){
-	    var path = this.getPath();
-	    this._checkPath = _.bind(this.checkPath, this);
+	_.extend( _.emitable( BaseMan ), {
+	    // keep blank
+	    name: '',
 	
-	    if( this.isStart ) return;
-	    this.isStart = true;
+	    root: true,
 	
-	    if(this.mode === QUIRK){
-	      this._fixHashProbelm(path);
-	    }
 	
-	    switch ( this.mode ){
-	      case HASH:
-	        browser.on(window, "hashchange", this._checkPath);
-	        break;
-	      case HISTORY:
-	        browser.on(window, "popstate", this._checkPath);
-	        break;
-	      case QUIRK:
-	        this._checkLoop();
-	    }
-	    // event delegate
-	    this.autolink && this._autolink();
+	    state: function(stateName){
 	
-	    this.curPath = path;
+	      var active = this.active;
+	      var args = _.slice(arguments, 1);
 	
-	    this.emit("change", path);
-	  },
-	
-	  // the history teardown
-	  stop: function(){
-	
-	    browser.off(window, 'hashchange', this._checkPath);
-	    browser.off(window, 'popstate', this._checkPath);
-	    clearTimeout(this.tid);
-	    this.isStart = false;
-	    this._checkPath = null;
-	  },
-	
-	  // get the path modify
-	  checkPath: function(/*ev*/){
-	
-	    var path = this.getPath(), curPath = this.curPath;
-	
-	    //for oldIE hash history issue
-	    if(path === curPath && this.iframe){
-	      path = this.getPath(this.iframe.location);
-	    }
-	
-	    if( path !== curPath ) {
-	      this.iframe && this.nav(path, {silent: true});
-	      this.curPath = path;
-	      this.emit('change', path);
-	    }
-	  },
-	
-	  // get the current path
-	  getPath: function(location){
-	    location = location || this.location;
-	    var tmp;
-	
-	    if( this.mode !== HISTORY ){
-	      tmp = location.href.match(this.rPrefix);
-	      return tmp && tmp[1]? tmp[1]: "";
-	
-	    }else{
-	      return _.cleanPath(( location.pathname + location.search || "" ).replace( this.rRoot, "/" ));
-	    }
-	  },
-	
-	  nav: function(to, options ){
-	
-	    var iframe = this.iframe;
-	
-	    options = options || {};
-	
-	    to = _.cleanPath(to);
-	
-	    if(this.curPath == to) return;
-	
-	    // pushState wont trigger the checkPath
-	    // but hashchange will
-	    // so we need set curPath before to forbit the CheckPath
-	    this.curPath = to;
-	
-	    // 3 or 1 is matched
-	    if( this.mode !== HISTORY ){
-	      this._setHash(this.location, to, options.replace);
-	      if( iframe && this.getPath(iframe.location) !== to ){
-	        if(!options.replace) iframe.document.open().close();
-	        this._setHash(this.iframe.location, to, options.replace);
+	      if(typeof stateName === "string" && active){
+	         stateName = stateName.replace("~", active.name);
+	         if(active.parent) stateName = stateName.replace("^", active.parent.name || "");
 	      }
+	      // ^ represent current.parent
+	      // ~ represent  current
+	      // only 
+	      args.unshift(stateName);
+	      return stateFn.apply(this, args);
+	
+	    },
+	
+	    decode: function(path, needLocation){
+	
+	      var pathAndQuery = path.split("?");
+	      var query = this._findQuery(pathAndQuery[1]);
+	      path = pathAndQuery[0];
+	      var found = this._findState(this, path);
+	      if(found) _.extend(found.param, query);
+	      return found;
+	
+	    },
+	    encode: function(stateName, param){
+	      var state = this.state(stateName);
+	      return state? state.encode(param) : '';
+	    },
+	    // notify specify state
+	    // check the active statename whether to match the passed condition (stateName and param)
+	    is: function(stateName, param, isStrict){
+	      if(!stateName) return false;
+	      stateName = (stateName.name || stateName);
+	      var current = this.current, currentName = current.name;
+	      var matchPath = isStrict? currentName === stateName : (currentName + ".").indexOf(stateName + ".")===0;
+	      return matchPath && (!param || _.eql(param, this.param)); 
+	    },
+	
+	
+	    _wrapPromise: function( promise, next ){
+	
+	      return promise.then( next, function(){ next(false); }) ;
+	
+	    },
+	
+	    _findQuery: function(querystr){
+	
+	      var queries = querystr && querystr.split("&"), query= {};
+	      if(queries){
+	        var len = queries.length;
+	        for(var i =0; i< len; i++){
+	          var tmp = queries[i].split("=");
+	          query[tmp[0]] = tmp[1];
+	        }
+	      }
+	      return query;
+	
+	    },
+	    _findState: function(state, path){
+	      var states = state._states, found, param;
+	
+	      // leaf-state has the high priority upon branch-state
+	      if(state.hasNext){
+	
+	        var stateList = _.values( states ).sort( this._sortState );
+	        var len = stateList.length;
+	
+	        for(var i = 0; i < len; i++){
+	
+	          found = this._findState( stateList[i], path );
+	          if( found ) return found;
+	        }
+	
+	      }
+	      // in strict mode only leaf can be touched
+	      // if all children is don. will try it self
+	      param = state.regexp && state.decode(path);
+	      if(param){
+	        return {
+	          state: state,
+	          param: param
+	        }
+	      }else{
+	        return false;
+	      }
+	    },
+	    _sortState: function( a, b ){
+	      return ( b.priority || 0 ) - ( a.priority || 0 );
+	    },
+	    // find the same branch;
+	    _findBase: function(now, before){
+	
+	      if(!now || !before || now == this || before == this) return this;
+	      var np = now, bp = before, tmp;
+	      while(np && bp){
+	        tmp = bp;
+	        while(tmp){
+	          if(np === tmp) return tmp;
+	          tmp = tmp.parent;
+	        }
+	        np = np.parent;
+	      }
+	    },
+	
+	}, true);
+	
+	module.exports = BaseMan;
+	
+
+
+/***/ },
+/* 11 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var _ = __webpack_require__(9);
+	
+	function State(option){
+	  this._states = {};
+	  this._pending = false;
+	  this.visited = false;
+	  if(option) this.config(option);
+	}
+	
+	//regexp cache
+	State.rCache = {};
+	
+	_.extend( _.emitable( State ), {
+	
+	  getTitle: function(options){
+	    var cur = this ,title;
+	    while( cur ){
+	      title = cur.title;
+	      if(title) return typeof title === 'function'? cur.title(options): cur.title
+	      cur = cur.parent;
+	    }
+	    return title;
+	  },
+	
+	
+	  state: function(stateName, config){
+	    if(_.typeOf(stateName) === "object"){
+	      for(var j in stateName){
+	        this.state(j, stateName[j]);
+	      }
+	      return this;
+	    }
+	    var current = this, next, nextName, states = this._states, i=0;
+	
+	    if( typeof stateName === "string" ) stateName = stateName.split(".");
+	
+	    var slen = stateName.length;
+	    var stack = [];
+	
+	    do{
+	      nextName = stateName[i];
+	      next = states[nextName];
+	      stack.push(nextName);
+	      if(!next){
+	        if(!config) return;
+	        next = states[nextName] = new State();
+	        _.extend(next, {
+	          parent: current,
+	          manager: current.manager || current,
+	          name: stack.join("."),
+	          currentName: nextName
+	        });
+	        current.hasNext = true;
+	        next.configUrl();
+	      }
+	      current = next;
+	      states = next._states;
+	    }while((++i) < slen )
+	
+	    if(config){
+	       next.config(config);
+	       return this;
+	    } else {
+	      return current;
+	    }
+	  },
+	
+	  config: function(configure){
+	
+	    configure = this._getConfig(configure);
+	
+	    for(var i in configure){
+	      var prop = configure[i];
+	      switch(i){
+	        case "url":
+	          if(typeof prop === "string"){
+	            this.url = prop;
+	            this.configUrl();
+	          }
+	          break;
+	        case "events":
+	          this.on(prop);
+	          break;
+	        default:
+	          this[i] = prop;
+	      }
+	    }
+	  },
+	
+	  // children override
+	  _getConfig: function(configure){
+	    return typeof configure === "function"? {enter: configure} : configure;
+	  },
+	
+	  //from url
+	  configUrl: function(){
+	    var url = "" , base = this;
+	
+	    while( base ){
+	
+	      url = (typeof base.url === "string" ? base.url: (base.currentName || "")) + "/" + url;
+	
+	      // means absolute;
+	      if(url.indexOf("^/") === 0) {
+	        url = url.slice(1);
+	        break;
+	      }
+	      base = base.parent;
+	    }
+	    this.pattern = _.cleanPath("/" + url);
+	    var pathAndQuery = this.pattern.split("?");
+	    this.pattern = pathAndQuery[0];
+	    // some Query we need watched
+	
+	    _.extend(this, _.normalize(this.pattern), true);
+	  },
+	  encode: function(param){
+	    var state = this;
+	    param = param || {};
+	
+	    var matched = "%";
+	
+	    var url = state.matches.replace(/\(([\w-]+)\)/g, function(all, capture){
+	      var sec = param[capture] || "";
+	      matched+= capture + "%";
+	      return sec;
+	    }) + "?";
+	
+	    // remained is the query, we need concat them after url as query
+	    for(var i in param) {
+	      if( matched.indexOf("%"+i+"%") === -1) url += i + "=" + param[i] + "&";
+	    }
+	    return _.cleanPath( url.replace(/(?:\?|&)$/,"") );
+	  },
+	  decode: function( path ){
+	    var matched = this.regexp.exec(path),
+	      keys = this.keys;
+	
+	    if(matched){
+	
+	      var param = {};
+	      for(var i =0,len=keys.length;i<len;i++){
+	        param[keys[i]] = matched[i+1];
+	      }
+	      return param;
 	    }else{
-	      history[options.replace? 'replaceState': 'pushState']( {}, options.title || "" , _.cleanPath( this.root + to ) );
-	    }
-	
-	    if( !options.silent ) this.emit('change', to);
-	  },
-	  _autolink: function(){
-	    if(this.mode!==HISTORY) return;
-	    // only in html5 mode, the autolink is works
-	    // if(this.mode !== 2) return;
-	    var self = this;
-	    browser.on( document.body, "click", function(ev){
-	
-	      var target = ev.target || ev.srcElement;
-	      if( target.tagName.toLowerCase() !== "a" ) return;
-	      var tmp = browser.isSameDomain(target.href)&&(browser.getHref(target)||"").match(self.rPrefix);
-	
-	      var hash = tmp && tmp[1]? tmp[1]: "";
-	
-	      if(!hash) return;
-	
-	      ev.preventDefault && ev.preventDefault();
-	      self.nav( hash );
-	      return (ev.returnValue = false);
-	    } );
-	  },
-	  _setHash: function(location, path, replace){
-	    var href = location.href.replace(/(javascript:|#).*$/, '');
-	    if (replace){
-	      location.replace(href + this.prefix+ path);
-	    }
-	    else location.hash = this.prefix+ path;
-	  },
-	  // for browser that not support onhashchange
-	  _checkLoop: function(){
-	    var self = this;
-	    this.tid = setTimeout( function(){
-	      self._checkPath();
-	      self._checkLoop();
-	    }, this.interval );
-	  },
-	  // if we use real url in hash env( browser no history popstate support)
-	  // or we use hash in html5supoort mode (when paste url in other url)
-	  // then , history should repara it
-	  _fixInitState: function(){
-	    var pathname = _.cleanPath(this.location.pathname), hash, hashInPathName;
-	
-	    // dont support history popstate but config the html5 mode
-	    if( this.mode !== HISTORY && this.html5){
-	
-	      hashInPathName = pathname.replace(this.rRoot, "");
-	      if(hashInPathName) this.location.replace(this.root + this.prefix + hashInPathName);
-	
-	    }else if( this.mode === HISTORY /* && pathname === this.root*/){
-	
-	      hash = this.location.hash.replace(this.prefix, "");
-	      if(hash) history.replaceState({}, document.title, _.cleanPath(this.root + hash));
-	
+	      return false;
 	    }
 	  },
-	  // Thanks for backbone.history and https://github.com/cowboy/jquery-hashchange/blob/master/jquery.ba-hashchange.js
-	  // for helping stateman fixing the oldie hash history issues when with iframe hack
-	  _fixHashProbelm: function(path){
-	    var iframe = document.createElement('iframe'), body = document.body;
-	    iframe.src = 'javascript:;';
-	    iframe.style.display = 'none';
-	    iframe.tabIndex = -1;
-	    iframe.title = "";
-	    this.iframe = body.insertBefore(iframe, body.firstChild).contentWindow;
-	    this.iframe.document.open().close();
-	    this.iframe.location.hash = '#' + path;
+	  // by default, all lifecycle is permitted
+	
+	  async: function(){
+	    throw new Error( 'please use option.async instead');
 	  }
 	
 	});
 	
-	module.exports = History;
+	module.exports = State;
 
 
 /***/ },
-/* 9 */
+/* 12 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var env =  __webpack_require__(10);
-	var config = __webpack_require__(16); 
-	var Regular = module.exports = __webpack_require__(17);
+	var env =  __webpack_require__(13);
+	var config = __webpack_require__(18); 
+	var Regular = module.exports = __webpack_require__(19);
 	var Parser = Regular.Parser;
 	var Lexer = Regular.Lexer;
 	
-	if(env.browser){
-	    __webpack_require__(32);
+	// if(env.browser){
 	    __webpack_require__(36);
-	    __webpack_require__(37);
-	    Regular.dom = __webpack_require__(22);
-	}
+	    __webpack_require__(39);
+	    __webpack_require__(40);
+	    Regular.dom = __webpack_require__(24);
+	// }
 	Regular.env = env;
-	Regular.util = __webpack_require__(11);
+	Regular.util = __webpack_require__(14);
 	Regular.parse = function(str, options){
 	  options = options || {};
 	
@@ -1446,16 +1890,17 @@
 	  return !options.stringify? ast : JSON.stringify(ast);
 	}
 	
+	Regular.renderToString = __webpack_require__(41).render;
 	
 
 
 /***/ },
-/* 10 */
+/* 13 */
 /***/ function(module, exports, __webpack_require__) {
 
 	// some fixture test;
 	// ---------------
-	var _ = __webpack_require__(11);
+	var _ = __webpack_require__(14);
 	exports.svg = (function(){
 	  return typeof document !== "undefined" && document.implementation.hasFeature( "http://www.w3.org/TR/SVG11/feature#BasicStructure", "1.1" );
 	})();
@@ -1468,15 +1913,15 @@
 
 
 /***/ },
-/* 11 */
+/* 14 */
 /***/ function(module, exports, __webpack_require__) {
 
-	/* WEBPACK VAR INJECTION */(function(global, setImmediate) {__webpack_require__(14)();
+	/* WEBPACK VAR INJECTION */(function(global, setImmediate) {__webpack_require__(16)();
 	
 	
 	
 	var _  = module.exports;
-	var entities = __webpack_require__(15);
+	var entities = __webpack_require__(17);
 	var slice = [].slice;
 	var o2str = ({}).toString;
 	var win = typeof window !=='undefined'? window: global;
@@ -1900,8 +2345,21 @@
 	  return group.inject || group.$inject;
 	}
 	
+	_.blankReg = /\s+/; 
+	
 	_.getCompileFn = function(source, ctx, options){
+	  return function( passedOptions ){
+	    if( passedOptions && options ) _.extend( passedOptions , options );
+	    else passedOptions = options;
+	    return ctx.$compile(source, passedOptions )
+	  }
 	  return ctx.$compile.bind(ctx,source, options)
+	}
+	
+	_.eventReg = /^on-(\w[-\w]+)$/;
+	
+	_.toText = function(obj){
+	  return obj == null ? "": "" + obj;
 	}
 	
 	
@@ -1909,13 +2367,14 @@
 	
 	
 	
-	/* WEBPACK VAR INJECTION */}.call(exports, (function() { return this; }()), __webpack_require__(12).setImmediate))
+	
+	/* WEBPACK VAR INJECTION */}.call(exports, (function() { return this; }()), __webpack_require__(15).setImmediate))
 
 /***/ },
-/* 12 */
+/* 15 */
 /***/ function(module, exports, __webpack_require__) {
 
-	/* WEBPACK VAR INJECTION */(function(setImmediate, clearImmediate) {var nextTick = __webpack_require__(13).nextTick;
+	/* WEBPACK VAR INJECTION */(function(setImmediate, clearImmediate) {var nextTick = __webpack_require__(3).nextTick;
 	var apply = Function.prototype.apply;
 	var slice = Array.prototype.slice;
 	var immediateIds = {};
@@ -1991,107 +2450,10 @@
 	exports.clearImmediate = typeof clearImmediate === "function" ? clearImmediate : function(id) {
 	  delete immediateIds[id];
 	};
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(12).setImmediate, __webpack_require__(12).clearImmediate))
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(15).setImmediate, __webpack_require__(15).clearImmediate))
 
 /***/ },
-/* 13 */
-/***/ function(module, exports) {
-
-	// shim for using process in browser
-	
-	var process = module.exports = {};
-	var queue = [];
-	var draining = false;
-	var currentQueue;
-	var queueIndex = -1;
-	
-	function cleanUpNextTick() {
-	    draining = false;
-	    if (currentQueue.length) {
-	        queue = currentQueue.concat(queue);
-	    } else {
-	        queueIndex = -1;
-	    }
-	    if (queue.length) {
-	        drainQueue();
-	    }
-	}
-	
-	function drainQueue() {
-	    if (draining) {
-	        return;
-	    }
-	    var timeout = setTimeout(cleanUpNextTick);
-	    draining = true;
-	
-	    var len = queue.length;
-	    while(len) {
-	        currentQueue = queue;
-	        queue = [];
-	        while (++queueIndex < len) {
-	            if (currentQueue) {
-	                currentQueue[queueIndex].run();
-	            }
-	        }
-	        queueIndex = -1;
-	        len = queue.length;
-	    }
-	    currentQueue = null;
-	    draining = false;
-	    clearTimeout(timeout);
-	}
-	
-	process.nextTick = function (fun) {
-	    var args = new Array(arguments.length - 1);
-	    if (arguments.length > 1) {
-	        for (var i = 1; i < arguments.length; i++) {
-	            args[i - 1] = arguments[i];
-	        }
-	    }
-	    queue.push(new Item(fun, args));
-	    if (queue.length === 1 && !draining) {
-	        setTimeout(drainQueue, 0);
-	    }
-	};
-	
-	// v8 likes predictible objects
-	function Item(fun, array) {
-	    this.fun = fun;
-	    this.array = array;
-	}
-	Item.prototype.run = function () {
-	    this.fun.apply(null, this.array);
-	};
-	process.title = 'browser';
-	process.browser = true;
-	process.env = {};
-	process.argv = [];
-	process.version = ''; // empty string to avoid regexp issues
-	process.versions = {};
-	
-	function noop() {}
-	
-	process.on = noop;
-	process.addListener = noop;
-	process.once = noop;
-	process.off = noop;
-	process.removeListener = noop;
-	process.removeAllListeners = noop;
-	process.emit = noop;
-	
-	process.binding = function (name) {
-	    throw new Error('process.binding is not supported');
-	};
-	
-	process.cwd = function () { return '/' };
-	process.chdir = function (dir) {
-	    throw new Error('process.chdir is not supported');
-	};
-	process.umask = function() { return 0; };
-
-
-/***/ },
-/* 14 */
+/* 16 */
 /***/ function(module, exports) {
 
 	// shim for es5
@@ -2199,7 +2561,7 @@
 
 
 /***/ },
-/* 15 */
+/* 17 */
 /***/ function(module, exports) {
 
 	// http://stackoverflow.com/questions/1354064/how-to-convert-characters-to-html-entities-using-plain-javascript
@@ -2464,7 +2826,7 @@
 	module.exports  = entities;
 
 /***/ },
-/* 16 */
+/* 18 */
 /***/ function(module, exports) {
 
 	
@@ -2474,28 +2836,33 @@
 	}
 
 /***/ },
-/* 17 */
+/* 19 */
 /***/ function(module, exports, __webpack_require__) {
 
+	/**
+	 * render for component in browsers
+	 */
 	
-	var env = __webpack_require__(10);
-	var Lexer = __webpack_require__(18);
-	var Parser = __webpack_require__(19);
-	var config = __webpack_require__(16);
-	var _ = __webpack_require__(11);
-	var extend = __webpack_require__(21);
+	var env = __webpack_require__(13);
+	var Lexer = __webpack_require__(20);
+	var Parser = __webpack_require__(21);
+	var config = __webpack_require__(18);
+	var _ = __webpack_require__(14);
+	var extend = __webpack_require__(23);
 	var combine = {};
 	if(env.browser){
-	  var dom = __webpack_require__(22);
-	  var walkers = __webpack_require__(23);
-	  var Group = __webpack_require__(27);
+	  var dom = __webpack_require__(24);
+	  var walkers = __webpack_require__(25);
+	  var Group = __webpack_require__(29);
 	  var doc = dom.doc;
-	  combine = __webpack_require__(25);
+	  combine = __webpack_require__(27);
 	}
-	var events = __webpack_require__(28);
-	var Watcher = __webpack_require__(29);
-	var parse = __webpack_require__(30);
-	var filter = __webpack_require__(31);
+	var events = __webpack_require__(32);
+	var Watcher = __webpack_require__(33);
+	var parse = __webpack_require__(34);
+	var filter = __webpack_require__(35);
+	var ERROR = __webpack_require__(30).ERROR;
+	var nodeCursor = __webpack_require__(31);
 	
 	
 	/**
@@ -2509,10 +2876,23 @@
 	var Regular = function(definition, options){
 	  var prevRunning = env.isRunning;
 	  env.isRunning = true;
-	  var node, template;
+	  var node, template, cursor;
 	
 	  definition = definition || {};
 	  options = options || {};
+	
+	  var mountNode = definition.mountNode;
+	  if(typeof mountNode === 'string'){
+	    mountNode = dom.find( mountNode );
+	    if(!mountNode) throw Error('mountNode ' + mountNode + ' is not found')
+	  } 
+	
+	  if(mountNode){
+	    cursor = nodeCursor(mountNode.firstChild)
+	    delete definition.mountNode
+	  }else{
+	    cursor = options.cursor
+	  }
 	
 	  definition.data = definition.data || {};
 	  definition.computed = definition.computed || {};
@@ -2529,6 +2909,7 @@
 	  this.$refs = {};
 	
 	  template = this.template;
+	
 	
 	  // template is a string (len < 16). we will find it container first
 	  if((typeof template === 'string' && template.length < 16) && (node = dom.find(template))) {
@@ -2560,7 +2941,10 @@
 	  }
 	  // handle computed
 	  if(template){
-	    this.group = this.$compile(this.template, {namespace: options.namespace});
+	    this.group = this.$compile(this.template, {
+	      namespace: options.namespace,
+	      cursor: cursor
+	    });
 	    combine.node(this);
 	  }
 	
@@ -2749,6 +3133,7 @@
 	    this.$root = null;
 	    this._handles = null;
 	    this.$refs = null;
+	    this.isDestroy = true;
 	  },
 	
 	  /**
@@ -2767,6 +3152,7 @@
 	      records;
 	
 	    if(options.extra) this.__ext__ = options.extra;
+	
 	
 	    if(record) this._record();
 	    var group = this._walk(ast, options);
@@ -2881,18 +3267,23 @@
 	    // sync the component's state to called's state
 	    expr2.set(component, expr1.get(this));
 	  },
-	  _walk: function(ast, arg1){
+	  _walk: function(ast, options){
 	    if( _.typeOf(ast) === 'array' ){
 	      var res = [];
 	
 	      for(var i = 0, len = ast.length; i < len; i++){
-	        res.push( this._walk(ast[i], arg1) );
+	        var ret = this._walk(ast[i], options);
+	        if(ret && ret.code === ERROR.UNMATCHED_AST){
+	          ast.splice(i, 1);
+	          i--;
+	          len--;
+	        }else res.push( ret );
 	      }
 	
 	      return new Group(res);
 	    }
 	    if(typeof ast === 'string') return doc.createTextNode(ast)
-	    return walkers[ast.type || "default"].call(this, ast, arg1);
+	    return walkers[ast.type || "default"].call(this, ast, options);
 	  },
 	  _append: function(component){
 	    this._children.push(component);
@@ -2960,7 +3351,7 @@
 	        if(computedProperty.get)  return computedProperty.get(this);
 	        else _.log("the computed '" + path + "' don't define the get function,  get data."+path + " altnately", "warn")
 	      }
-	  }
+	    }
 	    if(typeof defaults === "undefined" || typeof path == "undefined" ){
 	      return undefined;
 	    }
@@ -3060,11 +3451,11 @@
 
 
 /***/ },
-/* 18 */
+/* 20 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var _ = __webpack_require__(11);
-	var config = __webpack_require__(16);
+	var _ = __webpack_require__(14);
+	var config = __webpack_require__(18);
 	
 	// some custom tag  will conflict with the Lexer progress
 	var conflictTag = {"}": "{", "]": "["}, map1, map2;
@@ -3188,7 +3579,8 @@
 	Lexer.setup = function(){
 	  macro.END = config.END;
 	  macro.BEGIN = config.BEGIN;
-	  //
+	  
+	  // living template lexer
 	  map1 = genMap([
 	    // INIT
 	    rules.ENTER_JST,
@@ -3417,20 +3809,19 @@
 
 
 /***/ },
-/* 19 */
+/* 21 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var _ = __webpack_require__(11);
+	var _ = __webpack_require__(14);
 	
-	var config = __webpack_require__(16);
-	var node = __webpack_require__(20);
-	var Lexer = __webpack_require__(18);
+	var config = __webpack_require__(18);
+	var node = __webpack_require__(22);
+	var Lexer = __webpack_require__(20);
 	var varName = _.varName;
 	var ctxName = _.ctxName;
 	var extName = _.extName;
 	var isPath = _.makePredicate("STRING IDENT NUMBER");
 	var isKeyWord = _.makePredicate("true false undefined null this Array Date JSON Math NaN RegExp decodeURI decodeURIComponent encodeURI encodeURIComponent parseFloat parseInt Object");
-	
 	
 	
 	
@@ -3659,6 +4050,9 @@
 	    this.error('Undefined directive['+ name +']');
 	  }
 	}
+	
+	
+	
 	
 	
 	// {{}}
@@ -4148,7 +4542,7 @@
 
 
 /***/ },
-/* 20 */
+/* 22 */
 /***/ function(module, exports) {
 
 	module.exports = {
@@ -4210,7 +4604,7 @@
 
 
 /***/ },
-/* 21 */
+/* 23 */
 /***/ function(module, exports, __webpack_require__) {
 
 	// (c) 2010-2014 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
@@ -4223,7 +4617,7 @@
 	// License MIT (c) Dustin Diaz 2014
 	  
 	// inspired by backbone's extend and klass
-	var _ = __webpack_require__(11),
+	var _ = __webpack_require__(14),
 	  fnTest = /xy/.test(function(){"xy";}) ? /\bsupr\b/:/.*/,
 	  isFn = function(o){return typeof o === "function"};
 	
@@ -4296,7 +4690,7 @@
 
 
 /***/ },
-/* 22 */
+/* 24 */
 /***/ function(module, exports, __webpack_require__) {
 
 	
@@ -4310,9 +4704,11 @@
 	// license: MIT-style license. http://mootools.net
 	
 	
+	if(typeof window !== 'undefined'){
+	  
 	var dom = module.exports;
-	var env = __webpack_require__(10);
-	var _ = __webpack_require__(11);
+	var env = __webpack_require__(13);
+	var _ = __webpack_require__(14);
 	var tNode = document.createElement('div')
 	var addEvent, removeEvent;
 	var noop = function(){}
@@ -4323,8 +4719,9 @@
 	}
 	
 	dom.body = document.body;
-	
 	dom.doc = document;
+	dom.tNode = tNode;
+	
 	
 	// camelCase
 	function camelCase(str){
@@ -4334,7 +4731,6 @@
 	}
 	
 	
-	dom.tNode = tNode;
 	
 	if(tNode.addEventListener){
 	  addEvent = function(node, type, fn) {
@@ -4412,7 +4808,7 @@
 	}
 	
 	// createElement 
-	dom.create = function(type, ns, attrs){
+	dom.create = function(type, ns){
 	  if(ns === 'svg'){
 	    if(!env.svg) throw Error('the env need svg support')
 	    ns = namespaces.svg;
@@ -4424,6 +4820,7 @@
 	dom.fragment = function(){
 	  return document.createDocumentFragment();
 	}
+	
 	
 	
 	
@@ -4686,21 +5083,28 @@
 	  })
 	}: dom.nextFrame;
 	
+	}
+	
 	
 	
 
 
 /***/ },
-/* 23 */
+/* 25 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var diffArray = __webpack_require__(24).diffArray;
-	var combine = __webpack_require__(25);
-	var animate = __webpack_require__(26);
-	var node = __webpack_require__(20);
-	var Group = __webpack_require__(27);
-	var dom = __webpack_require__(22);
-	var _ = __webpack_require__(11);
+	var diffArray = __webpack_require__(26).diffArray;
+	var combine = __webpack_require__(27);
+	var animate = __webpack_require__(28);
+	var node = __webpack_require__(22);
+	var Group = __webpack_require__(29);
+	var dom = __webpack_require__(24);
+	var _ = __webpack_require__(14);
+	var consts =   __webpack_require__(30)
+	var ERROR = consts.ERROR;
+	var MSG = consts.MSG;
+	var nodeCursor = __webpack_require__(31);
+	
 	
 	
 	var walkers = module.exports = {};
@@ -4711,6 +5115,7 @@
 	  var placeholder = document.createComment("Regular list"),
 	    namespace = options.namespace,
 	    extra = options.extra;
+	
 	  var self = this;
 	  var group = new Group([placeholder]);
 	  var indexName = ast.variable + '_index';
@@ -4718,6 +5123,7 @@
 	  var variable = ast.variable;
 	  var alternate = ast.alternate;
 	  var track = ast.track, keyOf, extraObj;
+	  var cursor = options.cursor;
 	
 	  if( track && track !== true ){
 	    track = this._touchExpr(track);
@@ -4745,16 +5151,18 @@
 	      updateTarget(data, o, item, rawNewValue);
 	
 	      data = _.createObject(extra, data);
-	      var section = self.$compile(ast.body, {
+	      var curOptions = {
 	        extra: data,
 	        namespace:namespace,
 	        record: true,
-	        outer: options.outer
-	      })
+	        outer: options.outer,
+	        cursor: cursor
+	      }
+	      var section = self.$compile(ast.body, curOptions);
 	      section.data = data;
 	      // autolink
 	      var insert =  combine.last(group.get(o));
-	      if(insert.parentNode){
+	      if(insert.parentNode && !cursor){
 	        animate.inject(combine.node(section),insert, 'after');
 	      }
 	      // insert.parentNode.insertBefore(combine.node(section), insert.nextSibling);
@@ -4891,6 +5299,7 @@
 	        animate.inject(combine.node(section), placeholder, 'after');
 	      }
 	    }
+	    cursor = null;
 	  }
 	
 	  this.$watch(ast.sequence, update, { 
@@ -4902,9 +5311,6 @@
 	}
 	
 	
-	function updateItem(){
-	  
-	}
 	
 	
 	// {#include } or {#inc template}
@@ -4913,6 +5319,8 @@
 	  var placeholder = document.createComment('inlcude');
 	  var compiled, namespace = options.namespace, extra = options.extra;
 	  var group = new Group([placeholder]);
+	  var cursor = options.cursor;
+	
 	  if(content){
 	    var self = this;
 	    this.$watch(content, function(value){
@@ -4923,10 +5331,11 @@
 	      }
 	      if(!value) return;
 	
-	      group.push( compiled = type === 'function' ? value(): self.$compile( type !== 'object'? String(value): value, {
-	        record: true, 
+	      group.push( compiled = type === 'function' ? value(cursor? {cursor: cursor}: null): self.$compile( type !== 'object'? String(value): value, {
+	        record: true,
 	        outer: options.outer,
-	        namespace: namespace, 
+	        namespace: namespace,
+	        cursor: cursor,
 	        extra: extra}) ); 
 	      if(placeholder.parentNode) {
 	        compiled.$inject(placeholder, 'before')
@@ -4953,10 +5362,14 @@
 	    var update = function(nvalue){
 	      if(!!nvalue){
 	        if(alternate) combine.destroy(alternate)
-	        if(ast.consequent) consequent = self.$compile(ast.consequent, {record: true, element: options.element , extra:extra});
+	        if(ast.consequent) consequent = self.$compile(ast.consequent, {
+	          record: true, 
+	          element: options.element , 
+	          extra:extra
+	        });
 	      }else{
-	        if(consequent) combine.destroy(consequent)
-	        if(ast.alternate) alternate = self.$compile(ast.alternate, {record: true, element: options.element, extra: extra});
+	        if( consequent ) combine.destroy(consequent)
+	        if( ast.alternate ) alternate = self.$compile(ast.alternate, {record: true, element: options.element, extra: extra});
 	      }
 	    }
 	    this.$watch(ast.test, update, { force: true });
@@ -4968,39 +5381,51 @@
 	    }
 	  }
 	
-	  var test, consequent, alternate, node;
+	  var test, node;
 	  var placeholder = document.createComment("Regular if" + ii++);
 	  var group = new Group();
 	  group.push(placeholder);
 	  var preValue = null, namespace= options.namespace;
+	  var cursor = options.cursor;
+	  if(cursor && cursor.node){
+	    dom.inject( placeholder , cursor.node,'before')
+	  }
 	
 	
 	  var update = function (nvalue, old){
-	    var value = !!nvalue;
+	    var value = !!nvalue, compiledSection;
 	    if(value === preValue) return;
 	    preValue = value;
 	    if(group.children[1]){
 	      group.children[1].destroy(true);
 	      group.children.pop();
 	    }
+	    var curOptions = {
+	      record: true, 
+	      outer: options.outer,
+	      namespace: namespace, 
+	      extra: extra,
+	      cursor: cursor
+	    }
 	    if(value){ //true
-	      if(ast.consequent && ast.consequent.length){
-	        consequent = self.$compile( ast.consequent , {record:true, outer: options.outer,namespace: namespace, extra:extra })
-	        // placeholder.parentNode && placeholder.parentNode.insertBefore( node, placeholder );
-	        group.push(consequent);
-	        if(placeholder.parentNode){
-	          animate.inject(combine.node(consequent), placeholder, 'before');
-	        }
+	
+	      if(ast.consequent && ast.consequent.length){ 
+	        compiledSection = self.$compile( ast.consequent , curOptions );
 	      }
 	    }else{ //false
 	      if(ast.alternate && ast.alternate.length){
-	        alternate = self.$compile(ast.alternate, {record:true, outer: options.outer,namespace: namespace, extra:extra});
-	        group.push(alternate);
-	        if(placeholder.parentNode){
-	          animate.inject(combine.node(alternate), placeholder, 'before');
-	        }
+	        compiledSection = self.$compile(ast.alternate, curOptions);
 	      }
 	    }
+	    // placeholder.parentNode && placeholder.parentNode.insertBefore( node, placeholder );
+	    if(compiledSection){
+	      group.push(compiledSection);
+	      if(placeholder.parentNode){
+	        animate.inject(combine.node(compiledSection), placeholder, 'before');
+	      }
+	    }
+	    cursor = null;
+	    // after first mount , we need clear this flat;
 	  }
 	  this.$watch(ast.test, update, {force: true, init: true});
 	
@@ -5008,34 +5433,110 @@
 	}
 	
 	
+	walkers._handleMountText = function(cursor, astText){
+	    var node, mountNode = cursor.node;
+	    // fix unused black in astText;
+	    var nodeText = dom.text(mountNode);
+	
+	    if( nodeText === astText ){
+	      node = mountNode;
+	      cursor.next();
+	    }else{
+	      // maybe have some redundancy  blank
+	      var index = nodeText.indexOf(astText);
+	      if(~index){
+	        node = document.createTextNode(astText);
+	        dom.text( mountNode, nodeText.slice(index + astText.length) );
+	      } else {
+	        if( _.blankReg.test( astText ) ){
+	
+	        }
+	        throw Error( MSG[ERROR.UNMATCHED_AST]);
+	      }
+	    }
+	
+	    return node;
+	}
+	
+	
 	walkers.expression = function(ast, options){
-	  var node = document.createTextNode("");
+	
+	  var cursor = options.cursor, node,
+	    mountNode = cursor && cursor.node;
+	
+	  if(mountNode){
+	    //@BUG: if server render &gt; in Expression will cause error
+	    var astText = _.toText( this.$get(ast) );
+	
+	    node = walkers._handleMountText(cursor, astText);
+	
+	  }else{
+	    node = document.createTextNode("");
+	  }
+	
 	  this.$watch(ast, function(newval){
-	    dom.text(node, "" + (newval == null? "": "" + newval) );
-	  },{init: true})
+	
+	    dom.text(node, _.toText(newval) );
+	
+	  },{ init: true })
+	
 	  return node;
+	
 	}
+	
+	
 	walkers.text = function(ast, options){
-	  var node = document.createTextNode(_.convertEntity(ast.text));
-	  return node;
+	  var cursor = options.cursor , node;
+	  var astText = _.convertEntity( ast.text );
+	
+	  if(cursor && cursor.node) { 
+	    var mountNode = cursor.node;
+	    // maybe regularjs parser have some difference with html builtin parser when process  empty text
+	    // @todo error report
+	    if(mountNode.nodeType !== 3 ){
+	
+	      if( _.blankReg.test(astText) ) return {
+	        code:  ERROR.UNMATCHED_AST
+	      }
+	
+	    }else{
+	      node = walkers._handleMountText( cursor, astText )
+	    } 
+	  }
+	      
+	
+	  return node || document.createTextNode( astText );
 	}
 	
 	
 	
-	var eventReg = /^on-(.+)$/
 	
 	/**
 	 * walkers element (contains component)
 	 */
 	walkers.element = function(ast, options){
+	
 	  var attrs = ast.attrs, self = this,
 	    Constructor = this.constructor,
 	    children = ast.children,
 	    namespace = options.namespace, 
 	    extra = options.extra,
+	    cursor = options.cursor,
 	    tag = ast.tag,
 	    Component = Constructor.component(tag),
 	    ref, group, element;
+	
+	  // if inititalized with mount mode, sometime, 
+	  // browser will ignore the whitespace between node, and sometimes it won't
+	  if(cursor){
+	    // textCOntent with Empty text
+	    if(cursor.node && cursor.node.nodeType === 3){
+	      if(_.blankReg.test(dom.text(cursor.node) ) ) cursor.next();
+	      else throw Error(MSG[ERROR.UNMATCHED_AST]);
+	    }
+	  }
+	
+	  if(cursor) var mountNode = cursor.node;
 	
 	  if( tag === 'r-content' ){
 	    _.log('r-content is deprecated, use {#inc this.$body} instead (`{#include}` as same)', 'warn');
@@ -5051,13 +5552,27 @@
 	  // @Deprecated: may be removed in next version, use {#inc } instead
 	  
 	  if( children && children.length ){
-	    group = this.$compile(children, {outer: options.outer,namespace: namespace, extra: extra });
+	
+	    var subMountNode = mountNode? mountNode.firstChild: null;
+	    group = this.$compile(children, {
+	      extra: extra ,
+	      outer: options.outer,
+	      namespace: namespace, 
+	      cursor:  subMountNode? nodeCursor(subMountNode): null
+	    });
 	  }
 	
-	  element = dom.create(tag, namespace, attrs);
 	
-	  if(group && !_.isVoidTag(tag)){
-	    dom.inject( combine.node(group) , element)
+	  if(mountNode){
+	    element = mountNode
+	    cursor.next();
+	  }else{
+	    element = dom.create( tag, namespace, attrs);
+	  }
+	  
+	
+	  if(group && !_.isVoidTag(tag) ){ // if not init with mount mode
+	    animate.inject( combine.node(group) , element)
 	  }
 	
 	  // sort before
@@ -5110,6 +5625,7 @@
 	walkers.component = function(ast, options){
 	  var attrs = ast.attrs, 
 	    Component = options.Component,
+	    cursor = options.cursor,
 	    Constructor = this.constructor,
 	    isolate, 
 	    extra = options.extra,
@@ -5128,7 +5644,7 @@
 	    }
 	    var name = attr.name;
 	    if(!attr.event){
-	      var etest = name.match(eventReg);
+	      var etest = name.match(_.eventReg);
 	      // event: 'nav'
 	      if(etest) attr.event = etest[1];
 	    }
@@ -5191,6 +5707,7 @@
 	  }
 	  var options = {
 	    namespace: namespace, 
+	    cursor: cursor,
 	    extra: options.extra
 	  }
 	
@@ -5294,13 +5811,15 @@
 	
 	}
 	
+	
+	
 
 
 /***/ },
-/* 24 */
+/* 26 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var _ = __webpack_require__(11);
+	var _ = __webpack_require__(14);
 	
 	function simpleDiff(now, old){
 	  var nlen = now.length;
@@ -5487,14 +6006,14 @@
 	}
 
 /***/ },
-/* 25 */
+/* 27 */
 /***/ function(module, exports, __webpack_require__) {
 
 	// some nested  operation in ast 
 	// --------------------------------
 	
-	var dom = __webpack_require__(22);
-	var animate = __webpack_require__(26);
+	var dom = __webpack_require__(24);
+	var animate = __webpack_require__(28);
 	
 	var combine = module.exports = {
 	
@@ -5598,15 +6117,16 @@
 
 
 /***/ },
-/* 26 */
+/* 28 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var _ = __webpack_require__(11);
-	var dom  = __webpack_require__(22);
+	var _ = __webpack_require__(14);
+	var dom  = __webpack_require__(24);
 	var animate = {};
-	var env = __webpack_require__(10);
+	var env = __webpack_require__(13);
 	
 	
+	if(typeof window !== 'undefined'){
 	var 
 	  transitionEnd = 'transitionend', 
 	  animationEnd = 'animationend', 
@@ -5637,6 +6157,7 @@
 	    animationEnd += ' oAnimationEnd';
 	    animationProperty = 'oAnimation';
 	  }
+	}
 	}
 	
 	/**
@@ -5852,11 +6373,11 @@
 	module.exports = animate;
 
 /***/ },
-/* 27 */
+/* 29 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var _ = __webpack_require__(11);
-	var combine = __webpack_require__(25)
+	var _ = __webpack_require__(14);
+	var combine = __webpack_require__(27)
 	
 	function Group(list){
 	  this.children = list || [];
@@ -5886,12 +6407,47 @@
 
 
 /***/ },
-/* 28 */
+/* 30 */
+/***/ function(module, exports) {
+
+	module.exports = {
+	  'COMPONENT_TYPE': 1,
+	  'ELEMENT_TYPE': 2,
+	  'ERROR': {
+	    'UNMATCHED_AST': 101
+	  },
+	  "MSG": {
+	    101: "Unmatched ast and mountNode, report issue at https://github.com/regularjs/regular/issues"
+	  }
+	}
+
+
+/***/ },
+/* 31 */
+/***/ function(module, exports) {
+
+	function NodeCursor(node){
+	  this.node = node;
+	}
+	
+	
+	var no = NodeCursor.prototype;
+	
+	no.next = function(){
+	  this.node = this.node.nextSibling;
+	  return this;
+	}
+	
+	module.exports = function(n){ return new NodeCursor(n)}
+
+
+/***/ },
+/* 32 */
 /***/ function(module, exports, __webpack_require__) {
 
 	// simplest event emitter 60 lines
 	// ===============================
-	var slice = [].slice, _ = __webpack_require__(11);
+	var slice = [].slice, _ = __webpack_require__(14);
 	var API = {
 	  $on: function(event, fn) {
 	    if(typeof event === "object"){
@@ -5966,12 +6522,12 @@
 	module.exports = Event;
 
 /***/ },
-/* 29 */
+/* 33 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var _ = __webpack_require__(11);
-	var parseExpression = __webpack_require__(30).expression;
-	var diff = __webpack_require__(24);
+	var _ = __webpack_require__(14);
+	var parseExpression = __webpack_require__(34).expression;
+	var diff = __webpack_require__(26);
 	var diffArray = diff.diffArray;
 	var diffObject = diff.diffObject;
 	
@@ -6224,12 +6780,12 @@
 	module.exports = Watcher;
 
 /***/ },
-/* 30 */
+/* 34 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var exprCache = __webpack_require__(10).exprCache;
-	var _ = __webpack_require__(11);
-	var Parser = __webpack_require__(19);
+	var exprCache = __webpack_require__(13).exprCache;
+	var _ = __webpack_require__(14);
+	var Parser = __webpack_require__(21);
 	module.exports = {
 	  expression: function(expr, simple){
 	    // @TODO cache
@@ -6246,7 +6802,7 @@
 
 
 /***/ },
-/* 31 */
+/* 35 */
 /***/ function(module, exports) {
 
 	
@@ -6314,20 +6870,20 @@
 
 
 /***/ },
-/* 32 */
+/* 36 */
 /***/ function(module, exports, __webpack_require__) {
 
 	// Regular
-	var _ = __webpack_require__(11);
-	var dom = __webpack_require__(22);
-	var animate = __webpack_require__(26);
-	var Regular = __webpack_require__(17);
-	var consts = __webpack_require__(33);
+	var _ = __webpack_require__(14);
+	var dom = __webpack_require__(24);
+	var animate = __webpack_require__(28);
+	var Regular = __webpack_require__(19);
+	var consts = __webpack_require__(30);
 	
 	
 	
-	__webpack_require__(34);
-	__webpack_require__(35);
+	__webpack_require__(37);
+	__webpack_require__(38);
 	
 	
 	module.exports = {
@@ -6430,25 +6986,16 @@
 
 
 /***/ },
-/* 33 */
-/***/ function(module, exports) {
-
-	module.exports = {
-	  'COMPONENT_TYPE': 1,
-	  'ELEMENT_TYPE': 2
-	}
-
-/***/ },
-/* 34 */
+/* 37 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/**
 	 * event directive  bundle
 	 *
 	 */
-	var _ = __webpack_require__(11);
-	var dom = __webpack_require__(22);
-	var Regular = __webpack_require__(17);
+	var _ = __webpack_require__(14);
+	var dom = __webpack_require__(24);
+	var Regular = __webpack_require__(19);
 	
 	Regular._addProtoInheritCache("event");
 	
@@ -6523,13 +7070,13 @@
 	}
 
 /***/ },
-/* 35 */
+/* 38 */
 /***/ function(module, exports, __webpack_require__) {
 
 	// Regular
-	var _ = __webpack_require__(11);
-	var dom = __webpack_require__(22);
-	var Regular = __webpack_require__(17);
+	var _ = __webpack_require__(14);
+	var dom = __webpack_require__(24);
+	var Regular = __webpack_require__(19);
 	
 	var modelHandlers = {
 	  "text": initText,
@@ -6695,14 +7242,14 @@
 
 
 /***/ },
-/* 36 */
+/* 39 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var // packages
-	  _ = __webpack_require__(11),
-	 animate = __webpack_require__(26),
-	 dom = __webpack_require__(22),
-	 Regular = __webpack_require__(17);
+	  _ = __webpack_require__(14),
+	 animate = __webpack_require__(28),
+	 dom = __webpack_require__(24),
+	 Regular = __webpack_require__(19);
 	
 	
 	var // variables
@@ -6934,10 +7481,10 @@
 
 
 /***/ },
-/* 37 */
+/* 40 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var Regular = __webpack_require__(17);
+	var Regular = __webpack_require__(19);
 	
 	/**
 	 * Timeout Module
@@ -6980,20 +7527,1432 @@
 	Regular.plugin('$timeout', TimeoutModule);
 
 /***/ },
-/* 38 */
+/* 41 */
+/***/ function(module, exports, __webpack_require__) {
+
+	// server side rendering for regularjs
+	
+	
+	var _ = __webpack_require__(14);
+	var parser = __webpack_require__(34);
+	var diffArray = __webpack_require__(26).diffArray;
+	
+	/**
+	 * [compile description]
+	 * @param  {[type]} ast     [description]
+	 * @param  {[type]} options [description]
+	 */
+	
+	
+	
+	
+	function SSR (Component, definition){
+	
+	  definition = definition || {};
+	
+	  this.Component = Component;
+	  var context = this.context = Object.create(Component.prototype)
+	
+	
+	  context.extra = definition.extra;
+	  definition.data = definition.data || {};
+	  definition.computed = definition.computed || {};
+	  if(context.data) _.extend(definition.data, context.data);
+	  if(context.computed) _.extend(definition.computed, context.computed);
+	
+	  _.extend(context, definition, true);
+	
+	  context.config( context.data = context.data || {} );
+	  
+	
+	}
+	
+	
+	var ssr = _.extend(SSR.prototype, {});
+	
+	
+	ssr.render = function(){
+	
+	  var self = this;
+	  return this.compile(this.context.template);
+	
+	}
+	
+	ssr.compile = function(ast){
+	
+	  if(typeof ast === 'string'){
+	    ast = parser.parse(ast);
+	  }
+	  return this.walk(ast)
+	}
+	
+	
+	ssr.walk = function(ast, options){
+	
+	  var type = ast.type; 
+	
+	  if(Array.isArray(ast)){
+	
+	    return ast.map(function(item){
+	
+	      return this.walk(item, options)
+	
+	    }.bind(this)).join('');
+	
+	  }
+	
+	  return this[ast.type](ast, options)
+	
+	}
+	
+	
+	ssr.element = function(ast ){
+	
+	  var children = ast.children,
+	    attrs = ast.attrs,
+	    tag = ast.tag;
+	
+	  if( tag === 'r-component' ){
+	    attrs.some(function(attr){
+	      if(attr.name === 'is'){
+	        tag = attr.value;
+	        if( _.isExpr(attr.value)) tag = this.get(value);
+	        return true;
+	      }
+	    }.bind(this))
+	  }
+	
+	  var Component = this.Component.component(tag);
+	
+	  if(ast.tag === 'r-component' && !Component){
+	    throw Error('r-component with unregister component ' + tag)
+	  }
+	
+	  if( Component ) return this.component( ast, { 
+	    Component: Component 
+	  } );
+	
+	
+	  var attrStr = this.attrs(attrs);
+	  var body = (children && children.length? this.compile(children): "")
+	
+	  return "<" + tag + (attrStr? " " + attrStr: ""  ) + ">" +  
+	        body +
+	    "</" + tag + ">"
+	
+	}
+	
+	
+	
+	ssr.component = function(ast, options){
+	
+	  var children = ast.children,
+	    attrs = ast.attrs,
+	    data = {},
+	    Component = options.Component, body;
+	
+	  if(children && children.length){
+	    body = function(){
+	      return this.compile(children)
+	    }.bind(this)
+	  }
+	
+	  attrs.forEach(function(attr){
+	    if(!_.eventReg.test(attr.name)){
+	      data[attr.name] = _.isExpr(attr.value)? this.get(attr.value): attr.value
+	    }
+	  }.bind(this))
+	
+	
+	  return SSR.render(Component, {
+	    $body: body,
+	    data: data,
+	    extra: this.extra
+	  })
+	}
+	
+	
+	
+	ssr.list = function(ast){
+	
+	  var 
+	    altnate = ast.altnate,
+	    variable = ast.variable,
+	    indexName = variable + '_index',
+	    keyName = variable + '_key',
+	    body = ast.body,
+	    context = this.context,
+	    self = this,
+	    prevExtra = context.extra;
+	
+	  var sequence = this.get(ast.sequence);
+	  var keys, list; 
+	
+	  var type = _.typeOf(sequence);
+	
+	  if( type === 'object'){
+	
+	    keys = Object.keys(list);
+	    list = keys.map(function(key){return sequence[key]})
+	
+	  }else{
+	
+	    list = sequence || [];
+	
+	  }
+	
+	  return list.map(function(item, item_index){
+	
+	    var sectionData = {};
+	    sectionData[variable] = item;
+	    sectionData[indexName] = item_index;
+	    if(keys) sectionData[keyName] = sequence[item_index];
+	    context.extra = _.extend(
+	      prevExtra? Object.create(prevExtra): {}, sectionData );
+	    var section =  this.compile( body );
+	    context.extra = prevExtra;
+	    return section;
+	
+	  }.bind(this)).join('');
+	
+	}
+	
+	
+	
+	
+	// {#include } or {#inc template}
+	ssr.template = function(ast, options){
+	  var content = this.get(ast.content);
+	  var type = typeof content;
+	
+	
+	  if(!content) return '';
+	  if(type === 'function' ){
+	    return content();
+	  }else{
+	    return this.compile(type !== 'object'? String(content): content)
+	  }
+	
+	};
+	
+	ssr.if = function(ast, options){
+	  var test = this.get(ast.test);  
+	  if(test){
+	    if(ast.consequent){
+	      return this.compile( ast.consequent );
+	    }
+	  }else{
+	    if(ast.altnate){
+	      return this.compile( ast.altnate );
+	    }
+	  }
+	
+	}
+	
+	
+	ssr.expression = function(ast, options){
+	  var str = this.get(ast);
+	  return str == null?  "" : "" + str;
+	}
+	
+	ssr.text = function(ast, options){
+	  return ast.text  
+	}
+	
+	
+	
+	ssr.attrs = function(attrs){
+	  return attrs.map(function(attr){
+	    return this.attr(attr);
+	  }.bind(this)).join("").replace(/\s+$/,"");
+	}
+	
+	ssr.attr = function(attr){
+	
+	  var name = attr.name, 
+	    value = attr.value ,
+	    Component = this.Component,
+	    directive = Component.directive(name);
+	
+	  
+	
+	  if( directive ){
+	    if(directive.ssr){
+	
+	      // @TODO: 应该提供hook可以控制节点内部  ,比如r-html
+	      return directive.ssr( name, value );
+	    }
+	  }else{
+	    // @TODO 对于boolean 值
+	    if(_.isExpr(value)) value = this.get(value); 
+	
+	    if(_.isBooleanAttr(name) || value == undefined){
+	
+	      return name + " ";
+	    }else{
+	      return name + '="' + value + '" ';
+	    }
+	  }
+	}
+	
+	ssr.get = function(expr){
+	
+	  var rawget, 
+	    self = this,
+	    context = this.context,
+	    touched = {};
+	
+	  if(expr.get) return expr.get(context);
+	  else {
+	    var rawget = new Function(_.ctxName, _.extName , _.prefix+ "return (" + expr.body + ")")
+	    expr.get = function(context){
+	      return rawget(context, context.extra)
+	    }
+	    return expr.get(this.context)
+	  }
+	
+	}
+	
+	SSR.render = function(Component, options){
+	
+	  return new SSR(Component, options).render();
+	
+	}
+	
+	module.exports = SSR;
+
+
+/***/ },
+/* 42 */
 /***/ function(module, exports, __webpack_require__) {
 
 	
-	var restate = __webpack_require__(2);
-	var Regular = __webpack_require__(9);
+	
+	var stateman = __webpack_require__(43);
+	var _ = stateman.util;
+	
+	
+	function Client( options ){
+	  if( !(this instanceof Client)) return new Client(options)
+	  _.extend(this, options);
+	  stateman.call(this, options);
+	}
+	
+	
+	var so = Client.prototype =  Object.create(stateman.prototype) 
+	
+	var oldStateFn = so.state;
+	
+	so.state = function(name, config){
+	  var manager = this;
+	  var oldConfig, Component;
+	  var globalView = this.view;
+	  if( typeof name === 'string'){
+	
+	    if(!config) return oldStateFn.call(this, name)
+	    oldConfig = config;
+	    Component = oldConfig.view;
+	
+	
+	    Component.directive('rg-view', {
+	      link: function(element){
+	        this.$viewport = element;
+	      },
+	      ssr: function(){
+	        return 'rg-view '; 
+	      }
+	    })
+	
+	    config = {
+	      component: null,
+	      enter: function( option ){
+	        var component = this.component;
+	        var parent = this.parent, view;
+	        var self = this;
+	        var noComponent = !component || component.isDestroy();
+	        var ssr = option.ssr = option.firstTime && manager.ssr;
+	        return new Promise(function(resolve, reject){
+	          manager.install({
+	            ssr: ssr,
+	            state: self,
+	            param: option.param
+	          }).then(function(data){
+	            if(parent.component){
+	              view = parent.component.$viewport;
+	              if(!view) throw self.parent.name + " should have a element with [rg-view]";
+	            }else{
+	              view = globalView;
+	            }
+	
+	            if( noComponent ){
+	              // 这里需要给出提示
+	              var mountNode = ssr && view;
+	              component = self.component = new Component({
+	                mountNode: mountNode,
+	                data: data,
+	                $state: self,
+	                $stateName: name
+	              })
+	
+	            }else{
+	              _.extend(component.data, data, true)
+	            }
+	
+	            if(!mountNode) component.$inject(view);
+	
+	            var result = component.enter && component.enter(option);
+	
+	            component.$update(function(){
+	              component.$mute(false);
+	            })
+	
+	            resolve(result)
+	          })
+	        })
+	      },
+	      update: function(){
+	
+	      },
+	      leave: function(){
+	
+	      }
+	    }
+	    _.extend(config, oldConfig)
+	    return oldStateFn.call(this, name, config)    
+	  }else{
+	    for(var i in name){
+	      this.state(i, name[i])
+	    }
+	    return this;
+	  }
+	}
+	
+	so.install = function(option){
+	  var type = typeof  this.dataProvider, ret, state = option.state; 
+	  if( type === 'function' ){
+	    ret = this.dataProvider( option );
+	  }
+	  if(type === 'object'){
+	    var dataProvider = this.dataProvider[state.name];
+	    ret = dataProvider && dataProvider( option );
+	  }
+	  ret =  this._normPromise(ret)
+	  return ret;
+	}
+	
+	so._normPromise = function(ret){
+	  if( isPromise(ret) ){
+	    return ret
+	  } else {
+	    return Promise.resolve(ret);
+	  }
+	}
+	
+	
+	function isPromise(obj){
+	  return !!obj && (typeof obj === 'object' || typeof obj === 'function') && typeof obj.then === 'function';
+	}
+	 
+	
+	
+	module.exports = Client;
+	
+
+
+/***/ },
+/* 43 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var stateman;
+	
+	if( typeof window === 'object' ){
+	  stateman = __webpack_require__(44);
+	  stateman.History = __webpack_require__(45);
+	  stateman.util = __webpack_require__(9);
+	  stateman.isServer = false;
+	}else{
+	  stateman = __webpack_require__(8);
+	  stateman.isServer = true;
+	}
+	
+	
+	stateman.State = __webpack_require__(11);
+	
+	module.exports = stateman;
+
+
+/***/ },
+/* 44 */
+/***/ function(module, exports, __webpack_require__) {
+
+	
+	var State = __webpack_require__(11),
+	  History = __webpack_require__(45),
+	  Base = __webpack_require__(10),
+	  _ = __webpack_require__(9),
+	  baseTitle = document.title,
+	  stateFn = State.prototype.state;
+	
+	function StateMan(options){
+	
+	  if(this instanceof StateMan === false){ return new StateMan(options); }
+	  options = options || {};
+	  Base.call(this, options);
+	  if(options.history) this.history = options.history;
+	  this._stashCallback = [];
+	  this.current = this.active = this;
+	  // auto update document.title, when navigation has been down
+	  this.on("end", function( options ){
+	    var cur = this.current;
+	    document.title = cur.getTitle( options ) ||  baseTitle  ;
+	  });
+	}
+	
+	var o =_.inherit( StateMan, Base.prototype );
+	
+	_.extend(o , {
+	
+	    start: function(options){
+	
+	      if( !this.history ) this.history = new History(options); 
+	      if( !this.history.isStart ){
+	        this.history.on("change", _.bind(this._afterPathChange, this));
+	        this.history.start();
+	      } 
+	      return this;
+	
+	    },
+	    stop: function(){
+	      this.history.stop();
+	    },
+	    // @TODO direct go the point state
+	    go: function(state, option, callback){
+	      option = option || {};
+	      var statename;
+	      if(typeof state === "string") {
+	         statename = state;
+	         state = this.state(state);
+	      }
+	
+	      if(!state) return this._notfound({state:statename});
+	
+	      if(typeof option === "function"){
+	        callback = option;
+	        option = {};
+	      }
+	
+	      if(option.encode !== false){
+	        var url = state.encode(option.param);
+	        option.path = url;
+	        this.nav(url, {silent: true, replace: option.replace});
+	      }
+	
+	      this._go(state, option, callback);
+	
+	      return this;
+	    },
+	    nav: function(url, options, callback){
+	      if(typeof options === "function"){
+	        callback = options;
+	        options = {};
+	      }
+	      options = options || {};
+	
+	      options.path = url;
+	
+	      this.history.nav( url, _.extend({silent: true}, options));
+	      if(!options.silent) this._afterPathChange( _.cleanPath(url) , options , callback);
+	
+	      return this;
+	    },
+	
+	    // after pathchange changed
+	    // @TODO: afterPathChange need based on decode
+	    _afterPathChange: function(path, options ,callback){
+	
+	      this.emit("history:change", path);
+	
+	      var found = this.decode(path);
+	
+	      options = options || {};
+	
+	      options.path = path;
+	
+	      if(!found){
+	        return this._notfound(options);
+	      }
+	
+	      options.param = found.param;
+	
+	      this._go( found.state, options, callback );
+	    },
+	    _notfound: function(options){
+	
+	
+	      return this.emit("notfound", options);
+	    },
+	    // goto the state with some option
+	    _go: function(state, option, callback){
+	
+	      var over;
+	
+	  
+	
+	      if(state.hasNext && this.strict) return this._notfound({name: state.name});
+	
+	  
+	      option.param = option.param || {};
+	
+	      var current = this.current,
+	        baseState = this._findBase(current, state),
+	        prepath = this.path,
+	        self = this;
+	
+	
+	      if( typeof callback === "function" ) this._stashCallback.push(callback);
+	      // if we done the navigating when start
+	      function done(success){
+	        over = true;
+	        if( success !== false ) self.emit("end");
+	        self.pending = null;
+	        self._popStash(option);
+	      }
+	      
+	      option.previous = current;
+	      option.current = state;
+	
+	      if(current !== state){
+	        option.stop = function(){
+	          done(false);
+	          self.nav( prepath? prepath: "/", {silent:true});
+	        };
+	        self.emit("begin", option);
+	
+	      }
+	      // if we stop it in 'begin' listener
+	      if(over === true) return;
+	
+	      option.phase = 'permission';
+	      this._walk(current, state, option, true , _.bind( function( notRejected ){
+	
+	        if( notRejected===false ){
+	          // if reject in callForPermission, we will return to old 
+	          prepath && this.nav( prepath, {silent: true});
+	
+	          done(false, 2);
+	
+	          return this.emit('abort', option);
+	
+	        } 
+	
+	        // stop previous pending.
+	        if(this.pending) this.pending.stop();
+	        this.pending = option;
+	        this.path = option.path;
+	        this.current = option.current;
+	        this.param = option.param;
+	        this.previous = option.previous;
+	        option.phase = 'navigation';
+	        this._walk(current, state, option, false, _.bind(function( notRejected ){
+	
+	          if( notRejected === false ){
+	            this.current = this.active;
+	            done(false);
+	            return this.emit('abort', option);
+	          }
+	
+	
+	          this.active = option.current;
+	
+	          option.phase = 'completion';
+	          return done();
+	
+	        }, this) );
+	
+	      }, this) );
+	
+	
+	    },
+	    _popStash: function(option){
+	
+	      var stash = this._stashCallback, len = stash.length;
+	
+	      this._stashCallback = [];
+	
+	      if(!len) return;
+	
+	      for(var i = 0; i < len; i++){
+	        stash[i].call(this, option);
+	      }
+	    },
+	
+	    // the transition logic  Used in Both canLeave canEnter && leave enter LifeCycle
+	
+	    _walk: function(from, to, option, callForPermit , callback){
+	      // if(from === to) return callback();
+	
+	      // nothing -> app.state
+	      var parent = this._findBase(from , to);
+	      var self = this;
+	
+	
+	      option.backward = true;
+	      this._transit( from, parent, option, callForPermit , function( notRejected ){
+	
+	        if( notRejected === false ) return callback( notRejected );
+	
+	        // only actual transiton need update base state;
+	        option.backward = false;
+	        self._walkUpdate(parent, option, callForPermit, function(notRejected){
+	          if(notRejected === false) return callback(notRejected);
+	
+	          self._transit( parent, to, option, callForPermit,  callback);
+	
+	        });
+	
+	
+	      });
+	
+	    },
+	
+	    _transit: function(from, to, option, callForPermit, callback){
+	      //  touch the ending
+	      if( from === to ) return callback();
+	
+	      var back = from.name.length > to.name.length;
+	      var method = back? 'leave': 'enter';
+	      var applied;
+	
+	      // use canEnter to detect permission
+	      if( callForPermit) method = 'can' + method.replace(/^\w/, function(a){ return a.toUpperCase(); });
+	
+	      var loop = _.bind(function( notRejected ){
+	
+	
+	        // stop transition or touch the end
+	        if( applied === to || notRejected === false ) return callback(notRejected);
+	
+	        if( !applied ) {
+	
+	          applied = back? from : this._computeNext(from, to);
+	
+	        }else{
+	
+	          applied = this._computeNext(applied, to);
+	        }
+	
+	        if( (back && applied === to) || !applied )return callback( notRejected );
+	
+	        this._moveOn( applied, method, option, loop );
+	
+	      }, this);
+	
+	      loop();
+	    },
+	
+	    _moveOn: function( applied, method, option, callback){
+	
+	      var isDone = false;
+	      var isPending = false;
+	
+	      option.async = function(){
+	
+	        isPending = true;
+	
+	        return done;
+	      };
+	
+	      function done( notRejected ){
+	        if( isDone ) return;
+	        isPending = false;
+	        isDone = true;
+	        callback( notRejected );
+	      }
+	
+	      option.stop = function(){
+	        done( false );
+	      };
+	
+	
+	      this.active = applied;
+	      var retValue = applied[method]? applied[method]( option ): true;
+	
+	      if(method === 'enter') applied.visited = true;
+	      // promise
+	      // need breadk , if we call option.stop first;
+	
+	      if( _.isPromise(retValue) ){
+	
+	        return this._wrapPromise(retValue, done); 
+	
+	      }
+	
+	      // if haven't call option.async yet
+	      if( !isPending ) done( retValue );
+	
+	    },
+	
+	
+	    _wrapPromise: function( promise, next ){
+	
+	      return promise.then( next, function(){ next(false); }) ;
+	
+	    },
+	
+	    _computeNext: function( from, to ){
+	
+	      var fname = from.name;
+	      var tname = to.name;
+	
+	      var tsplit = tname.split('.');
+	      var fsplit = fname.split('.');
+	
+	      var tlen = tsplit.length;
+	      var flen = fsplit.length;
+	
+	      if(fname === '') flen = 0;
+	      if(tname === '') tlen = 0;
+	
+	      if( flen < tlen ){
+	        fsplit[flen] = tsplit[flen];
+	      }else{
+	        fsplit.pop();
+	      }
+	
+	      return this.state(fsplit.join('.'));
+	
+	    },
+	
+	    _findQuery: function(querystr){
+	
+	      var queries = querystr && querystr.split("&"), query= {};
+	      if(queries){
+	        var len = queries.length;
+	        for(var i =0; i< len; i++){
+	          var tmp = queries[i].split("=");
+	          query[tmp[0]] = tmp[1];
+	        }
+	      }
+	      return query;
+	
+	    },
+	
+	    _sortState: function( a, b ){
+	      return ( b.priority || 0 ) - ( a.priority || 0 );
+	    },
+	    // find the same branch;
+	    _findBase: function(now, before){
+	
+	      if(!now || !before || now == this || before == this) return this;
+	      var np = now, bp = before, tmp;
+	      while(np && bp){
+	        tmp = bp;
+	        while(tmp){
+	          if(np === tmp) return tmp;
+	          tmp = tmp.parent;
+	        }
+	        np = np.parent;
+	      }
+	    },
+	    // check the query and Param
+	    _walkUpdate: function(baseState, options, callForPermit,  done){
+	
+	      var method = callForPermit? 'canUpdate': 'update';
+	      var from = baseState;
+	      var self = this;
+	
+	      if(from === this) return done();
+	
+	      var loop = function(notRejected){
+	        if(notRejected === false) return done(false);
+	        from = from.parent;
+	        if(from === self) return done();
+	        self._moveOn(from, method, options, loop)
+	      }
+	
+	      self._moveOn(from, method, options, loop)
+	    }
+	
+	}, true);
+	
+	module.exports = StateMan;
+
+
+/***/ },
+/* 45 */
+/***/ function(module, exports, __webpack_require__) {
+
+	
+	// MIT
+	// Thx Backbone.js 1.1.2  and https://github.com/cowboy/jquery-hashchange/blob/master/jquery.ba-hashchange.js
+	// for iframe patches in old ie.
+	
+	var browser = __webpack_require__(46);
+	var _ = __webpack_require__(9);
+	
+	
+	// the mode const
+	var QUIRK = 3,
+	  HASH = 1,
+	  HISTORY = 2;
+	
+	// extract History for test
+	// resolve the conficlt with the Native History
+	function History(options){
+	  options = options || {};
+	
+	  // Trick from backbone.history for anchor-faked testcase
+	  this.location = options.location || browser.location;
+	
+	  // mode config, you can pass absolute mode (just for test);
+	  this.html5 = options.html5;
+	  this.mode = options.html5 && browser.history ? HISTORY: HASH;
+	  if( !browser.hash ) this.mode = QUIRK;
+	  if(options.mode) this.mode = options.mode;
+	
+	  // hash prefix , used for hash or quirk mode
+	  this.prefix = "#" + (options.prefix || "") ;
+	  this.rPrefix = new RegExp(this.prefix + '(.*)$');
+	  this.interval = options.interval || 66;
+	
+	  // the root regexp for remove the root for the path. used in History mode
+	  this.root = options.root ||  "/" ;
+	  this.rRoot = new RegExp("^" +  this.root);
+	
+	  this._fixInitState();
+	
+	  this.autolink = options.autolink!==false;
+	
+	  this.curPath = undefined;
+	}
+	
+	_.extend( _.emitable(History), {
+	  // check the
+	  start: function(){
+	    var path = this.getPath();
+	    this._checkPath = _.bind(this.checkPath, this);
+	
+	    if( this.isStart ) return;
+	    this.isStart = true;
+	
+	    if(this.mode === QUIRK){
+	      this._fixHashProbelm(path);
+	    }
+	
+	    switch ( this.mode ){
+	      case HASH:
+	        browser.on(window, "hashchange", this._checkPath);
+	        break;
+	      case HISTORY:
+	        browser.on(window, "popstate", this._checkPath);
+	        break;
+	      case QUIRK:
+	        this._checkLoop();
+	    }
+	    // event delegate
+	    this.autolink && this._autolink();
+	
+	    this.curPath = path;
+	
+	    this.emit("change", path, { firstTime: true });
+	  },
+	
+	  // the history teardown
+	  stop: function(){
+	
+	    browser.off(window, 'hashchange', this._checkPath);
+	    browser.off(window, 'popstate', this._checkPath);
+	    clearTimeout(this.tid);
+	    this.isStart = false;
+	    this._checkPath = null;
+	  },
+	
+	  // get the path modify
+	  checkPath: function(/*ev*/){
+	
+	    var path = this.getPath(), curPath = this.curPath;
+	
+	    //for oldIE hash history issue
+	    if(path === curPath && this.iframe){
+	      path = this.getPath(this.iframe.location);
+	    }
+	
+	    if( path !== curPath ) {
+	      this.iframe && this.nav(path, {silent: true});
+	      this.curPath = path;
+	      this.emit('change', path);
+	    }
+	  },
+	
+	  // get the current path
+	  getPath: function(location){
+	    location = location || this.location;
+	    var tmp;
+	
+	    if( this.mode !== HISTORY ){
+	      tmp = location.href.match(this.rPrefix);
+	      return tmp && tmp[1]? tmp[1]: "";
+	
+	    }else{
+	      return _.cleanPath(( location.pathname + location.search || "" ).replace( this.rRoot, "/" ));
+	    }
+	  },
+	
+	  nav: function(to, options ){
+	
+	    var iframe = this.iframe;
+	
+	    options = options || {};
+	
+	    to = _.cleanPath(to);
+	
+	    if(this.curPath == to) return;
+	
+	    // pushState wont trigger the checkPath
+	    // but hashchange will
+	    // so we need set curPath before to forbit the CheckPath
+	    this.curPath = to;
+	
+	    // 3 or 1 is matched
+	    if( this.mode !== HISTORY ){
+	      this._setHash(this.location, to, options.replace);
+	      if( iframe && this.getPath(iframe.location) !== to ){
+	        if(!options.replace) iframe.document.open().close();
+	        this._setHash(this.iframe.location, to, options.replace);
+	      }
+	    }else{
+	      history[options.replace? 'replaceState': 'pushState']( {}, options.title || "" , _.cleanPath( this.root + to ) );
+	    }
+	
+	    if( !options.silent ) this.emit('change', to);
+	  },
+	  _autolink: function(){
+	    if(this.mode!==HISTORY) return;
+	    // only in html5 mode, the autolink is works
+	    // if(this.mode !== 2) return;
+	    var self = this;
+	    browser.on( document.body, "click", function(ev){
+	
+	      var target = ev.target || ev.srcElement;
+	      if( target.tagName.toLowerCase() !== "a" ) return;
+	      var tmp = browser.isSameDomain(target.href)&&(browser.getHref(target)||"").match(self.rPrefix);
+	
+	      var hash = tmp && tmp[1]? tmp[1]: "";
+	
+	      if(!hash) return;
+	
+	      ev.preventDefault && ev.preventDefault();
+	      self.nav( hash );
+	      return (ev.returnValue = false);
+	    } );
+	  },
+	  _setHash: function(location, path, replace){
+	    var href = location.href.replace(/(javascript:|#).*$/, '');
+	    if (replace){
+	      location.replace(href + this.prefix+ path);
+	    }
+	    else location.hash = this.prefix+ path;
+	  },
+	  // for browser that not support onhashchange
+	  _checkLoop: function(){
+	    var self = this;
+	    this.tid = setTimeout( function(){
+	      self._checkPath();
+	      self._checkLoop();
+	    }, this.interval );
+	  },
+	  // if we use real url in hash env( browser no history popstate support)
+	  // or we use hash in html5supoort mode (when paste url in other url)
+	  // then , history should repara it
+	  _fixInitState: function(){
+	    var pathname = _.cleanPath(this.location.pathname), hash, hashInPathName;
+	
+	    // dont support history popstate but config the html5 mode
+	    if( this.mode !== HISTORY && this.html5){
+	
+	      hashInPathName = pathname.replace(this.rRoot, "");
+	      if(hashInPathName) this.location.replace(this.root + this.prefix + hashInPathName);
+	
+	    }else if( this.mode === HISTORY /* && pathname === this.root*/){
+	
+	      hash = this.location.hash.replace(this.prefix, "");
+	      if(hash) history.replaceState({}, document.title, _.cleanPath(this.root + hash));
+	
+	    }
+	  },
+	  // Thanks for backbone.history and https://github.com/cowboy/jquery-hashchange/blob/master/jquery.ba-hashchange.js
+	  // for helping stateman fixing the oldie hash history issues when with iframe hack
+	  _fixHashProbelm: function(path){
+	    var iframe = document.createElement('iframe'), body = document.body;
+	    iframe.src = 'javascript:;';
+	    iframe.style.display = 'none';
+	    iframe.tabIndex = -1;
+	    iframe.title = "";
+	    this.iframe = body.insertBefore(iframe, body.firstChild).contentWindow;
+	    this.iframe.document.open().close();
+	    this.iframe.location.hash = '#' + path;
+	  }
+	
+	});
+	
+	module.exports = History;
+
+
+/***/ },
+/* 46 */
+/***/ function(module, exports) {
+
+	var win = window,
+	    doc = document;
+	
+	module.exports = {
+	  hash: "onhashchange" in win && (!doc.documentMode || doc.documentMode > 7),
+	  history: win.history && "onpopstate" in win,
+	  location: win.location,
+	  isSameDomain: function(url){
+	    var matched = url.match(/^.*?:\/\/([^/]*)/);
+	    if(matched){
+	      return matched[0] == this.location.origin;
+	    }
+	    return true;
+	  },
+	  getHref: function(node){
+	    return "href" in node ? node.getAttribute("href", 2) : node.getAttribute("href");
+	  },
+	  on: "addEventListener" in win ?  // IE10 attachEvent is not working when binding the onpopstate, so we need check addEventLister first
+	      function(node,type,cb){return node.addEventListener( type, cb )}
+	    : function(node,type,cb){return node.attachEvent( "on" + type, cb )},
+	
+	  off: "removeEventListener" in win ? 
+	      function(node,type,cb){return node.removeEventListener( type, cb )}
+	    : function(node,type,cb){return node.detachEvent( "on" + type, cb )}
+	}
+
+
+/***/ },
+/* 47 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var Regular = __webpack_require__(12);
+	module.exports = {
+	  "blog": {
+	    dataProvider: {
+	
+	      "app.index": function(){
+	        return {
+	          title: 'Hello Index'
+	        }
+	      },
+	      "app.blog": function(){
+	        return {
+	          title: 'Hello Blog'
+	        }
+	      },
+	      "app.blog.detail": function(){
+	        return {
+	          content: 'Blog Content Here'
+	        }
+	      }
+	    },
+	    routes: {
+	      'app': {
+	        url: '',
+	        view: Regular.extend({
+	          template: '<div rg-view ></div>'
+	        })
+	      },
+	      'app.index': {
+	        view: Regular.extend({
+	          template: 
+	            '<div>\
+	              <h2>{title}</h2>\
+	              <div rg-view ></div>\
+	            </div>'
+	        })
+	
+	      },
+	      'app.blog': {
+	        view: Regular.extend({
+	          template: 
+	            '<div>\
+	              <h2 class="hook">{title}</h2>\
+	              <div rg-view ></div>\
+	            </div>' ,
+	            enter: function(){
+	              this.data.title='修改后的title'
+	            }
+	        })
+	      },
+	      'app.blog.detail': {
+	        url: ':id/detail',
+	        view: Regular.extend({
+	          template: 
+	            '<div>{content}</div>'
+	        })
+	      }
+	    }
+	  }
+	}
+
+/***/ },
+/* 48 */
+/***/ function(module, exports, __webpack_require__) {
+
+	
+	var restate = __webpack_require__(49);
+	var Regular = __webpack_require__(12);
 	
 	
 	describe("Simple Test", function(){
 	  it("behavior purpose here", function( done){
-	    expect(1).to.not.be.equal(2);
+	    expect(1).to.not.be.equal(3);
 	    done()
 	  })
 	})
+
+/***/ },
+/* 49 */
+/***/ function(module, exports, __webpack_require__) {
+
+	
+	
+	var StateMan = __webpack_require__(43);
+	
+	
+	
+	__webpack_require__(7);
+	
+	var _ = StateMan.util;
+	
+	
+	// get all state match the pattern
+	function getMatchStates(stateman, pattern){
+	  var current = stateman;
+	  var allStates = [];
+	
+	  var currentStates = current._states;
+	
+	  for(var i in currentStates){
+	    var state = currentStates[i];
+	    if(pattern.test(state.stateName)) allStates.push( state );
+	    if(state._states) allStates = allStates.concat(getMatchStates( state, pattern))
+	  }
+	  return allStates
+	}
+	
+	
+	function bindTo(stateman){
+	
+	
+	  stateman.notify = function(stateName, param){
+	
+	    var pattern, eventObj, states;
+	
+	    if(!stateName) return;
+	
+	    if(~stateName.indexOf('*')){
+	
+	      pattern = new RegExp(
+	        stateName
+	          .replace('.', '\\.')
+	          .replace(/\*\*|\*/, function(cap){
+	            if(cap === '**') return '.*';
+	            else return '[^.]*';
+	          })
+	      );
+	
+	      states = getMatchStates(stateman, pattern);
+	
+	    }else{
+	      states = [stateman.state(stateName)];
+	    }
+	
+	    states.forEach(function(state){
+	      if(!state || !state.component ) return;
+	      state.component.$emit('notify', param);
+	    })
+	    return this;
+	  }
+	
+	  return function(Component){
+	    if(!Component || Component.__stateman__) return Component;
+	
+	    // 
+	    Component
+	      .filter({
+	        encode: function(value, param){
+	          return stateman.history.prefix + (stateman.encode(value, param || {}) || "");
+	        }
+	      })
+	      .directive({
+	        // <a href='app.blog({id: $param.id})'
+	        'r-href': function( element, value ){
+	          var pattern = /([\w-](\.[\w-])*)\s*\((.*)\)$/
+	          var test = pattern.exec(value);
+	        }
+	      })
+	      .implement({
+	        __stateman__: true,
+	        $notify: stateman.notify
+	      })
+	  }
+	
+	}
+	
+	var restate = function(option){
+	
+	  option = option || {};
+	
+	  var stateman = option.stateman || new StateMan(option);
+	  var preState = stateman.state;
+	  var BaseComponent = option.Component;
+	  var globalView = option.view || document.body;
+	
+	  var linkToComponent = bindTo(stateman);
+	
+	  linkToComponent(BaseComponent);
+	
+	
+	  stateman.state = function(name, Component, config){
+	    if(typeof config === "string"){
+	      config = {url: config};
+	    }
+	
+	    config = config || {};
+	
+	    // Use global option.rebuild if config.rebuild is not defined.
+	    if(config.rebuild === undefined) config.rebuild = option.rebuild;
+	
+	    if(!Component) return preState.call(stateman, name);
+	
+	    if(BaseComponent){
+	      // 1. regular template or parsed ast
+	      if(typeof Component === "string" || Array.isArray( Component )){
+	        Component = BaseComponent.extend({
+	          template: Component
+	        })
+	      }
+	      // 2. it an Object, but need regularify
+	      if(typeof Component === "object" && Component.regularify ){
+	        Component = BaseComponent.extend( Component );
+	      }
+	    }
+	
+	    // 3. duck check is a Regular Component
+	    if( Component.extend && Component.__after__ ){
+	
+	      linkToComponent(Component);
+	
+	      var state = {
+	        component: null,
+	
+	        // @TODO:
+	        canUpdate: function(){
+	
+	          var canUpdate = this.component && this.component.canUpdate;
+	
+	          if( canUpdate ) return this.component.canUpdate();
+	        },
+	
+	
+	        canLeave: function(){
+	
+	          var canLeave = this.component && this.component.canLeave;
+	
+	          if( canLeave ) return this.component.canLeave();
+	
+	        },
+	
+	        canEnter: function( option ){
+	
+	          if(noComponent){
+	
+	            component = this.component = new Component({
+	
+	              data: data,
+	
+	              $state: stateman,
+	
+	              $stateName: name
+	
+	            });
+	
+	          }
+	
+	          var canEnter = this.component && this.component.canEnter;
+	
+	          if( canEnter ) return this.component.canEnter(option);
+	
+	        },
+	
+	        enter: function( option ){
+	
+	
+	
+	          var data = { $param: option.param };
+	          var component = this.component;
+	          var parent = this.parent, view;
+	
+	          if(!component) return;
+	
+	          _.extend(component.data, data, true);
+	
+	          if(parent.component){
+	            view = parent.component.$refs.view;
+	            if(!view) throw this.parent.name + " should have a element with [ref=view]";
+	          }else{
+	            view = globalView;
+	          }
+	          
+	          component.$inject(view);
+	          var result = component.enter && component.enter(option);
+	
+	          component.$update(function(){
+	            component.$mute(false);
+	          })
+	
+	          return result;
+	        },
+	        leave: function( option){
+	          var component = this.component;
+	          if(!component) return;
+	
+	          component.leave && component.leave(option);
+	          if( config.rebuild){
+	            this.component = null;
+	            return component.destroy();
+	          } 
+	          component.$inject(false);
+	          component.$mute(true);
+	        },
+	        update: function(option){
+	          var component = this.component;
+	          if(!component) return;
+	          component.update && component.update(option);
+	          component.$update({
+	            $param: option.param
+	          })
+	        }
+	      }
+	
+	      _.extend(state, config || {});
+	
+	      preState.call(stateman, name, state);
+	
+	    }else{
+	      preState.call(stateman, name, Component);
+	    }
+	    return this;
+	  }
+	  return stateman;
+	}
+	
+	restate.StateMan = StateMan;
+	
+	
+	module.exports = restate;
+	
+
 
 /***/ }
 /******/ ]);

@@ -1,12 +1,15 @@
 var webpack = require('gulp-webpack');
 var jshint = require('gulp-jshint');
-var Server = require("karma").Server;
+var exec = require('child_process').exec;
+var path = require('path');
+var fs = require('fs');
+var karma = require("karma").server;
 var through = require('through2');
 var shell = require("gulp-shell");
+var mocha = require('gulp-mocha');
 var gulp = require('gulp');
+var git = require('gulp-git');
 var istanbul = require('browserify-istanbul');
-
-
 
 
 
@@ -19,7 +22,7 @@ var karmaCommonConf = {
   frameworks: ['mocha', 'browserify'],
   files: [
     'test/runner/vendor/expect.js',
-    'restate.js',
+    'src/index.js',
     'test/spec/*.js'
   ],
   client: {
@@ -41,7 +44,7 @@ var karmaCommonConf = {
   },
 
   preprocessors: {
-     'restate.js': ['browserify' ],
+     'src/*.js': ['browserify' ],
      'test/spec/*.js': ['browserify']
  },
   browserify: {
@@ -66,7 +69,7 @@ var karmaCommonConf = {
 
 gulp.task('jshint', function(){
       // jshint
-  gulp.src(['restate.js'])
+  gulp.src(['./index.js'])
     .pipe(jshint())
     .pipe(jshint.reporter('default'))
 
@@ -75,7 +78,7 @@ gulp.task('jshint', function(){
 
  
 gulp.task('build', ['jshint', 'buildtest'], function() {
-  gulp.src("restate.js")
+  gulp.src("src/index.js")
     .pipe(webpack({
        output: {
           filename: "restate.pack.js",
@@ -88,6 +91,48 @@ gulp.task('build', ['jshint', 'buildtest'], function() {
       throw err
     })
 });
+
+
+var deleteFolderRecursive = function (path) { 
+    if (fs.existsSync(path)) {
+        fs.readdirSync(path).forEach(function (file, index) {
+            var curPath = path + "/" + file;
+            if (fs.statSync(curPath).isDirectory()) { // recurse
+                deleteFolderRecursive(curPath);
+            } else { // delete file
+                fs.unlinkSync(curPath);
+            }
+        });
+        fs.rmdirSync(path);
+    }
+};
+
+gulp.task('fetch', function(){
+
+  deleteFolderRecursive('./node_modules/regularjs');
+  deleteFolderRecursive('./node_modules/stateman');
+    
+  exec('git clone ' + path.join(__dirname, "../regular regularjs"), {
+    cwd: path.join(__dirname, 'node_modules')
+  }, function(err){
+    if(err) throw err
+    exec('cd node_modules/regularjs & git checkout ssr'/*command*/,{}/*options, [optiona]l*/, function(err, stdout, stderr){
+      console.log('stdout: ' + stdout);
+      console.log('stderr: ' + stderr);
+      console.log('regular fetch done')
+    })
+  })
+  exec('git clone ' + path.join(__dirname, "../../stateman"), {
+    cwd: path.join(__dirname, 'node_modules')
+  }, function(err){
+    if(err) throw err
+    exec('cd node_modules/stateman & git checkout ssr'/*command*/,{}/*options, [optiona]l*/, function(err, stdout, stderr){
+      console.log('stdout: ' + stdout);
+      console.log('stderr: ' + stderr);
+      console.log('stateman fetch done')
+    })
+  })
+})
 
 
 
@@ -106,14 +151,29 @@ gulp.task('buildtest', function(){
 
 gulp.task('karma', ['build'] ,function (done) {
   var config =karmaCommonConf;
-  var karma = new Server(config, done)
   config.coverageReporter = {type : 'text-summary'}
-  karma.start();
+ karma.start(config, done)
 });
 
 
+gulp.task('mocha', function(){
+
+  return gulp.src(['test/spec/test-*.js'])
+
+    .pipe(mocha({reporter: 'spec' }) )
+
+    .on('error', function(err){
+      console.log(err)
+      console.log('\u0007');
+    })
+    .on('end', function(){
+      // before_mocha.clean();
+    });
+})
+
+
 gulp.task('watch', ["build"], function(){
-  gulp.watch(['restate.js'], ['build'])
+  gulp.watch(['src/*.js'], ['build'])
   gulp.watch(['test/spec/*.js', 'test/spec/export.js'], ['buildtest'])
 })
 
