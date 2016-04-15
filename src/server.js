@@ -1,5 +1,6 @@
 
 
+require('./base');
 var stateman = require('stateman/src/manager/server');
 var Regular = require('regularjs');
 var SSR = require('regularjs/src/render/server.js');

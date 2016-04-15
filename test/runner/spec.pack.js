@@ -45,7 +45,7 @@
 /***/ function(module, exports, __webpack_require__) {
 
 	__webpack_require__(1);
-	__webpack_require__(48);
+	__webpack_require__(49);
 
 /***/ },
 /* 1 */
@@ -54,9 +54,9 @@
 	__webpack_require__(2).polyfill();
 	
 	var server = __webpack_require__(7);
-	var client = __webpack_require__(42);
-	var Regular = __webpack_require__(12);
-	var blogConfig = __webpack_require__(47).blog;
+	var client = __webpack_require__(43);
+	var Regular = __webpack_require__(9);
+	var blogConfig = __webpack_require__(48).blog;
 	var manager = server(blogConfig);
 	
 	
@@ -1207,9 +1207,10 @@
 
 	
 	
-	var stateman = __webpack_require__(8);
-	var Regular = __webpack_require__(12);
-	var SSR = __webpack_require__(41);
+	__webpack_require__(8);
+	var stateman = __webpack_require__(39);
+	var Regular = __webpack_require__(9);
+	var SSR = __webpack_require__(38);
 	var global = typeof window !== 'undefined'? window: global;
 	
 	
@@ -1323,562 +1324,38 @@
 /* 8 */
 /***/ function(module, exports, __webpack_require__) {
 
+	var Regular = __webpack_require__(9);
 	
-	var _ = __webpack_require__(9);
-	var Base = __webpack_require__(10);
 	
-	function ServerManager( options ){
-	  if(this instanceof ServerManager === false){ return new ServerManager(options); }
-	  Base.apply( this, arguments );
-	}
-	
-	var o =_.inherit( ServerManager, Base.prototype );
-	
-	_.extend(o , {
-	  exec: function ( path ){
-	    var found = this.decode(path);
-	    if( !found ) return;
-	    var param = found.param;
-	    var states = [];
-	    var state = found.state;
-	    this.current = state;
-	
-	    while(state && !state.root){
-	      states.unshift( state );
-	      state = state.parent;
-	    }
-	
-	    return {
-	      states: states,
-	      param: param
-	    }
+	Regular.directive('rg-view', {
+	  link: function(element){
+	    this.$viewport = element;
+	  },
+	  ssr: function(){
+	    return 'rg-view '; 
 	  }
 	})
 	
-	
-	module.exports = ServerManager
+
 
 /***/ },
 /* 9 */
-/***/ function(module, exports) {
-
-	var _ = module.exports = {};
-	var slice = [].slice, o2str = ({}).toString;
-	
-	// merge o2's properties to Object o1. 
-	_.extend = function(o1, o2, override){
-	  for(var i in o2) if(override || o1[i] === undefined){
-	    o1[i] = o2[i];
-	  }
-	  return o1;
-	};
-	
-	_.values = function( o){
-	  var keys = [];
-	  for(var i in o) if( o.hasOwnProperty(i) ){
-	    keys.push( o[i] );
-	  }
-	  return keys;
-	};
-	
-	_.inherit = function( cstor, o ){
-	  function Faker(){}
-	  Faker.prototype = o;
-	  cstor.prototype = new Faker();
-	  cstor.prototype.constructor = cstor;
-	  return o;
-	}
-	
-	_.slice = function(arr, index){
-	  return slice.call(arr, index);
-	};
-	
-	_.typeOf = function typeOf (o) {
-	  return o == null ? String(o) : o2str.call(o).slice(8, -1).toLowerCase();
-	};
-	
-	//strict eql
-	_.eql = function(o1, o2){
-	  var t1 = _.typeOf(o1), t2 = _.typeOf(o2);
-	  if( t1 !== t2) return false;
-	  if(t1 === 'object'){
-	    // only check the first's properties
-	    for(var i in o1){
-	      // Immediately return if a mismatch is found.
-	      if( o1[i] !== o2[i] ) return false;
-	    }
-	    return true;
-	  }
-	  return o1 === o2;
-	};
-	
-	// small emitter 
-	_.emitable = (function(){
-	  function norm(ev){
-	    var eventAndNamespace = (ev||'').split(':');
-	    return {event: eventAndNamespace[0], namespace: eventAndNamespace[1]};
-	  }
-	  var API = {
-	    once: function(event, fn){
-	      var callback = function(){
-	        fn.apply(this, arguments);
-	        this.off(event, callback);
-	      };
-	      return this.on(event, callback);
-	    },
-	    on: function(event, fn) {
-	      if(typeof event === 'object'){
-	        for (var i in event) {
-	          this.on(i, event[i]);
-	        }
-	        return this;
-	      }
-	      var ne = norm(event);
-	      event=ne.event;
-	      if(event && typeof fn === 'function' ){
-	        var handles = this._handles || (this._handles = {}),
-	          calls = handles[event] || (handles[event] = []);
-	        fn._ns = ne.namespace;
-	        calls.push(fn);
-	      }
-	      return this;
-	    },
-	    off: function(event, fn) {
-	      var ne = norm(event); event = ne.event;
-	      if(!event || !this._handles) this._handles = {};
-	
-	      var handles = this._handles;
-	      var calls = handles[event];
-	
-	      if (calls) {
-	        if (!fn && !ne.namespace) {
-	          handles[event] = [];
-	        }else{
-	          for (var i = 0, len = calls.length; i < len; i++) {
-	            if ( (!fn || fn === calls[i]) && (!ne.namespace || calls[i]._ns === ne.namespace) ) {
-	              calls.splice(i, 1);
-	              return this;
-	            }
-	          }
-	        }
-	      }
-	
-	      return this;
-	    },
-	    emit: function(event){
-	      var ne = norm(event); event = ne.event;
-	
-	      var args = _.slice(arguments, 1),
-	        handles = this._handles, calls;
-	
-	      if (!handles || !(calls = handles[event])) return this;
-	      for (var i = 0, len = calls.length; i < len; i++) {
-	        var fn = calls[i];
-	        if( !ne.namespace || fn._ns === ne.namespace ) fn.apply(this, args);
-	      }
-	      return this;
-	    }
-	  };
-	  return function(obj){
-	      obj = typeof obj == "function" ? obj.prototype : obj;
-	      return _.extend(obj, API);
-	  };
-	})();
-	
-	_.bind = function(fn, context){
-	  return function(){
-	    return fn.apply(context, arguments);
-	  };
-	};
-	
-	var rDbSlash = /\/+/g, // double slash
-	  rEndSlash = /\/$/;    // end slash
-	
-	_.cleanPath = function (path){
-	  return ("/" + path).replace( rDbSlash,"/" ).replace( rEndSlash, "" ) || "/";
-	};
-	
-	// normalize the path
-	function normalizePath(path) {
-	  // means is from 
-	  // (?:\:([\w-]+))?(?:\(([^\/]+?)\))|(\*{2,})|(\*(?!\*)))/g
-	  var preIndex = 0;
-	  var keys = [];
-	  var index = 0;
-	  var matches = "";
-	
-	  path = _.cleanPath(path);
-	
-	  var regStr = path
-	    //  :id(capture)? | (capture)   |  ** | * 
-	    .replace(/\:([\w-]+)(?:\(([^\/]+?)\))?|(?:\(([^\/]+)\))|(\*{2,})|(\*(?!\*))/g, 
-	      function(all, key, keyformat, capture, mwild, swild, startAt) {
-	        // move the uncaptured fragment in the path
-	        if(startAt > preIndex) matches += path.slice(preIndex, startAt);
-	        preIndex = startAt + all.length;
-	        if( key ){
-	          matches += "(" + key + ")";
-	          keys.push(key);
-	          return "("+( keyformat || "[\\w-]+")+")";
-	        }
-	        matches += "(" + index + ")";
-	
-	        keys.push( index++ );
-	
-	        if( capture ){
-	           // sub capture detect
-	          return "(" + capture +  ")";
-	        } 
-	        if(mwild) return "(.*)";
-	        if(swild) return "([^\\/]*)";
-	    });
-	
-	  if(preIndex !== path.length) matches += path.slice(preIndex);
-	
-	  return {
-	    regexp: new RegExp("^" + regStr +"/?$"),
-	    keys: keys,
-	    matches: matches || path
-	  };
-	}
-	
-	_.log = function(msg, type){
-	  typeof console !== "undefined" && console[type || "log"](msg); //eslint-disable-line no-console
-	};
-	
-	_.isPromise = function( obj ){
-	
-	  return !!obj && (typeof obj === 'object' || typeof obj === 'function') && typeof obj.then === 'function';
-	
-	};
-	
-	_.normalize = normalizePath;
-
-
-/***/ },
-/* 10 */
 /***/ function(module, exports, __webpack_require__) {
 
-	
-	var State = __webpack_require__(11),
-	  _ = __webpack_require__(9),
-	  stateFn = State.prototype.state;
-	
-	function BaseMan( options ){
-	
-	  options = options || {};
-	
-	  this._states = {};
-	
-	  this.strict = options.strict;
-	  this.title = options.title;
-	
-	  if(options.routes) this.state(options.routes);
-	
-	}
-	
-	_.extend( _.emitable( BaseMan ), {
-	    // keep blank
-	    name: '',
-	
-	    root: true,
-	
-	
-	    state: function(stateName){
-	
-	      var active = this.active;
-	      var args = _.slice(arguments, 1);
-	
-	      if(typeof stateName === "string" && active){
-	         stateName = stateName.replace("~", active.name);
-	         if(active.parent) stateName = stateName.replace("^", active.parent.name || "");
-	      }
-	      // ^ represent current.parent
-	      // ~ represent  current
-	      // only 
-	      args.unshift(stateName);
-	      return stateFn.apply(this, args);
-	
-	    },
-	
-	    decode: function(path, needLocation){
-	
-	      var pathAndQuery = path.split("?");
-	      var query = this._findQuery(pathAndQuery[1]);
-	      path = pathAndQuery[0];
-	      var found = this._findState(this, path);
-	      if(found) _.extend(found.param, query);
-	      return found;
-	
-	    },
-	    encode: function(stateName, param){
-	      var state = this.state(stateName);
-	      return state? state.encode(param) : '';
-	    },
-	    // notify specify state
-	    // check the active statename whether to match the passed condition (stateName and param)
-	    is: function(stateName, param, isStrict){
-	      if(!stateName) return false;
-	      stateName = (stateName.name || stateName);
-	      var current = this.current, currentName = current.name;
-	      var matchPath = isStrict? currentName === stateName : (currentName + ".").indexOf(stateName + ".")===0;
-	      return matchPath && (!param || _.eql(param, this.param)); 
-	    },
-	
-	
-	    _wrapPromise: function( promise, next ){
-	
-	      return promise.then( next, function(){ next(false); }) ;
-	
-	    },
-	
-	    _findQuery: function(querystr){
-	
-	      var queries = querystr && querystr.split("&"), query= {};
-	      if(queries){
-	        var len = queries.length;
-	        for(var i =0; i< len; i++){
-	          var tmp = queries[i].split("=");
-	          query[tmp[0]] = tmp[1];
-	        }
-	      }
-	      return query;
-	
-	    },
-	    _findState: function(state, path){
-	      var states = state._states, found, param;
-	
-	      // leaf-state has the high priority upon branch-state
-	      if(state.hasNext){
-	
-	        var stateList = _.values( states ).sort( this._sortState );
-	        var len = stateList.length;
-	
-	        for(var i = 0; i < len; i++){
-	
-	          found = this._findState( stateList[i], path );
-	          if( found ) return found;
-	        }
-	
-	      }
-	      // in strict mode only leaf can be touched
-	      // if all children is don. will try it self
-	      param = state.regexp && state.decode(path);
-	      if(param){
-	        return {
-	          state: state,
-	          param: param
-	        }
-	      }else{
-	        return false;
-	      }
-	    },
-	    _sortState: function( a, b ){
-	      return ( b.priority || 0 ) - ( a.priority || 0 );
-	    },
-	    // find the same branch;
-	    _findBase: function(now, before){
-	
-	      if(!now || !before || now == this || before == this) return this;
-	      var np = now, bp = before, tmp;
-	      while(np && bp){
-	        tmp = bp;
-	        while(tmp){
-	          if(np === tmp) return tmp;
-	          tmp = tmp.parent;
-	        }
-	        np = np.parent;
-	      }
-	    },
-	
-	}, true);
-	
-	module.exports = BaseMan;
-	
-
-
-/***/ },
-/* 11 */
-/***/ function(module, exports, __webpack_require__) {
-
-	var _ = __webpack_require__(9);
-	
-	function State(option){
-	  this._states = {};
-	  this._pending = false;
-	  this.visited = false;
-	  if(option) this.config(option);
-	}
-	
-	//regexp cache
-	State.rCache = {};
-	
-	_.extend( _.emitable( State ), {
-	
-	  getTitle: function(options){
-	    var cur = this ,title;
-	    while( cur ){
-	      title = cur.title;
-	      if(title) return typeof title === 'function'? cur.title(options): cur.title
-	      cur = cur.parent;
-	    }
-	    return title;
-	  },
-	
-	
-	  state: function(stateName, config){
-	    if(_.typeOf(stateName) === "object"){
-	      for(var j in stateName){
-	        this.state(j, stateName[j]);
-	      }
-	      return this;
-	    }
-	    var current = this, next, nextName, states = this._states, i=0;
-	
-	    if( typeof stateName === "string" ) stateName = stateName.split(".");
-	
-	    var slen = stateName.length;
-	    var stack = [];
-	
-	    do{
-	      nextName = stateName[i];
-	      next = states[nextName];
-	      stack.push(nextName);
-	      if(!next){
-	        if(!config) return;
-	        next = states[nextName] = new State();
-	        _.extend(next, {
-	          parent: current,
-	          manager: current.manager || current,
-	          name: stack.join("."),
-	          currentName: nextName
-	        });
-	        current.hasNext = true;
-	        next.configUrl();
-	      }
-	      current = next;
-	      states = next._states;
-	    }while((++i) < slen )
-	
-	    if(config){
-	       next.config(config);
-	       return this;
-	    } else {
-	      return current;
-	    }
-	  },
-	
-	  config: function(configure){
-	
-	    configure = this._getConfig(configure);
-	
-	    for(var i in configure){
-	      var prop = configure[i];
-	      switch(i){
-	        case "url":
-	          if(typeof prop === "string"){
-	            this.url = prop;
-	            this.configUrl();
-	          }
-	          break;
-	        case "events":
-	          this.on(prop);
-	          break;
-	        default:
-	          this[i] = prop;
-	      }
-	    }
-	  },
-	
-	  // children override
-	  _getConfig: function(configure){
-	    return typeof configure === "function"? {enter: configure} : configure;
-	  },
-	
-	  //from url
-	  configUrl: function(){
-	    var url = "" , base = this;
-	
-	    while( base ){
-	
-	      url = (typeof base.url === "string" ? base.url: (base.currentName || "")) + "/" + url;
-	
-	      // means absolute;
-	      if(url.indexOf("^/") === 0) {
-	        url = url.slice(1);
-	        break;
-	      }
-	      base = base.parent;
-	    }
-	    this.pattern = _.cleanPath("/" + url);
-	    var pathAndQuery = this.pattern.split("?");
-	    this.pattern = pathAndQuery[0];
-	    // some Query we need watched
-	
-	    _.extend(this, _.normalize(this.pattern), true);
-	  },
-	  encode: function(param){
-	    var state = this;
-	    param = param || {};
-	
-	    var matched = "%";
-	
-	    var url = state.matches.replace(/\(([\w-]+)\)/g, function(all, capture){
-	      var sec = param[capture] || "";
-	      matched+= capture + "%";
-	      return sec;
-	    }) + "?";
-	
-	    // remained is the query, we need concat them after url as query
-	    for(var i in param) {
-	      if( matched.indexOf("%"+i+"%") === -1) url += i + "=" + param[i] + "&";
-	    }
-	    return _.cleanPath( url.replace(/(?:\?|&)$/,"") );
-	  },
-	  decode: function( path ){
-	    var matched = this.regexp.exec(path),
-	      keys = this.keys;
-	
-	    if(matched){
-	
-	      var param = {};
-	      for(var i =0,len=keys.length;i<len;i++){
-	        param[keys[i]] = matched[i+1];
-	      }
-	      return param;
-	    }else{
-	      return false;
-	    }
-	  },
-	  // by default, all lifecycle is permitted
-	
-	  async: function(){
-	    throw new Error( 'please use option.async instead');
-	  }
-	
-	});
-	
-	module.exports = State;
-
-
-/***/ },
-/* 12 */
-/***/ function(module, exports, __webpack_require__) {
-
-	var env =  __webpack_require__(13);
-	var config = __webpack_require__(18); 
-	var Regular = module.exports = __webpack_require__(19);
+	var env =  __webpack_require__(10);
+	var config = __webpack_require__(15); 
+	var Regular = module.exports = __webpack_require__(16);
 	var Parser = Regular.Parser;
 	var Lexer = Regular.Lexer;
 	
 	// if(env.browser){
+	    __webpack_require__(33);
 	    __webpack_require__(36);
-	    __webpack_require__(39);
-	    __webpack_require__(40);
-	    Regular.dom = __webpack_require__(24);
+	    __webpack_require__(37);
+	    Regular.dom = __webpack_require__(21);
 	// }
 	Regular.env = env;
-	Regular.util = __webpack_require__(14);
+	Regular.util = __webpack_require__(11);
 	Regular.parse = function(str, options){
 	  options = options || {};
 	
@@ -1890,19 +1367,19 @@
 	  var ast = new Parser(str).parse();
 	  return !options.stringify? ast : JSON.stringify(ast);
 	}
-	Regular.Cursor =__webpack_require__(31) 
+	Regular.Cursor =__webpack_require__(28) 
 	
-	Regular.renderToString = __webpack_require__(41).render;
+	Regular.renderToString = __webpack_require__(38).render;
 	
 
 
 /***/ },
-/* 13 */
+/* 10 */
 /***/ function(module, exports, __webpack_require__) {
 
 	// some fixture test;
 	// ---------------
-	var _ = __webpack_require__(14);
+	var _ = __webpack_require__(11);
 	exports.svg = (function(){
 	  return typeof document !== "undefined" && document.implementation.hasFeature( "http://www.w3.org/TR/SVG11/feature#BasicStructure", "1.1" );
 	})();
@@ -1915,15 +1392,15 @@
 
 
 /***/ },
-/* 14 */
+/* 11 */
 /***/ function(module, exports, __webpack_require__) {
 
-	/* WEBPACK VAR INJECTION */(function(global, setImmediate) {__webpack_require__(16)();
+	/* WEBPACK VAR INJECTION */(function(global, setImmediate) {__webpack_require__(13)();
 	
 	
 	
 	var _  = module.exports;
-	var entities = __webpack_require__(17);
+	var entities = __webpack_require__(14);
 	var slice = [].slice;
 	var o2str = ({}).toString;
 	var win = typeof window !=='undefined'? window: global;
@@ -2370,10 +1847,10 @@
 	
 	
 	
-	/* WEBPACK VAR INJECTION */}.call(exports, (function() { return this; }()), __webpack_require__(15).setImmediate))
+	/* WEBPACK VAR INJECTION */}.call(exports, (function() { return this; }()), __webpack_require__(12).setImmediate))
 
 /***/ },
-/* 15 */
+/* 12 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(setImmediate, clearImmediate) {var nextTick = __webpack_require__(3).nextTick;
@@ -2452,10 +1929,10 @@
 	exports.clearImmediate = typeof clearImmediate === "function" ? clearImmediate : function(id) {
 	  delete immediateIds[id];
 	};
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(15).setImmediate, __webpack_require__(15).clearImmediate))
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(12).setImmediate, __webpack_require__(12).clearImmediate))
 
 /***/ },
-/* 16 */
+/* 13 */
 /***/ function(module, exports) {
 
 	// shim for es5
@@ -2563,7 +2040,7 @@
 
 
 /***/ },
-/* 17 */
+/* 14 */
 /***/ function(module, exports) {
 
 	// http://stackoverflow.com/questions/1354064/how-to-convert-characters-to-html-entities-using-plain-javascript
@@ -2828,7 +2305,7 @@
 	module.exports  = entities;
 
 /***/ },
-/* 18 */
+/* 15 */
 /***/ function(module, exports) {
 
 	
@@ -2838,33 +2315,33 @@
 	}
 
 /***/ },
-/* 19 */
+/* 16 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/**
 	 * render for component in browsers
 	 */
 	
-	var env = __webpack_require__(13);
-	var Lexer = __webpack_require__(20);
-	var Parser = __webpack_require__(21);
-	var config = __webpack_require__(18);
-	var _ = __webpack_require__(14);
-	var extend = __webpack_require__(23);
+	var env = __webpack_require__(10);
+	var Lexer = __webpack_require__(17);
+	var Parser = __webpack_require__(18);
+	var config = __webpack_require__(15);
+	var _ = __webpack_require__(11);
+	var extend = __webpack_require__(20);
 	var combine = {};
 	if(env.browser){
-	  var dom = __webpack_require__(24);
-	  var walkers = __webpack_require__(25);
-	  var Group = __webpack_require__(29);
+	  var dom = __webpack_require__(21);
+	  var walkers = __webpack_require__(22);
+	  var Group = __webpack_require__(26);
 	  var doc = dom.doc;
-	  combine = __webpack_require__(27);
+	  combine = __webpack_require__(24);
 	}
-	var events = __webpack_require__(32);
-	var Watcher = __webpack_require__(33);
-	var parse = __webpack_require__(34);
-	var filter = __webpack_require__(35);
-	var ERROR = __webpack_require__(30).ERROR;
-	var nodeCursor = __webpack_require__(31);
+	var events = __webpack_require__(29);
+	var Watcher = __webpack_require__(30);
+	var parse = __webpack_require__(31);
+	var filter = __webpack_require__(32);
+	var ERROR = __webpack_require__(27).ERROR;
+	var nodeCursor = __webpack_require__(28);
 	
 	
 	/**
@@ -3453,11 +2930,11 @@
 
 
 /***/ },
-/* 20 */
+/* 17 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var _ = __webpack_require__(14);
-	var config = __webpack_require__(18);
+	var _ = __webpack_require__(11);
+	var config = __webpack_require__(15);
 	
 	// some custom tag  will conflict with the Lexer progress
 	var conflictTag = {"}": "{", "]": "["}, map1, map2;
@@ -3811,14 +3288,14 @@
 
 
 /***/ },
-/* 21 */
+/* 18 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var _ = __webpack_require__(14);
+	var _ = __webpack_require__(11);
 	
-	var config = __webpack_require__(18);
-	var node = __webpack_require__(22);
-	var Lexer = __webpack_require__(20);
+	var config = __webpack_require__(15);
+	var node = __webpack_require__(19);
+	var Lexer = __webpack_require__(17);
 	var varName = _.varName;
 	var ctxName = _.ctxName;
 	var extName = _.extName;
@@ -4544,7 +4021,7 @@
 
 
 /***/ },
-/* 22 */
+/* 19 */
 /***/ function(module, exports) {
 
 	module.exports = {
@@ -4606,7 +4083,7 @@
 
 
 /***/ },
-/* 23 */
+/* 20 */
 /***/ function(module, exports, __webpack_require__) {
 
 	// (c) 2010-2014 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
@@ -4619,7 +4096,7 @@
 	// License MIT (c) Dustin Diaz 2014
 	  
 	// inspired by backbone's extend and klass
-	var _ = __webpack_require__(14),
+	var _ = __webpack_require__(11),
 	  fnTest = /xy/.test(function(){"xy";}) ? /\bsupr\b/:/.*/,
 	  isFn = function(o){return typeof o === "function"};
 	
@@ -4692,7 +4169,7 @@
 
 
 /***/ },
-/* 24 */
+/* 21 */
 /***/ function(module, exports, __webpack_require__) {
 
 	
@@ -4709,8 +4186,8 @@
 	if(typeof window !== 'undefined'){
 	  
 	var dom = module.exports;
-	var env = __webpack_require__(13);
-	var _ = __webpack_require__(14);
+	var env = __webpack_require__(10);
+	var _ = __webpack_require__(11);
 	var tNode = document.createElement('div')
 	var addEvent, removeEvent;
 	var noop = function(){}
@@ -5092,20 +4569,20 @@
 
 
 /***/ },
-/* 25 */
+/* 22 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var diffArray = __webpack_require__(26).diffArray;
-	var combine = __webpack_require__(27);
-	var animate = __webpack_require__(28);
-	var node = __webpack_require__(22);
-	var Group = __webpack_require__(29);
-	var dom = __webpack_require__(24);
-	var _ = __webpack_require__(14);
-	var consts =   __webpack_require__(30)
+	var diffArray = __webpack_require__(23).diffArray;
+	var combine = __webpack_require__(24);
+	var animate = __webpack_require__(25);
+	var node = __webpack_require__(19);
+	var Group = __webpack_require__(26);
+	var dom = __webpack_require__(21);
+	var _ = __webpack_require__(11);
+	var consts =   __webpack_require__(27)
 	var ERROR = consts.ERROR;
 	var MSG = consts.MSG;
-	var nodeCursor = __webpack_require__(31);
+	var nodeCursor = __webpack_require__(28);
 	
 	
 	
@@ -5818,10 +5295,10 @@
 
 
 /***/ },
-/* 26 */
+/* 23 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var _ = __webpack_require__(14);
+	var _ = __webpack_require__(11);
 	
 	function simpleDiff(now, old){
 	  var nlen = now.length;
@@ -6008,14 +5485,14 @@
 	}
 
 /***/ },
-/* 27 */
+/* 24 */
 /***/ function(module, exports, __webpack_require__) {
 
 	// some nested  operation in ast 
 	// --------------------------------
 	
-	var dom = __webpack_require__(24);
-	var animate = __webpack_require__(28);
+	var dom = __webpack_require__(21);
+	var animate = __webpack_require__(25);
 	
 	var combine = module.exports = {
 	
@@ -6119,13 +5596,13 @@
 
 
 /***/ },
-/* 28 */
+/* 25 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var _ = __webpack_require__(14);
-	var dom  = __webpack_require__(24);
+	var _ = __webpack_require__(11);
+	var dom  = __webpack_require__(21);
 	var animate = {};
-	var env = __webpack_require__(13);
+	var env = __webpack_require__(10);
 	
 	
 	if(typeof window !== 'undefined'){
@@ -6375,11 +5852,11 @@
 	module.exports = animate;
 
 /***/ },
-/* 29 */
+/* 26 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var _ = __webpack_require__(14);
-	var combine = __webpack_require__(27)
+	var _ = __webpack_require__(11);
+	var combine = __webpack_require__(24)
 	
 	function Group(list){
 	  this.children = list || [];
@@ -6409,7 +5886,7 @@
 
 
 /***/ },
-/* 30 */
+/* 27 */
 /***/ function(module, exports) {
 
 	module.exports = {
@@ -6425,7 +5902,7 @@
 
 
 /***/ },
-/* 31 */
+/* 28 */
 /***/ function(module, exports) {
 
 	function NodeCursor(node){
@@ -6444,12 +5921,12 @@
 
 
 /***/ },
-/* 32 */
+/* 29 */
 /***/ function(module, exports, __webpack_require__) {
 
 	// simplest event emitter 60 lines
 	// ===============================
-	var slice = [].slice, _ = __webpack_require__(14);
+	var slice = [].slice, _ = __webpack_require__(11);
 	var API = {
 	  $on: function(event, fn) {
 	    if(typeof event === "object"){
@@ -6524,12 +6001,12 @@
 	module.exports = Event;
 
 /***/ },
-/* 33 */
+/* 30 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var _ = __webpack_require__(14);
-	var parseExpression = __webpack_require__(34).expression;
-	var diff = __webpack_require__(26);
+	var _ = __webpack_require__(11);
+	var parseExpression = __webpack_require__(31).expression;
+	var diff = __webpack_require__(23);
 	var diffArray = diff.diffArray;
 	var diffObject = diff.diffObject;
 	
@@ -6782,12 +6259,12 @@
 	module.exports = Watcher;
 
 /***/ },
-/* 34 */
+/* 31 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var exprCache = __webpack_require__(13).exprCache;
-	var _ = __webpack_require__(14);
-	var Parser = __webpack_require__(21);
+	var exprCache = __webpack_require__(10).exprCache;
+	var _ = __webpack_require__(11);
+	var Parser = __webpack_require__(18);
 	module.exports = {
 	  expression: function(expr, simple){
 	    // @TODO cache
@@ -6804,7 +6281,7 @@
 
 
 /***/ },
-/* 35 */
+/* 32 */
 /***/ function(module, exports) {
 
 	
@@ -6872,20 +6349,20 @@
 
 
 /***/ },
-/* 36 */
+/* 33 */
 /***/ function(module, exports, __webpack_require__) {
 
 	// Regular
-	var _ = __webpack_require__(14);
-	var dom = __webpack_require__(24);
-	var animate = __webpack_require__(28);
-	var Regular = __webpack_require__(19);
-	var consts = __webpack_require__(30);
+	var _ = __webpack_require__(11);
+	var dom = __webpack_require__(21);
+	var animate = __webpack_require__(25);
+	var Regular = __webpack_require__(16);
+	var consts = __webpack_require__(27);
 	
 	
 	
-	__webpack_require__(37);
-	__webpack_require__(38);
+	__webpack_require__(34);
+	__webpack_require__(35);
 	
 	
 	module.exports = {
@@ -6988,16 +6465,16 @@
 
 
 /***/ },
-/* 37 */
+/* 34 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/**
 	 * event directive  bundle
 	 *
 	 */
-	var _ = __webpack_require__(14);
-	var dom = __webpack_require__(24);
-	var Regular = __webpack_require__(19);
+	var _ = __webpack_require__(11);
+	var dom = __webpack_require__(21);
+	var Regular = __webpack_require__(16);
 	
 	Regular._addProtoInheritCache("event");
 	
@@ -7072,13 +6549,13 @@
 	}
 
 /***/ },
-/* 38 */
+/* 35 */
 /***/ function(module, exports, __webpack_require__) {
 
 	// Regular
-	var _ = __webpack_require__(14);
-	var dom = __webpack_require__(24);
-	var Regular = __webpack_require__(19);
+	var _ = __webpack_require__(11);
+	var dom = __webpack_require__(21);
+	var Regular = __webpack_require__(16);
 	
 	var modelHandlers = {
 	  "text": initText,
@@ -7244,14 +6721,14 @@
 
 
 /***/ },
-/* 39 */
+/* 36 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var // packages
-	  _ = __webpack_require__(14),
-	 animate = __webpack_require__(28),
-	 dom = __webpack_require__(24),
-	 Regular = __webpack_require__(19);
+	  _ = __webpack_require__(11),
+	 animate = __webpack_require__(25),
+	 dom = __webpack_require__(21),
+	 Regular = __webpack_require__(16);
 	
 	
 	var // variables
@@ -7483,10 +6960,10 @@
 
 
 /***/ },
-/* 40 */
+/* 37 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var Regular = __webpack_require__(19);
+	var Regular = __webpack_require__(16);
 	
 	/**
 	 * Timeout Module
@@ -7529,15 +7006,15 @@
 	Regular.plugin('$timeout', TimeoutModule);
 
 /***/ },
-/* 41 */
+/* 38 */
 /***/ function(module, exports, __webpack_require__) {
 
 	// server side rendering for regularjs
 	
 	
-	var _ = __webpack_require__(14);
-	var parser = __webpack_require__(34);
-	var diffArray = __webpack_require__(26).diffArray;
+	var _ = __webpack_require__(11);
+	var parser = __webpack_require__(31);
+	var diffArray = __webpack_require__(23).diffArray;
 	
 	/**
 	 * [compile description]
@@ -7823,13 +7300,557 @@
 
 
 /***/ },
+/* 39 */
+/***/ function(module, exports, __webpack_require__) {
+
+	
+	var _ = __webpack_require__(40);
+	var Base = __webpack_require__(41);
+	
+	function ServerManager( options ){
+	  if(this instanceof ServerManager === false){ return new ServerManager(options); }
+	  Base.apply( this, arguments );
+	}
+	
+	var o =_.inherit( ServerManager, Base.prototype );
+	
+	_.extend(o , {
+	  exec: function ( path ){
+	    var found = this.decode(path);
+	    if( !found ) return;
+	    var param = found.param;
+	    var states = [];
+	    var state = found.state;
+	    this.current = state;
+	
+	    while(state && !state.root){
+	      states.unshift( state );
+	      state = state.parent;
+	    }
+	
+	    return {
+	      states: states,
+	      param: param
+	    }
+	  }
+	})
+	
+	
+	module.exports = ServerManager
+
+/***/ },
+/* 40 */
+/***/ function(module, exports) {
+
+	var _ = module.exports = {};
+	var slice = [].slice, o2str = ({}).toString;
+	
+	// merge o2's properties to Object o1. 
+	_.extend = function(o1, o2, override){
+	  for(var i in o2) if(override || o1[i] === undefined){
+	    o1[i] = o2[i];
+	  }
+	  return o1;
+	};
+	
+	_.values = function( o){
+	  var keys = [];
+	  for(var i in o) if( o.hasOwnProperty(i) ){
+	    keys.push( o[i] );
+	  }
+	  return keys;
+	};
+	
+	_.inherit = function( cstor, o ){
+	  function Faker(){}
+	  Faker.prototype = o;
+	  cstor.prototype = new Faker();
+	  cstor.prototype.constructor = cstor;
+	  return o;
+	}
+	
+	_.slice = function(arr, index){
+	  return slice.call(arr, index);
+	};
+	
+	_.typeOf = function typeOf (o) {
+	  return o == null ? String(o) : o2str.call(o).slice(8, -1).toLowerCase();
+	};
+	
+	//strict eql
+	_.eql = function(o1, o2){
+	  var t1 = _.typeOf(o1), t2 = _.typeOf(o2);
+	  if( t1 !== t2) return false;
+	  if(t1 === 'object'){
+	    // only check the first's properties
+	    for(var i in o1){
+	      // Immediately return if a mismatch is found.
+	      if( o1[i] !== o2[i] ) return false;
+	    }
+	    return true;
+	  }
+	  return o1 === o2;
+	};
+	
+	// small emitter 
+	_.emitable = (function(){
+	  function norm(ev){
+	    var eventAndNamespace = (ev||'').split(':');
+	    return {event: eventAndNamespace[0], namespace: eventAndNamespace[1]};
+	  }
+	  var API = {
+	    once: function(event, fn){
+	      var callback = function(){
+	        fn.apply(this, arguments);
+	        this.off(event, callback);
+	      };
+	      return this.on(event, callback);
+	    },
+	    on: function(event, fn) {
+	      if(typeof event === 'object'){
+	        for (var i in event) {
+	          this.on(i, event[i]);
+	        }
+	        return this;
+	      }
+	      var ne = norm(event);
+	      event=ne.event;
+	      if(event && typeof fn === 'function' ){
+	        var handles = this._handles || (this._handles = {}),
+	          calls = handles[event] || (handles[event] = []);
+	        fn._ns = ne.namespace;
+	        calls.push(fn);
+	      }
+	      return this;
+	    },
+	    off: function(event, fn) {
+	      var ne = norm(event); event = ne.event;
+	      if(!event || !this._handles) this._handles = {};
+	
+	      var handles = this._handles;
+	      var calls = handles[event];
+	
+	      if (calls) {
+	        if (!fn && !ne.namespace) {
+	          handles[event] = [];
+	        }else{
+	          for (var i = 0, len = calls.length; i < len; i++) {
+	            if ( (!fn || fn === calls[i]) && (!ne.namespace || calls[i]._ns === ne.namespace) ) {
+	              calls.splice(i, 1);
+	              return this;
+	            }
+	          }
+	        }
+	      }
+	
+	      return this;
+	    },
+	    emit: function(event){
+	      var ne = norm(event); event = ne.event;
+	
+	      var args = _.slice(arguments, 1),
+	        handles = this._handles, calls;
+	
+	      if (!handles || !(calls = handles[event])) return this;
+	      for (var i = 0, len = calls.length; i < len; i++) {
+	        var fn = calls[i];
+	        if( !ne.namespace || fn._ns === ne.namespace ) fn.apply(this, args);
+	      }
+	      return this;
+	    }
+	  };
+	  return function(obj){
+	      obj = typeof obj == "function" ? obj.prototype : obj;
+	      return _.extend(obj, API);
+	  };
+	})();
+	
+	_.bind = function(fn, context){
+	  return function(){
+	    return fn.apply(context, arguments);
+	  };
+	};
+	
+	var rDbSlash = /\/+/g, // double slash
+	  rEndSlash = /\/$/;    // end slash
+	
+	_.cleanPath = function (path){
+	  return ("/" + path).replace( rDbSlash,"/" ).replace( rEndSlash, "" ) || "/";
+	};
+	
+	// normalize the path
+	function normalizePath(path) {
+	  // means is from 
+	  // (?:\:([\w-]+))?(?:\(([^\/]+?)\))|(\*{2,})|(\*(?!\*)))/g
+	  var preIndex = 0;
+	  var keys = [];
+	  var index = 0;
+	  var matches = "";
+	
+	  path = _.cleanPath(path);
+	
+	  var regStr = path
+	    //  :id(capture)? | (capture)   |  ** | * 
+	    .replace(/\:([\w-]+)(?:\(([^\/]+?)\))?|(?:\(([^\/]+)\))|(\*{2,})|(\*(?!\*))/g, 
+	      function(all, key, keyformat, capture, mwild, swild, startAt) {
+	        // move the uncaptured fragment in the path
+	        if(startAt > preIndex) matches += path.slice(preIndex, startAt);
+	        preIndex = startAt + all.length;
+	        if( key ){
+	          matches += "(" + key + ")";
+	          keys.push(key);
+	          return "("+( keyformat || "[\\w-]+")+")";
+	        }
+	        matches += "(" + index + ")";
+	
+	        keys.push( index++ );
+	
+	        if( capture ){
+	           // sub capture detect
+	          return "(" + capture +  ")";
+	        } 
+	        if(mwild) return "(.*)";
+	        if(swild) return "([^\\/]*)";
+	    });
+	
+	  if(preIndex !== path.length) matches += path.slice(preIndex);
+	
+	  return {
+	    regexp: new RegExp("^" + regStr +"/?$"),
+	    keys: keys,
+	    matches: matches || path
+	  };
+	}
+	
+	_.log = function(msg, type){
+	  typeof console !== "undefined" && console[type || "log"](msg); //eslint-disable-line no-console
+	};
+	
+	_.isPromise = function( obj ){
+	
+	  return !!obj && (typeof obj === 'object' || typeof obj === 'function') && typeof obj.then === 'function';
+	
+	};
+	
+	_.normalize = normalizePath;
+
+
+/***/ },
+/* 41 */
+/***/ function(module, exports, __webpack_require__) {
+
+	
+	var State = __webpack_require__(42),
+	  _ = __webpack_require__(40),
+	  stateFn = State.prototype.state;
+	
+	function BaseMan( options ){
+	
+	  options = options || {};
+	
+	  this._states = {};
+	
+	  this.strict = options.strict;
+	  this.title = options.title;
+	
+	  if(options.routes) this.state(options.routes);
+	
+	}
+	
+	_.extend( _.emitable( BaseMan ), {
+	    // keep blank
+	    name: '',
+	
+	    root: true,
+	
+	
+	    state: function(stateName){
+	
+	      var active = this.active;
+	      var args = _.slice(arguments, 1);
+	
+	      if(typeof stateName === "string" && active){
+	         stateName = stateName.replace("~", active.name);
+	         if(active.parent) stateName = stateName.replace("^", active.parent.name || "");
+	      }
+	      // ^ represent current.parent
+	      // ~ represent  current
+	      // only 
+	      args.unshift(stateName);
+	      return stateFn.apply(this, args);
+	
+	    },
+	
+	    decode: function(path, needLocation){
+	
+	      var pathAndQuery = path.split("?");
+	      var query = this._findQuery(pathAndQuery[1]);
+	      path = pathAndQuery[0];
+	      var found = this._findState(this, path);
+	      if(found) _.extend(found.param, query);
+	      return found;
+	
+	    },
+	    encode: function(stateName, param){
+	      var state = this.state(stateName);
+	      return state? state.encode(param) : '';
+	    },
+	    // notify specify state
+	    // check the active statename whether to match the passed condition (stateName and param)
+	    is: function(stateName, param, isStrict){
+	      if(!stateName) return false;
+	      stateName = (stateName.name || stateName);
+	      var current = this.current, currentName = current.name;
+	      var matchPath = isStrict? currentName === stateName : (currentName + ".").indexOf(stateName + ".")===0;
+	      return matchPath && (!param || _.eql(param, this.param)); 
+	    },
+	
+	
+	    _wrapPromise: function( promise, next ){
+	
+	      return promise.then( next, function(){ next(false); }) ;
+	
+	    },
+	
+	    _findQuery: function(querystr){
+	
+	      var queries = querystr && querystr.split("&"), query= {};
+	      if(queries){
+	        var len = queries.length;
+	        for(var i =0; i< len; i++){
+	          var tmp = queries[i].split("=");
+	          query[tmp[0]] = tmp[1];
+	        }
+	      }
+	      return query;
+	
+	    },
+	    _findState: function(state, path){
+	      var states = state._states, found, param;
+	
+	      // leaf-state has the high priority upon branch-state
+	      if(state.hasNext){
+	
+	        var stateList = _.values( states ).sort( this._sortState );
+	        var len = stateList.length;
+	
+	        for(var i = 0; i < len; i++){
+	
+	          found = this._findState( stateList[i], path );
+	          if( found ) return found;
+	        }
+	
+	      }
+	      // in strict mode only leaf can be touched
+	      // if all children is don. will try it self
+	      param = state.regexp && state.decode(path);
+	      if(param){
+	        return {
+	          state: state,
+	          param: param
+	        }
+	      }else{
+	        return false;
+	      }
+	    },
+	    _sortState: function( a, b ){
+	      return ( b.priority || 0 ) - ( a.priority || 0 );
+	    },
+	    // find the same branch;
+	    _findBase: function(now, before){
+	
+	      if(!now || !before || now == this || before == this) return this;
+	      var np = now, bp = before, tmp;
+	      while(np && bp){
+	        tmp = bp;
+	        while(tmp){
+	          if(np === tmp) return tmp;
+	          tmp = tmp.parent;
+	        }
+	        np = np.parent;
+	      }
+	    },
+	
+	}, true);
+	
+	module.exports = BaseMan;
+	
+
+
+/***/ },
 /* 42 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var _ = __webpack_require__(40);
+	
+	function State(option){
+	  this._states = {};
+	  this._pending = false;
+	  this.visited = false;
+	  if(option) this.config(option);
+	}
+	
+	//regexp cache
+	State.rCache = {};
+	
+	_.extend( _.emitable( State ), {
+	
+	  getTitle: function(options){
+	    var cur = this ,title;
+	    while( cur ){
+	      title = cur.title;
+	      if(title) return typeof title === 'function'? cur.title(options): cur.title
+	      cur = cur.parent;
+	    }
+	    return title;
+	  },
+	
+	
+	  state: function(stateName, config){
+	    if(_.typeOf(stateName) === "object"){
+	      for(var j in stateName){
+	        this.state(j, stateName[j]);
+	      }
+	      return this;
+	    }
+	    var current = this, next, nextName, states = this._states, i=0;
+	
+	    if( typeof stateName === "string" ) stateName = stateName.split(".");
+	
+	    var slen = stateName.length;
+	    var stack = [];
+	
+	    do{
+	      nextName = stateName[i];
+	      next = states[nextName];
+	      stack.push(nextName);
+	      if(!next){
+	        if(!config) return;
+	        next = states[nextName] = new State();
+	        _.extend(next, {
+	          parent: current,
+	          manager: current.manager || current,
+	          name: stack.join("."),
+	          currentName: nextName
+	        });
+	        current.hasNext = true;
+	        next.configUrl();
+	      }
+	      current = next;
+	      states = next._states;
+	    }while((++i) < slen )
+	
+	    if(config){
+	       next.config(config);
+	       return this;
+	    } else {
+	      return current;
+	    }
+	  },
+	
+	  config: function(configure){
+	
+	    configure = this._getConfig(configure);
+	
+	    for(var i in configure){
+	      var prop = configure[i];
+	      switch(i){
+	        case "url":
+	          if(typeof prop === "string"){
+	            this.url = prop;
+	            this.configUrl();
+	          }
+	          break;
+	        case "events":
+	          this.on(prop);
+	          break;
+	        default:
+	          this[i] = prop;
+	      }
+	    }
+	  },
+	
+	  // children override
+	  _getConfig: function(configure){
+	    return typeof configure === "function"? {enter: configure} : configure;
+	  },
+	
+	  //from url
+	  configUrl: function(){
+	    var url = "" , base = this;
+	
+	    while( base ){
+	
+	      url = (typeof base.url === "string" ? base.url: (base.currentName || "")) + "/" + url;
+	
+	      // means absolute;
+	      if(url.indexOf("^/") === 0) {
+	        url = url.slice(1);
+	        break;
+	      }
+	      base = base.parent;
+	    }
+	    this.pattern = _.cleanPath("/" + url);
+	    var pathAndQuery = this.pattern.split("?");
+	    this.pattern = pathAndQuery[0];
+	    // some Query we need watched
+	
+	    _.extend(this, _.normalize(this.pattern), true);
+	  },
+	  encode: function(param){
+	    var state = this;
+	    param = param || {};
+	
+	    var matched = "%";
+	
+	    var url = state.matches.replace(/\(([\w-]+)\)/g, function(all, capture){
+	      var sec = param[capture] || "";
+	      matched+= capture + "%";
+	      return sec;
+	    }) + "?";
+	
+	    // remained is the query, we need concat them after url as query
+	    for(var i in param) {
+	      if( matched.indexOf("%"+i+"%") === -1) url += i + "=" + param[i] + "&";
+	    }
+	    return _.cleanPath( url.replace(/(?:\?|&)$/,"") );
+	  },
+	  decode: function( path ){
+	    var matched = this.regexp.exec(path),
+	      keys = this.keys;
+	
+	    if(matched){
+	
+	      var param = {};
+	      for(var i =0,len=keys.length;i<len;i++){
+	        param[keys[i]] = matched[i+1];
+	      }
+	      return param;
+	    }else{
+	      return false;
+	    }
+	  },
+	  // by default, all lifecycle is permitted
+	
+	  async: function(){
+	    throw new Error( 'please use option.async instead');
+	  }
+	
+	});
+	
+	module.exports = State;
+
+
+/***/ },
+/* 43 */
 /***/ function(module, exports, __webpack_require__) {
 
 	
 	
-	var stateman = __webpack_require__(43);
+	var stateman = __webpack_require__(44);
 	var _ = stateman.util;
+	
+	__webpack_require__(8);
 	
 	
 	function Client( options ){
@@ -7854,14 +7875,6 @@
 	    Component = oldConfig.view;
 	
 	
-	    Component.directive('rg-view', {
-	      link: function(element){
-	        this.$viewport = element;
-	      },
-	      ssr: function(){
-	        return 'rg-view '; 
-	      }
-	    })
 	
 	    config = {
 	      component: null,
@@ -7960,36 +7973,36 @@
 
 
 /***/ },
-/* 43 */
+/* 44 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var stateman;
 	
 	if( typeof window === 'object' ){
-	  stateman = __webpack_require__(44);
-	  stateman.History = __webpack_require__(45);
-	  stateman.util = __webpack_require__(9);
+	  stateman = __webpack_require__(45);
+	  stateman.History = __webpack_require__(46);
+	  stateman.util = __webpack_require__(40);
 	  stateman.isServer = false;
 	}else{
-	  stateman = __webpack_require__(8);
+	  stateman = __webpack_require__(39);
 	  stateman.isServer = true;
 	}
 	
 	
-	stateman.State = __webpack_require__(11);
+	stateman.State = __webpack_require__(42);
 	
 	module.exports = stateman;
 
 
 /***/ },
-/* 44 */
+/* 45 */
 /***/ function(module, exports, __webpack_require__) {
 
 	
-	var State = __webpack_require__(11),
-	  History = __webpack_require__(45),
-	  Base = __webpack_require__(10),
-	  _ = __webpack_require__(9),
+	var State = __webpack_require__(42),
+	  History = __webpack_require__(46),
+	  Base = __webpack_require__(41),
+	  _ = __webpack_require__(40),
 	  baseTitle = document.title,
 	  stateFn = State.prototype.state;
 	
@@ -8379,7 +8392,7 @@
 
 
 /***/ },
-/* 45 */
+/* 46 */
 /***/ function(module, exports, __webpack_require__) {
 
 	
@@ -8387,8 +8400,8 @@
 	// Thx Backbone.js 1.1.2  and https://github.com/cowboy/jquery-hashchange/blob/master/jquery.ba-hashchange.js
 	// for iframe patches in old ie.
 	
-	var browser = __webpack_require__(46);
-	var _ = __webpack_require__(9);
+	var browser = __webpack_require__(47);
+	var _ = __webpack_require__(40);
 	
 	
 	// the mode const
@@ -8454,7 +8467,7 @@
 	
 	    this.curPath = path;
 	
-	    this.emit("change", path, { firstTime: true });
+	    this.emit("change", path, { firstTime: true});
 	  },
 	
 	  // the history teardown
@@ -8599,7 +8612,7 @@
 
 
 /***/ },
-/* 46 */
+/* 47 */
 /***/ function(module, exports) {
 
 	var win = window,
@@ -8630,10 +8643,10 @@
 
 
 /***/ },
-/* 47 */
+/* 48 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var Regular = __webpack_require__(12);
+	var Regular = __webpack_require__(9);
 	module.exports = {
 	  "blog": {
 	    dataProvider: {
@@ -8695,12 +8708,12 @@
 	}
 
 /***/ },
-/* 48 */
+/* 49 */
 /***/ function(module, exports, __webpack_require__) {
 
 	
-	var restate = __webpack_require__(49);
-	var Regular = __webpack_require__(12);
+	var restate = __webpack_require__(50);
+	var Regular = __webpack_require__(9);
 	
 	
 	describe("Simple Test", function(){
@@ -8711,16 +8724,16 @@
 	})
 
 /***/ },
-/* 49 */
+/* 50 */
 /***/ function(module, exports, __webpack_require__) {
 
 	
-	var Regular = __webpack_require__(12);
+	var Regular = __webpack_require__(9);
 	
 	if( Regular.isServer ){
 	  module.exports = __webpack_require__(7);
 	}else{
-	  module.exports = __webpack_require__(42);
+	  module.exports = __webpack_require__(43);
 	}
 
 

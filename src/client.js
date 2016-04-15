@@ -3,6 +3,8 @@
 var stateman = require('stateman');
 var _ = stateman.util;
 
+require('./base');
+
 
 function Client( options ){
   if( !(this instanceof Client)) return new Client(options)
@@ -26,14 +28,6 @@ so.state = function(name, config){
     Component = oldConfig.view;
 
 
-    Component.directive('rg-view', {
-      link: function(element){
-        this.$viewport = element;
-      },
-      ssr: function(){
-        return 'rg-view '; 
-      }
-    })
 
     config = {
       component: null,

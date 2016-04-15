@@ -60,7 +60,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	if( Regular.isServer ){
 	  module.exports = __webpack_require__(32);
 	}else{
-	  module.exports = __webpack_require__(37);
+	  module.exports = __webpack_require__(38);
 	}
 
 
@@ -6128,7 +6128,8 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	
 
-	var stateman = __webpack_require__(33);
+	__webpack_require__(33);
+	var stateman = __webpack_require__(34);
 	var Regular = __webpack_require__(1);
 	var SSR = __webpack_require__(31);
 	var global = typeof window !== 'undefined'? window: global;
@@ -6244,9 +6245,27 @@ return /******/ (function(modules) { // webpackBootstrap
 /* 33 */
 /***/ function(module, exports, __webpack_require__) {
 
+	var Regular = __webpack_require__(1);
+
+
+	Regular.directive('rg-view', {
+	  link: function(element){
+	    this.$viewport = element;
+	  },
+	  ssr: function(){
+	    return 'rg-view '; 
+	  }
+	})
+
+
+
+/***/ },
+/* 34 */
+/***/ function(module, exports, __webpack_require__) {
+
 	
-	var _ = __webpack_require__(34);
-	var Base = __webpack_require__(35);
+	var _ = __webpack_require__(35);
+	var Base = __webpack_require__(36);
 
 	function ServerManager( options ){
 	  if(this instanceof ServerManager === false){ return new ServerManager(options); }
@@ -6280,7 +6299,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = ServerManager
 
 /***/ },
-/* 34 */
+/* 35 */
 /***/ function(module, exports) {
 
 	var _ = module.exports = {};
@@ -6477,12 +6496,12 @@ return /******/ (function(modules) { // webpackBootstrap
 
 
 /***/ },
-/* 35 */
+/* 36 */
 /***/ function(module, exports, __webpack_require__) {
 
 	
-	var State = __webpack_require__(36),
-	  _ = __webpack_require__(34),
+	var State = __webpack_require__(37),
+	  _ = __webpack_require__(35),
 	  stateFn = State.prototype.state;
 
 	function BaseMan( options ){
@@ -6619,10 +6638,10 @@ return /******/ (function(modules) { // webpackBootstrap
 
 
 /***/ },
-/* 36 */
+/* 37 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var _ = __webpack_require__(34);
+	var _ = __webpack_require__(35);
 
 	function State(option){
 	  this._states = {};
@@ -6783,13 +6802,15 @@ return /******/ (function(modules) { // webpackBootstrap
 
 
 /***/ },
-/* 37 */
+/* 38 */
 /***/ function(module, exports, __webpack_require__) {
 
 	
 
-	var stateman = __webpack_require__(38);
+	var stateman = __webpack_require__(39);
 	var _ = stateman.util;
+
+	__webpack_require__(33);
 
 
 	function Client( options ){
@@ -6814,14 +6835,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	    Component = oldConfig.view;
 
 
-	    Component.directive('rg-view', {
-	      link: function(element){
-	        this.$viewport = element;
-	      },
-	      ssr: function(){
-	        return 'rg-view '; 
-	      }
-	    })
 
 	    config = {
 	      component: null,
@@ -6920,36 +6933,36 @@ return /******/ (function(modules) { // webpackBootstrap
 
 
 /***/ },
-/* 38 */
+/* 39 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var stateman;
 
 	if( typeof window === 'object' ){
-	  stateman = __webpack_require__(39);
-	  stateman.History = __webpack_require__(40);
-	  stateman.util = __webpack_require__(34);
+	  stateman = __webpack_require__(40);
+	  stateman.History = __webpack_require__(41);
+	  stateman.util = __webpack_require__(35);
 	  stateman.isServer = false;
 	}else{
-	  stateman = __webpack_require__(33);
+	  stateman = __webpack_require__(34);
 	  stateman.isServer = true;
 	}
 
 
-	stateman.State = __webpack_require__(36);
+	stateman.State = __webpack_require__(37);
 
 	module.exports = stateman;
 
 
 /***/ },
-/* 39 */
+/* 40 */
 /***/ function(module, exports, __webpack_require__) {
 
 	
-	var State = __webpack_require__(36),
-	  History = __webpack_require__(40),
-	  Base = __webpack_require__(35),
-	  _ = __webpack_require__(34),
+	var State = __webpack_require__(37),
+	  History = __webpack_require__(41),
+	  Base = __webpack_require__(36),
+	  _ = __webpack_require__(35),
 	  baseTitle = document.title,
 	  stateFn = State.prototype.state;
 
@@ -7339,7 +7352,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 
 /***/ },
-/* 40 */
+/* 41 */
 /***/ function(module, exports, __webpack_require__) {
 
 	
@@ -7347,8 +7360,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	// Thx Backbone.js 1.1.2  and https://github.com/cowboy/jquery-hashchange/blob/master/jquery.ba-hashchange.js
 	// for iframe patches in old ie.
 
-	var browser = __webpack_require__(41);
-	var _ = __webpack_require__(34);
+	var browser = __webpack_require__(42);
+	var _ = __webpack_require__(35);
 
 
 	// the mode const
@@ -7414,7 +7427,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	    this.curPath = path;
 
-	    this.emit("change", path, { firstTime: true });
+	    this.emit("change", path, { firstTime: true});
 	  },
 
 	  // the history teardown
@@ -7559,7 +7572,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 
 /***/ },
-/* 41 */
+/* 42 */
 /***/ function(module, exports) {
 
 	var win = window,
