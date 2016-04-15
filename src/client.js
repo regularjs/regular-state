@@ -62,7 +62,7 @@ so.state = function(name, config){
               component = self.component = new Component({
                 mountNode: mountNode,
                 data: data,
-                $state: self,
+                $state: manager,
                 $stateName: name
               })
 
