@@ -8,7 +8,7 @@
     "state",
     "spa"
   ],
-  "main": "restate.js",
+  "main": "src/index.js",
   "repository": {
     "type": "git",
     "url": "git@github.com:regularjs/regular-state"

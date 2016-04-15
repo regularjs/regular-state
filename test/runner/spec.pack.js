@@ -1255,11 +1255,11 @@
 	
 	so.run = function(path){
 	  var executed = this.exec(path);
-	  var param = executed.param;
 	  var self = this;
 	  if(!executed){
 	    return Promise.reject();
 	  }else{
+	    var param = executed.param;
 	    var promises = executed.states.map(function(state){
 	      var Component = state.view;
 	      return new Promise(function( resolve, reject ){
@@ -1889,6 +1889,7 @@
 	  var ast = new Parser(str).parse();
 	  return !options.stringify? ast : JSON.stringify(ast);
 	}
+	Regular.Cursor =__webpack_require__(31) 
 	
 	Regular.renderToString = __webpack_require__(41).render;
 	
@@ -7770,7 +7771,7 @@
 	ssr.attr = function(attr){
 	
 	  var name = attr.name, 
-	    value = attr.value ,
+	    value = attr.value || "",
 	    Component = this.Component,
 	    directive = Component.directive(name);
 	
@@ -7785,9 +7786,7 @@
 	  }else{
 	    // @TODO 对于boolean 值
 	    if(_.isExpr(value)) value = this.get(value); 
-	
 	    if(_.isBooleanAttr(name) || value == undefined){
-	
 	      return name + " ";
 	    }else{
 	      return name + '="' + value + '" ';

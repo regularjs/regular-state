@@ -48,11 +48,11 @@ so._normPromise = function(ret){
 
 so.run = function(path){
   var executed = this.exec(path);
-  var param = executed.param;
   var self = this;
   if(!executed){
     return Promise.reject();
   }else{
+    var param = executed.param;
     var promises = executed.states.map(function(state){
       var Component = state.view;
       return new Promise(function( resolve, reject ){
