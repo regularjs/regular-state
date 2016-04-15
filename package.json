@@ -30,6 +30,7 @@
   },
   "devDependencies": {
     "browserify-istanbul": "^0.2.1",
+    "stateman": "leeluolee/stateman#ssr",
     "es6-promise": "^3.1.2",
     "expect.js": "^0.3.1",
     "gulp": "^3.8.10",
