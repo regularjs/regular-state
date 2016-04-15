@@ -60,8 +60,9 @@ so.run = function(path){
         return self.install({
           state: state,
           param: param
+
         }).then(function( data ){
-          var html = SSR.render( Component, {data: data } )
+          var html = SSR.render( Component, {data: data, $state: self } )
           resolve( {
             name: state.name,
             html: html,
