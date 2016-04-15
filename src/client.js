@@ -46,7 +46,7 @@ so.state = function(name, config){
         return new Promise(function(resolve, reject){
           manager.install({
             ssr: ssr,
-            state: self,
+            state: manager,
             param: option.param
           }).then(function(data){
             if(parent.component){
