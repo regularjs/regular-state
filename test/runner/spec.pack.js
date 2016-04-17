@@ -58,6 +58,8 @@
 	var Regular = __webpack_require__(9);
 	var blogConfig = __webpack_require__(48).blog;
 	var manager = server(blogConfig);
+	var extend = Regular.util.extend;
+	var localPathname = location.pathname;
 	
 	
 	describe("Simple Test", function(){
@@ -69,7 +71,7 @@
 	    manager.run('/blog/1/detail?rid=3').then(function(arg){
 	      container.innerHTML = arg.html
 	      expect(container.firstElementChild.tagName.toLowerCase()).to.equal('div')
-	      history.pushState({}, '标题', '/blog/1/detail?rid=3')
+	      history.replaceState({}, '标题', '/blog/1/detail?rid=3')
 	      blogConfig.view = container;
 	      blogConfig.ssr = true;
 	      client(blogConfig)
@@ -91,7 +93,7 @@
 	    manager.run('/blog/1/detail?rid=3').then(function(arg){
 	      container.innerHTML = arg.html
 	      expect(container.firstElementChild.tagName.toLowerCase()).to.equal('div')
-	      history.pushState({}, '标题', '/blog/1/detail?rid=3')
+	      history.replaceState({}, '标题', '/blog/1/detail?rid=3')
 	      var myConfig = Regular.util.extend({
 	        view:container,
 	        ssr: true,
@@ -110,6 +112,32 @@
 	    }).catch(function(err){
 	      throw err;
 	    })
+	
+	  })
+	
+	  it("navigate should destory ", function( done){
+	    var container = document.createElement('div');
+	    var myConfig = extend({
+	      view: container,
+	      ssr:false
+	    }, blogConfig)
+	
+	      history.replaceState({}, '标题', '/blog/1/detail?rid=3')
+	    var clientManager = client(myConfig)
+	      .start({ html5: true })
+	
+	    setTimeout(function(){
+	    clientManager.nav('/index', function(){
+	      expect(container.querySelector('.hook')).to.equal(null)
+	      expect(container.querySelector('h2').innerHTML).to.equal('Hello Index')
+	      clientManager.nav('/blog/1/detail', function(){
+	        expect(container.querySelector('.hook').innerHTML).to.equal('修改后的title')
+	        expect(container.querySelectorAll('h2').length).to.equal(1)
+	        done();
+	      })
+	    })
+	    },0)
+	
 	
 	  })
 	})
@@ -1212,8 +1240,6 @@
 	var Regular = __webpack_require__(9);
 	var SSR = __webpack_require__(38);
 	var global = typeof window !== 'undefined'? window: global;
-	
-	
 	
 	
 	
@@ -7882,7 +7908,7 @@
 	        var component = this.component;
 	        var parent = this.parent, view;
 	        var self = this;
-	        var noComponent = !component || component.isDestroy();
+	        var noComponent = !component || component.$phase === 'destroyed';
 	        var ssr = option.ssr = option.firstTime && manager.ssr;
 	        return new Promise(function(resolve, reject){
 	          manager.install({
@@ -7923,10 +7949,35 @@
 	          })
 	        })
 	      },
-	      update: function(){
+	      update: function( option ){
+	
+	        var component = this.component;
+	        if(!component) return;
+	
+	        manager.install({
+	          state: self,
+	          param: option.param
+	        }).then(function(data){
+	
+	          _.extend( component.data, data , true )
+	          
+	          return component.update && component.update(option);
+	
+	        }).then(function(){
+	          component.$update();
+	        })
 	
 	      },
-	      leave: function(){
+	      leave: function( option ){
+	        var component = this.component;
+	        if(!component) return;
+	
+	        var result = component.leave && component.leave(option);
+	
+	        component.$inject(false);
+	        component.$mute(true);
+	
+	        return result;
 	
 	      }
 	    }
@@ -8658,7 +8709,7 @@
 	      },
 	      "app.blog": function(){
 	        return {
-	          title: 'Hello Blog'
+	          title: 'Hello Blog',
 	        }
 	      },
 	      "app.blog.detail": function(){
@@ -8678,7 +8729,7 @@
 	        view: Regular.extend({
 	          template: 
 	            '<div>\
-	              <h2>{title}</h2>\
+	              <h2 class="index">{title}</h2>\
 	              <div rg-view ></div>\
 	            </div>'
 	        })
@@ -8730,11 +8781,13 @@
 	
 	var Regular = __webpack_require__(9);
 	
+	
 	if( Regular.isServer ){
 	  module.exports = __webpack_require__(7);
 	}else{
 	  module.exports = __webpack_require__(43);
 	}
+	
 
 
 /***/ }

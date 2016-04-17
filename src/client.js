@@ -35,7 +35,7 @@ so.state = function(name, config){
         var component = this.component;
         var parent = this.parent, view;
         var self = this;
-        var noComponent = !component || component.isDestroy();
+        var noComponent = !component || component.$phase === 'destroyed';
         var ssr = option.ssr = option.firstTime && manager.ssr;
         return new Promise(function(resolve, reject){
           manager.install({
@@ -76,10 +76,35 @@ so.state = function(name, config){
           })
         })
       },
-      update: function(){
+      update: function( option ){
+
+        var component = this.component;
+        if(!component) return;
+
+        manager.install({
+          state: self,
+          param: option.param
+        }).then(function(data){
+
+          _.extend( component.data, data , true )
+          
+          return component.update && component.update(option);
+
+        }).then(function(){
+          component.$update();
+        })
 
       },
-      leave: function(){
+      leave: function( option ){
+        var component = this.component;
+        if(!component) return;
+
+        var result = component.leave && component.leave(option);
+
+        component.$inject(false);
+        component.$mute(true);
+
+        return result;
 
       }
     }

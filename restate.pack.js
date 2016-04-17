@@ -57,11 +57,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	
 	var Regular = __webpack_require__(1);
 
+
 	if( Regular.isServer ){
 	  module.exports = __webpack_require__(32);
 	}else{
 	  module.exports = __webpack_require__(38);
 	}
+
 
 
 /***/ },
@@ -6136,8 +6138,6 @@ return /******/ (function(modules) { // webpackBootstrap
 
 
 
-
-
 	function isPromise(obj){
 	  return !!obj && (typeof obj === 'object' || typeof obj === 'function') && typeof obj.then === 'function';
 	}
@@ -6842,7 +6842,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        var component = this.component;
 	        var parent = this.parent, view;
 	        var self = this;
-	        var noComponent = !component || component.isDestroy();
+	        var noComponent = !component || component.$phase === 'destroyed';
 	        var ssr = option.ssr = option.firstTime && manager.ssr;
 	        return new Promise(function(resolve, reject){
 	          manager.install({
@@ -6883,10 +6883,35 @@ return /******/ (function(modules) { // webpackBootstrap
 	          })
 	        })
 	      },
-	      update: function(){
+	      update: function( option ){
+
+	        var component = this.component;
+	        if(!component) return;
+
+	        manager.install({
+	          state: self,
+	          param: option.param
+	        }).then(function(data){
+
+	          _.extend( component.data, data , true )
+	          
+	          return component.update && component.update(option);
+
+	        }).then(function(){
+	          component.$update();
+	        })
 
 	      },
-	      leave: function(){
+	      leave: function( option ){
+	        var component = this.component;
+	        if(!component) return;
+
+	        var result = component.leave && component.leave(option);
+
+	        component.$inject(false);
+	        component.$mute(true);
+
+	        return result;
 
 	      }
 	    }

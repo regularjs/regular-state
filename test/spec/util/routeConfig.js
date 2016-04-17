@@ -10,7 +10,7 @@ module.exports = {
       },
       "app.blog": function(){
         return {
-          title: 'Hello Blog'
+          title: 'Hello Blog',
         }
       },
       "app.blog.detail": function(){
@@ -30,7 +30,7 @@ module.exports = {
         view: Regular.extend({
           template: 
             '<div>\
-              <h2>{title}</h2>\
+              <h2 class="index">{title}</h2>\
               <div rg-view ></div>\
             </div>'
         })
