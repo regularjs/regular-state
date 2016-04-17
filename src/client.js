@@ -73,6 +73,9 @@ so.state = function(name, config){
             })
 
             resolve(result)
+          }).catch(function(err){
+            console.log(err)
+            throw err
           })
         })
       },
@@ -82,7 +85,7 @@ so.state = function(name, config){
         if(!component) return;
 
         manager.install({
-          state: self,
+          state: this,
           param: option.param
         }).then(function(data){
 

@@ -6880,6 +6880,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	            })
 
 	            resolve(result)
+	          }).catch(function(err){
+	            console.log(err)
+	            throw err
 	          })
 	        })
 	      },
@@ -6889,7 +6892,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        if(!component) return;
 
 	        manager.install({
-	          state: self,
+	          state: this,
 	          param: option.param
 	        }).then(function(data){
 
