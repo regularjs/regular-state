@@ -1,0 +1,31 @@
+<div id="app"></div>
+
+<script id="hello" type="text/regular" name="hello">
+
+{#if username}
+  Hello, {username}. <a href="javascript:;" on-click={username = ''}>Logout</a>
+{#else}
+  Sorry, Guest. Please <a href="javascript:;" on-click={this.login()}>Login</a>
+{/if}
+
+</script>
+
+<!-- 引入regular.js -->
+<script src="https://rawgit.com/regularjs/regular/master/dist/regular.js"></script>
+
+
+<script>
+//利用Regular构建你的app吧
+var HelloRegular = Regular.extend({
+  template: '#hello',
+  login: function(){
+    var data = this.data; // get data
+    data.username = prompt("please enter your username", "")
+  }
+});
+// initialize component then $inject to #app's  bottom
+var component = new HelloRegular({
+  data: {username: undefined}
+});
+component.$inject('#app'); 
+</script>

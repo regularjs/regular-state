@@ -31,7 +31,7 @@ so.install = function( option ){
   }
   if(type === 'object'){
     var dataProvider = this.dataProvider[state.name];
-    ret = dataProvider && dataProvider(option);
+    ret = dataProvider && dataProvider.call(this,option);
   }
   ret =  this._normPromise(ret)
   return ret;
@@ -45,7 +45,8 @@ so._normPromise = function(ret){
   }
 }
 
-so.run = function(path){
+so.run = function(path, option){
+  option = option || {};
   var executed = this.exec(path);
   var self = this;
   if(!executed){
@@ -58,7 +59,8 @@ so.run = function(path){
 
         return self.install({
           state: state,
-          param: param
+          param: param,
+          extra: option.extra
 
         }).then(function( data ){
           var html = SSR.render( Component, {data: data, $state: self } )

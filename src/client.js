@@ -128,7 +128,7 @@ so.install = function(option){
   }
   if(type === 'object'){
     var dataProvider = this.dataProvider[state.name];
-    ret = dataProvider && dataProvider( option );
+    ret = dataProvider && dataProvider.call(this, option );
   }
   ret =  this._normPromise(ret)
   return ret;
