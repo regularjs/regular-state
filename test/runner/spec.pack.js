@@ -1240,6 +1240,7 @@
 	var Regular = __webpack_require__(9);
 	var SSR = __webpack_require__(38);
 	var global = typeof window !== 'undefined'? window: global;
+	var extend = Regular.util.extend;
 	
 	
 	
@@ -1266,7 +1267,7 @@
 	  }
 	  if(type === 'object'){
 	    var dataProvider = this.dataProvider[state.name];
-	    ret = dataProvider && dataProvider(option);
+	    ret = dataProvider && dataProvider.call(this,option);
 	  }
 	  ret =  this._normPromise(ret)
 	  return ret;
@@ -1280,7 +1281,8 @@
 	  }
 	}
 	
-	so.run = function(path){
+	so.run = function(path, option){
+	  option = option || {};
 	  var executed = this.exec(path);
 	  var self = this;
 	  if(!executed){
@@ -1293,10 +1295,12 @@
 	
 	        return self.install({
 	          state: state,
-	          param: param
+	          param: param,
+	          extra: option.extra
 	
 	        }).then(function( data ){
-	          var html = SSR.render( Component, {data: data, $state: self } )
+	          var componentData = extend({}, data);
+	          var html = SSR.render( Component, {data: componentData, $state: self } )
 	          resolve( {
 	            name: state.name,
 	            html: html,
@@ -1353,12 +1357,23 @@
 	var Regular = __webpack_require__(9);
 	
 	
-	Regular.directive('rg-view', {
-	  link: function(element){
-	    this.$viewport = element;
+	
+	Regular.directive({
+	  'rg-view': {
+	    link: function(element){
+	      this.$viewport = element;
+	    },
+	    ssr: function(){
+	      return 'rg-view '; 
+	    }
 	  },
-	  ssr: function(){
-	    return 'rg-view '; 
+	  'rg-link': {
+	    link: function(element){
+	
+	    },
+	    ssr: function(){
+	
+	    }
 	  }
 	})
 	
@@ -8001,7 +8016,7 @@
 	  }
 	  if(type === 'object'){
 	    var dataProvider = this.dataProvider[state.name];
-	    ret = dataProvider && dataProvider( option );
+	    ret = dataProvider && dataProvider.call(this, option );
 	  }
 	  ret =  this._normPromise(ret)
 	  return ret;

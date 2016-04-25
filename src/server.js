@@ -5,6 +5,7 @@ var stateman = require('stateman/src/manager/server');
 var Regular = require('regularjs');
 var SSR = require('regularjs/src/render/server.js');
 var global = typeof window !== 'undefined'? window: global;
+var extend = Regular.util.extend;
 
 
 
@@ -63,7 +64,7 @@ so.run = function(path, option){
           extra: option.extra
 
         }).then(function( data ){
-          var componentData = _.extend({}, data);
+          var componentData = extend({}, data);
           var html = SSR.render( Component, {data: componentData, $state: self } )
           resolve( {
             name: state.name,
