@@ -63,7 +63,8 @@ so.run = function(path, option){
           extra: option.extra
 
         }).then(function( data ){
-          var html = SSR.render( Component, {data: data, $state: self } )
+          var componentData = _.extend({}, data);
+          var html = SSR.render( Component, {data: componentData, $state: self } )
           resolve( {
             name: state.name,
             html: html,
