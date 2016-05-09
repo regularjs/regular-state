@@ -37,11 +37,13 @@ so.state = function(name, config){
         var self = this;
         var noComponent = !component || component.$phase === 'destroyed';
         var ssr = option.ssr = option.firstTime && manager.ssr;
+
         return new Promise(function(resolve, reject){
           manager.install({
             ssr: ssr,
             state: self,
-            param: option.param
+            param: option.param,
+            data: component && component.data
           }).then(function(data){
             if(parent.component){
               view = parent.component.$viewport;
@@ -61,7 +63,7 @@ so.state = function(name, config){
               })
 
             }else{
-              _.extend(component.data, data, true)
+              _.extend( component.data, data, true)
             }
 
             if(!mountNode) component.$inject(view);
