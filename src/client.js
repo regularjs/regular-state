@@ -43,7 +43,7 @@ so.state = function(name, config){
             ssr: ssr,
             state: self,
             param: option.param,
-            data: component && component.data
+            component: component
           }).then(function(data){
             if(parent.component){
               view = parent.component.$viewport;
@@ -87,6 +87,7 @@ so.state = function(name, config){
         if(!component) return;
 
         manager.install({
+          component: component,
           state: this,
           param: option.param
         }).then(function(data){
