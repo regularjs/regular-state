@@ -1,19 +1,12 @@
+var Regular = require('regularjs');
+var Stateman = require('stateman');
+var _ = require('./util');
 
+var createRestate = require('./base');
 
-var stateman = require('stateman');
-var _ = stateman.util;
+var Restate = createRestate( Stateman );
+var so = Restate.prototype;
 
-require('./base');
-
-
-function Client( options ){
-  if( !(this instanceof Client)) return new Client(options)
-  _.extend(this, options);
-  stateman.call(this, options);
-}
-
-
-var so = Client.prototype =  Object.create(stateman.prototype) 
 
 var oldStateFn = so.state;
 
@@ -22,12 +15,9 @@ so.state = function(name, config){
   var oldConfig, Component;
   var globalView = this.view;
   if( typeof name === 'string'){
-
     if(!config) return oldStateFn.call(this, name)
     oldConfig = config;
     Component = oldConfig.view;
-
-
 
     config = {
       component: null,
@@ -38,48 +28,48 @@ so.state = function(name, config){
         var noComponent = !component || component.$phase === 'destroyed';
         var ssr = option.ssr = option.firstTime && manager.ssr;
 
-        return new Promise(function(resolve, reject){
-          manager.install({
-            ssr: ssr,
-            state: self,
-            param: option.param,
-            component: component
-          }).then(function(data){
-            if(parent.component){
-              view = parent.component.$viewport;
-              if(!view) throw self.parent.name + " should have a element with [rg-view]";
-            }else{
-              view = globalView;
-            }
+        var installOption = {
+          state: this,
+          ssr: ssr,
+          param: option.param,
+          component: component
+        }
 
-            if( noComponent ){
-              // 这里需要给出提示
-              var mountNode = ssr && view;
-              component = self.component = new Component({
-                mountNode: mountNode,
-                data: data,
-                $state: manager,
-                $stateName: name
-              })
+        return manager.install( installOption ).then( function( installed ){
 
-            }else{
-              _.extend( component.data, data, true)
-            }
+          Component = installed.Component;
+          if(parent.component){
+            view = parent.component.$viewport;
+            if(!view) throw self.parent.name + " should have a element with [rg-view]";
+          }else{
+            view = globalView;
+          }
 
-            if(!mountNode) component.$inject(view);
-
-            var result = component.enter && component.enter(option);
-
-            component.$update(function(){
-              component.$mute(false);
+          if( noComponent ){
+            // 这里需要给出提示
+            var mountNode = ssr && view;
+            component = self.component = new Component({
+              mountNode: mountNode,
+              data: _.extend({}, installed.data),
+              $state: manager
             })
+          }else{
+            _.extend( component.data, installed.data, true)
+          }
 
-            resolve(result)
-          }).catch(function(err){
-            console.log(err)
-            throw err
+          if( !mountNode ) component.$inject(view);
+
+          var result = component.enter && component.enter(option);
+
+          component.$update(function(){
+            component.$mute(false);
           })
+
+          return result;
         })
+
+
+      
       },
       update: function( option ){
 
@@ -124,33 +114,7 @@ so.state = function(name, config){
   }
 }
 
-so.install = function(option){
-  var type = typeof  this.dataProvider, ret, state = option.state; 
-  if( type === 'function' ){
-    ret = this.dataProvider( option );
-  }
-  if(type === 'object'){
-    var dataProvider = this.dataProvider[state.name];
-    ret = dataProvider && dataProvider.call(this, option );
-  }
-  ret =  this._normPromise(ret)
-  return ret;
-}
-
-so._normPromise = function(ret){
-  if( isPromise(ret) ){
-    return ret
-  } else {
-    return Promise.resolve(ret);
-  }
-}
 
 
-function isPromise(obj){
-  return !!obj && (typeof obj === 'object' || typeof obj === 'function') && typeof obj.then === 'function';
-}
- 
-
-
-module.exports = Client;
+module.exports = Restate;
 

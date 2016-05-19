@@ -3,7 +3,7 @@ module.exports = {
   "blog": {
     dataProvider: {
 
-      "app.index": function(){
+      "app.index": function(option, resolve){
         return {
           title: 'Hello Index'
         }
@@ -20,6 +20,11 @@ module.exports = {
       }
     },
     routes: {
+      "login": {
+        view: Regular.extend({
+          template: '<div class="m-login"></div>'
+        })
+      },
       'app': {
         url: '',
         view: Regular.extend({
@@ -54,6 +59,19 @@ module.exports = {
           template: 
             '<div>{content}</div>'
         })
+      },
+      'app.lazyload': {
+        view: function(option){
+          return new Promise(function(resolve){
+            setTimeout(function(){
+              resolve(
+                Regular.extend({
+                  template: `<div class='lazyload'>LazyLoad</div>`
+                })
+              )
+            }, 100)
+          })
+        }
       }
     }
   }

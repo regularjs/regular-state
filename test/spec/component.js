@@ -3,6 +3,7 @@ require('es6-promise').polyfill();
 var server = require('../../src/server.js');
 var client = require('../../src/client.js');
 var Regular = require('regularjs');
+var loc = require ('./util/location');
 var blogConfig = require('./util/routeConfig.js').blog;
 var manager = server(blogConfig);
 var extend = Regular.util.extend;
@@ -10,15 +11,12 @@ var localPathname = location.pathname;
 
 
 describe("Simple Test", function(){
-
   
-
   it("renderToString -> rerender", function( done){
     var container = document.createElement('div');
     manager.run('/blog/1/detail?rid=3').then(function(arg){
       container.innerHTML = arg.html
       expect(container.firstElementChild.tagName.toLowerCase()).to.equal('div')
-      history.replaceState({}, '标题', '/blog/1/detail?rid=3')
       blogConfig.view = container;
       blogConfig.ssr = true;
       client(blogConfig)
@@ -27,7 +25,8 @@ describe("Simple Test", function(){
           done()
         })
         .start({
-        html5: true
+          location:  loc('/blog/1/detail?rid=3'),
+          html5: true
       })
     }).catch(function(err){
       throw err;
@@ -40,7 +39,7 @@ describe("Simple Test", function(){
     manager.run('/blog/1/detail?rid=3').then(function(arg){
       container.innerHTML = arg.html
       expect(container.firstElementChild.tagName.toLowerCase()).to.equal('div')
-      history.replaceState({}, '标题', '/blog/1/detail?rid=3')
+      
       var myConfig = Regular.util.extend({
         view:container,
         ssr: true,
@@ -54,7 +53,8 @@ describe("Simple Test", function(){
           done()
         })
         .start({
-        html5: true
+          location: loc('/blog/1/detail?rid=3'),
+          html5: true
       })
     }).catch(function(err){
       throw err;
@@ -69,9 +69,11 @@ describe("Simple Test", function(){
       ssr:false
     }, blogConfig)
 
-      history.replaceState({}, '标题', '/blog/1/detail?rid=3')
     var clientManager = client(myConfig)
-      .start({ html5: true })
+      .start({ 
+        location: loc('/blog/1/detail?rid=3'),
+        html5: true 
+      })
 
     setTimeout(function(){
     clientManager.nav('/index', function(){
@@ -86,5 +88,28 @@ describe("Simple Test", function(){
     },0)
 
 
+  })
+
+  it("navigate to lazyload", function(done){
+
+    var container = document.createElement('div');
+    manager.run('/lazyload').then(function(arg){
+      container.innerHTML = arg.html
+      expect(container.firstElementChild.tagName.toLowerCase()).to.equal('div')
+      var myConfig = Regular.util.extend({
+        view: container,
+        ssr: true
+      }, blogConfig)
+
+      client(myConfig)
+        .on('end', function(){
+          expect(container.querySelector('.lazyload').innerHTML).to.equal('LazyLoad');
+          done()
+        })
+        .start({
+          location: loc('/lazyload'),
+          html5: true
+        })
+    })
   })
 })

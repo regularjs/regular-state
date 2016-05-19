@@ -1,10 +1,15 @@
+var Regular= require('regularjs');
 
-var Regular = require('regularjs');
 
+var Restate;
 
-if( Regular.isServer ){
-  module.exports = require('./server');
+if( !Regular.env.browser ){
+  Restate = require('./server');
 }else{
-  module.exports = require('./client');
+  Restate = require('./client');
 }
+
+
+
+module.exports = Restate;
 

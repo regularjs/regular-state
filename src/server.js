@@ -1,115 +1,66 @@
 
-
-require('./base');
-var stateman = require('stateman/src/manager/server');
-var Regular = require('regularjs');
 var SSR = require('regularjs/src/render/server.js');
-var global = typeof window !== 'undefined'? window: global;
-var extend = Regular.util.extend;
+var Stateman = require('stateman/src/manager/server');
+var u = require('./util');
 
-
-
-function isPromise(obj){
-  return !!obj && (typeof obj === 'object' || typeof obj === 'function') && typeof obj.then === 'function';
-}
-
-
-function Server( options ){
-  if( !(this instanceof Server)) return new Server(options)
-  stateman.call(this, options);
-  this.dataProvider = options.dataProvider;
-}
-
-
-var so = Server.prototype =  Object.create(stateman.prototype) 
-
-so.install = function( option ){
-  var type = typeof  this.dataProvider, ret,  
-    state = option.state;
-  option.server = true;
-  if( type === 'function' ){
-    ret = this.dataProvider( option );
-  }
-  if(type === 'object'){
-    var dataProvider = this.dataProvider[state.name];
-    ret = dataProvider && dataProvider.call(this, option);
-  }
-  ret =  this._normPromise(ret)
-  return ret;
-}
-
-so._normPromise = function(ret){
-  if( isPromise(ret) ){
-    return ret
-  }else{
-    return Promise.resolve(ret);
-  }
-}
+var createRestate = require('./base');
+var Restate = createRestate( Stateman );
+var so = Restate.prototype;
 
 so.run = function(path, option){
   option = option || {};
   var executed = this.exec(path);
   var self = this;
   if(!executed){
-    return Promise.reject();
-  }else{
-    var param = executed.param;
-    var promises = executed.states.map(function(state){
-      var Component = state.view;
-      return new Promise(function( resolve, reject ){
-
-        return self.install({
-          state: state,
-          param: param,
-          extra: option.extra
-        }).then(function( data ){
-          var componentData = extend({}, data);
-          var html = SSR.render( Component, {data: componentData, $state: self } )
-          resolve( {
-            name: state.name,
-            html: html,
-            data: data
-          });
-        })['catch'](reject)
-
-      })
-      // if( typeof Component === 'function' && !( Component instanceof Regular ) ){
-      //   var delayComponent = Component({param: executed.param});
-      //   delayComponent.then(function(Compo){
-
-      //   })['catch'](function(){})
-      // }
-    })
-
-
-    return Promise.all( promises).then(function( rendereds ){
-
-      var retView,  data = {};
-      for(var len = rendereds.length, i = 0; i < len-1; i++ ){
-
-        var rendered = rendereds[i], nextRendered = rendereds[i + 1];
-
-        if(i ===0){
-          retView = rendereds[i].html;
-          data[rendered.name] = rendered.data
-        }
-        // <rg-view/> 或者 <rg-view></rg-view> 
-        retView = retView.replace(/rg-view([^>]*\>)/, function(all ,capture){
-
-          return capture + nextRendered.html;
-        } )
-        data[nextRendered.name] = nextRendered.data
-      }
-      return Promise.resolve( {
-        html: retView,
-        data: data
-      } )
-    })
+    return Promise.reject({
+      code: 'notfound',
+      message: 'NOT FOUND'
+    });
   }
+  var param = executed.param;
+  var promises = executed.states.map(function(state){
+    var installOption = {
+      state: state,
+      param: param
+    }
+    return self.install( installOption ).then( function(installed){
+      var data = installed.data;
+      var html = SSR.render( installed.Component, {
+        data: u.extend({}, data), 
+        $state: self 
+      })
+      return {
+        name: state.name,
+        html: html,
+        data: data
+      };
+    })
+  })
+
+  return Promise.all( promises).then(function( rendereds ){
+
+    var len = rendereds.length;
+
+    if(!len) return null;
+    var rendered = rendereds[0];
+    var retView = rendered.html, data = {};
+
+    data[rendered.name] = rendered.data; 
+
+    for(var i = 1; i < len; i++ ){
+
+      var nextRendered = rendereds[i];
+
+      // <div rg-view >
+      retView = retView.replace(/rg-view([^>]*\>)/, function(all ,capture){
+
+        return capture + nextRendered.html;
+      })
+
+      data[nextRendered.name] = nextRendered.data
+    }
+    return { html: retView, data: data } 
+  })
 }
 
-
-
-
-
-module.exports =  Server;
+module.exports =  Restate;

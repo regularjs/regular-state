@@ -54,15 +54,20 @@ return /******/ (function(modules) { // webpackBootstrap
 /* 0 */
 /***/ function(module, exports, __webpack_require__) {
 
-	
-	var Regular = __webpack_require__(1);
+	var Regular= __webpack_require__(1);
 
 
-	if( Regular.isServer ){
-	  module.exports = __webpack_require__(32);
+	var Restate;
+
+	if( !Regular.env.browser ){
+	  Restate = __webpack_require__(32);
 	}else{
-	  module.exports = __webpack_require__(38);
+	  Restate = __webpack_require__(40);
 	}
+
+
+
+	module.exports = Restate;
 
 
 
@@ -6129,158 +6134,79 @@ return /******/ (function(modules) { // webpackBootstrap
 /***/ function(module, exports, __webpack_require__) {
 
 	
-
-	__webpack_require__(33);
-	var stateman = __webpack_require__(34);
-	var Regular = __webpack_require__(1);
 	var SSR = __webpack_require__(31);
-	var global = typeof window !== 'undefined'? window: global;
-	var extend = Regular.util.extend;
+	var Stateman = __webpack_require__(33);
+	var u = __webpack_require__(37);
 
-
-
-	function isPromise(obj){
-	  return !!obj && (typeof obj === 'object' || typeof obj === 'function') && typeof obj.then === 'function';
-	}
-
-
-	function Server( options ){
-	  if( !(this instanceof Server)) return new Server(options)
-	  stateman.call(this, options);
-	  this.dataProvider = options.dataProvider;
-	}
-
-
-	var so = Server.prototype =  Object.create(stateman.prototype) 
-
-	so.install = function( option ){
-	  var type = typeof  this.dataProvider, ret,  
-	    state = option.state;
-	  option.server = true;
-	  if( type === 'function' ){
-	    ret = this.dataProvider( option );
-	  }
-	  if(type === 'object'){
-	    var dataProvider = this.dataProvider[state.name];
-	    ret = dataProvider && dataProvider.call(this,option);
-	  }
-	  ret =  this._normPromise(ret)
-	  return ret;
-	}
-
-	so._normPromise = function(ret){
-	  if( isPromise(ret) ){
-	    return ret
-	  }else{
-	    return Promise.resolve(ret);
-	  }
-	}
+	var createRestate = __webpack_require__(38);
+	var Restate = createRestate( Stateman );
+	var so = Restate.prototype;
 
 	so.run = function(path, option){
 	  option = option || {};
 	  var executed = this.exec(path);
 	  var self = this;
 	  if(!executed){
-	    return Promise.reject();
-	  }else{
-	    var param = executed.param;
-	    var promises = executed.states.map(function(state){
-	      var Component = state.view;
-	      return new Promise(function( resolve, reject ){
-
-	        return self.install({
-	          state: state,
-	          param: param,
-	          extra: option.extra
-
-	        }).then(function( data ){
-	          var componentData = extend({}, data);
-	          var html = SSR.render( Component, {data: componentData, $state: self } )
-	          resolve( {
-	            name: state.name,
-	            html: html,
-	            data: data
-	          });
-	        })['catch'](reject)
-
-	      })
-	      // if( typeof Component === 'function' && !( Component instanceof Regular ) ){
-	      //   var delayComponent = Component({param: executed.param});
-	      //   delayComponent.then(function(Compo){
-
-	      //   })['catch'](function(){})
-	      // }
-	    })
-
-
-	    return Promise.all( promises).then(function( rendereds ){
-
-	      var retView,  data = {};
-	      for(var len = rendereds.length, i = 0; i < len-1; i++ ){
-
-	        var rendered = rendereds[i], nextRendered = rendereds[i + 1];
-
-	        if(i ===0){
-	          retView = rendereds[i].html;
-	          data[rendered.name] = rendered.data
-	        }
-	        // <rg-view/> 或者 <rg-view></rg-view> 
-	        retView = retView.replace(/rg-view([^>]*\>)/, function(all ,capture){
-
-	          return capture + nextRendered.html;
-	        } )
-	        data[nextRendered.name] = nextRendered.data
-	      }
-	      return Promise.resolve( {
-	        html: retView,
-	        data: data
-	      } )
-	    })
+	    return Promise.reject({
+	      code: 'notfound',
+	      message: 'NOT FOUND'
+	    });
 	  }
+	  var param = executed.param;
+	  var promises = executed.states.map(function(state){
+	    var installOption = {
+	      state: state,
+	      param: param
+	    }
+	    return self.install( installOption ).then( function(installed){
+	      var data = installed.data;
+	      var html = SSR.render( installed.Component, {
+	        data: u.extend({}, data), 
+	        $state: self 
+	      })
+	      return {
+	        name: state.name,
+	        html: html,
+	        data: data
+	      };
+	    })
+	  })
+
+	  return Promise.all( promises).then(function( rendereds ){
+
+	    var len = rendereds.length;
+
+	    if(!len) return null;
+	    var rendered = rendereds[0];
+	    var retView = rendered.html, data = {};
+
+	    data[rendered.name] = rendered.data; 
+
+	    for(var i = 1; i < len; i++ ){
+
+	      var nextRendered = rendereds[i];
+
+	      // <div rg-view >
+	      retView = retView.replace(/rg-view([^>]*\>)/, function(all ,capture){
+
+	        return capture + nextRendered.html;
+	      })
+
+	      data[nextRendered.name] = nextRendered.data
+	    }
+	    return { html: retView, data: data } 
+	  })
 	}
 
-
-
-
-
-	module.exports =  Server;
+	module.exports =  Restate;
 
 /***/ },
 /* 33 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var Regular = __webpack_require__(1);
-
-
-
-	Regular.directive({
-	  'rg-view': {
-	    link: function(element){
-	      this.$viewport = element;
-	    },
-	    ssr: function(){
-	      return 'rg-view '; 
-	    }
-	  },
-	  'rg-link': {
-	    link: function(element){
-
-	    },
-	    ssr: function(){
-
-	    }
-	  }
-	})
-
-
-
-/***/ },
-/* 34 */
-/***/ function(module, exports, __webpack_require__) {
-
 	
-	var _ = __webpack_require__(35);
-	var Base = __webpack_require__(36);
+	var _ = __webpack_require__(34);
+	var Base = __webpack_require__(35);
 
 	function ServerManager( options ){
 	  if(this instanceof ServerManager === false){ return new ServerManager(options); }
@@ -6294,6 +6220,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	    var found = this.decode(path);
 	    if( !found ) return;
 	    var param = found.param;
+
+	    //@FIXIT: We NEED decodeURIComponent in server side!!
+
+	    for(var i in param){
+	      if(typeof param[i] === 'string') param[i] = decodeURIComponent(param[i]);
+	    }
 	    var states = [];
 	    var state = found.state;
 	    this.current = state;
@@ -6314,7 +6246,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = ServerManager
 
 /***/ },
-/* 35 */
+/* 34 */
 /***/ function(module, exports) {
 
 	var _ = module.exports = {};
@@ -6511,12 +6443,12 @@ return /******/ (function(modules) { // webpackBootstrap
 
 
 /***/ },
-/* 36 */
+/* 35 */
 /***/ function(module, exports, __webpack_require__) {
 
 	
-	var State = __webpack_require__(37),
-	  _ = __webpack_require__(35),
+	var State = __webpack_require__(36),
+	  _ = __webpack_require__(34),
 	  stateFn = State.prototype.state;
 
 	function BaseMan( options ){
@@ -6653,10 +6585,10 @@ return /******/ (function(modules) { // webpackBootstrap
 
 
 /***/ },
-/* 37 */
+/* 36 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var _ = __webpack_require__(35);
+	var _ = __webpack_require__(34);
 
 	function State(option){
 	  this._states = {};
@@ -6817,25 +6749,132 @@ return /******/ (function(modules) { // webpackBootstrap
 
 
 /***/ },
-/* 38 */
+/* 37 */
 /***/ function(module, exports, __webpack_require__) {
 
 	
+	var Regular = __webpack_require__(1);
 
-	var stateman = __webpack_require__(39);
-	var _ = stateman.util;
-
-	__webpack_require__(33);
-
-
-	function Client( options ){
-	  if( !(this instanceof Client)) return new Client(options)
-	  _.extend(this, options);
-	  stateman.call(this, options);
+	var util = {
+	  isPromiseLike: function (obj){
+	    return !!obj && 
+	      (typeof obj === 'object' || typeof obj === 'function') 
+	      && typeof obj.then === 'function';
+	  },
+	  normPromise: function ( ret ){
+	    return util.isPromiseLike(ret) ? ret: Promise.resolve(ret)
+	  },
+	  extend: Regular.util.extend
 	}
 
 
-	var so = Client.prototype =  Object.create(stateman.prototype) 
+
+	module.exports = util;
+
+/***/ },
+/* 38 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var Regular = __webpack_require__(1);
+	var u = __webpack_require__(37);
+	var extend = u.extend;
+
+	__webpack_require__(39);
+
+	function createRestate( Stateman ){
+
+	  function Restate( options ){
+	    if( !(this instanceof Restate)) return new Restate( options );
+	    extend(this, options);
+	    Stateman.call(this, options);
+	  }
+
+	  var so = Regular.util.createProto(Restate, Stateman.prototype)
+
+	  extend(so, {
+	    installData: function( option ){
+	      var type = typeof  this.dataProvider, 
+	        ret,  state = option.state;
+
+	      option.server = !Regular.env.browser;
+
+	      if( type === 'function' ){
+	        ret = this.dataProvider( option );
+	      }else if(type === 'object'){
+	        var dataProvider = this.dataProvider[ state.name];
+	        ret = dataProvider && dataProvider.call(this, option);
+	      }
+
+	      return u.normPromise( ret, option)
+	    },
+	    installView: function( option ){
+	      var  state = option.state ,Comp = state.view;
+	      // if(typeof Comp !== 'function') throw Error('view of [' + state.name + '] with wrong type')
+	      // Lazy load
+	      if( !(Comp.prototype instanceof Regular) ){
+	        Comp = Comp.call(this, option);
+	      }
+	      return u.normPromise( Comp, option );
+	    },
+	    install: function( option ){
+	      return Promise.all([this.installData( option ), this.installView( option)]).then(function(ret){
+	        console.log(ret[1])
+	        return {
+	          Component: ret[1],
+	          data: ret[0]
+	        }
+	      })
+	    }
+	  })
+	  return Restate;
+	}
+
+
+
+
+	module.exports = createRestate;
+
+
+
+/***/ },
+/* 39 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var Regular = __webpack_require__(1);
+
+
+	Regular.directive({
+	  'rg-view': {
+	    link: function(element){
+	      this.$viewport = element;
+	    },
+	    ssr: function(){
+	      return 'rg-view '; 
+	    }
+	  },
+	  'rg-link': {
+	    link: function(element){
+
+	    },
+	    ssr: function(){
+
+	    }
+	  }
+	})
+
+/***/ },
+/* 40 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var Regular = __webpack_require__(1);
+	var Stateman = __webpack_require__(41);
+	var _ = __webpack_require__(37);
+
+	var createRestate = __webpack_require__(38);
+
+	var Restate = createRestate( Stateman );
+	var so = Restate.prototype;
+
 
 	var oldStateFn = so.state;
 
@@ -6844,12 +6883,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	  var oldConfig, Component;
 	  var globalView = this.view;
 	  if( typeof name === 'string'){
-
 	    if(!config) return oldStateFn.call(this, name)
 	    oldConfig = config;
 	    Component = oldConfig.view;
-
-
 
 	    config = {
 	      component: null,
@@ -6859,47 +6895,49 @@ return /******/ (function(modules) { // webpackBootstrap
 	        var self = this;
 	        var noComponent = !component || component.$phase === 'destroyed';
 	        var ssr = option.ssr = option.firstTime && manager.ssr;
-	        return new Promise(function(resolve, reject){
-	          manager.install({
-	            ssr: ssr,
-	            state: self,
-	            param: option.param
-	          }).then(function(data){
-	            if(parent.component){
-	              view = parent.component.$viewport;
-	              if(!view) throw self.parent.name + " should have a element with [rg-view]";
-	            }else{
-	              view = globalView;
-	            }
 
-	            if( noComponent ){
-	              // 这里需要给出提示
-	              var mountNode = ssr && view;
-	              component = self.component = new Component({
-	                mountNode: mountNode,
-	                data: data,
-	                $state: manager,
-	                $stateName: name
-	              })
+	        var installOption = {
+	          state: this,
+	          ssr: ssr,
+	          param: option.param,
+	          component: component
+	        }
 
-	            }else{
-	              _.extend(component.data, data, true)
-	            }
+	        return manager.install( installOption ).then( function( installed ){
 
-	            if(!mountNode) component.$inject(view);
+	          Component = installed.Component;
+	          if(parent.component){
+	            view = parent.component.$viewport;
+	            if(!view) throw self.parent.name + " should have a element with [rg-view]";
+	          }else{
+	            view = globalView;
+	          }
 
-	            var result = component.enter && component.enter(option);
-
-	            component.$update(function(){
-	              component.$mute(false);
+	          if( noComponent ){
+	            // 这里需要给出提示
+	            var mountNode = ssr && view;
+	            component = self.component = new Component({
+	              mountNode: mountNode,
+	              data: _.extend({}, installed.data),
+	              $state: manager
 	            })
+	          }else{
+	            _.extend( component.data, installed.data, true)
+	          }
 
-	            resolve(result)
-	          }).catch(function(err){
-	            console.log(err)
-	            throw err
+	          if( !mountNode ) component.$inject(view);
+
+	          var result = component.enter && component.enter(option);
+
+	          component.$update(function(){
+	            component.$mute(false);
 	          })
+
+	          return result;
 	        })
+
+
+	      
 	      },
 	      update: function( option ){
 
@@ -6907,6 +6945,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        if(!component) return;
 
 	        manager.install({
+	          component: component,
 	          state: this,
 	          param: option.param
 	        }).then(function(data){
@@ -6943,69 +6982,43 @@ return /******/ (function(modules) { // webpackBootstrap
 	  }
 	}
 
-	so.install = function(option){
-	  var type = typeof  this.dataProvider, ret, state = option.state; 
-	  if( type === 'function' ){
-	    ret = this.dataProvider( option );
-	  }
-	  if(type === 'object'){
-	    var dataProvider = this.dataProvider[state.name];
-	    ret = dataProvider && dataProvider.call(this, option );
-	  }
-	  ret =  this._normPromise(ret)
-	  return ret;
-	}
-
-	so._normPromise = function(ret){
-	  if( isPromise(ret) ){
-	    return ret
-	  } else {
-	    return Promise.resolve(ret);
-	  }
-	}
 
 
-	function isPromise(obj){
-	  return !!obj && (typeof obj === 'object' || typeof obj === 'function') && typeof obj.then === 'function';
-	}
-	 
-
-
-	module.exports = Client;
+	module.exports = Restate;
 
 
 
 /***/ },
-/* 39 */
+/* 41 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var stateman;
 
 	if( typeof window === 'object' ){
-	  stateman = __webpack_require__(40);
-	  stateman.History = __webpack_require__(41);
-	  stateman.util = __webpack_require__(35);
+	  stateman = __webpack_require__(42);
+	  stateman.History = __webpack_require__(43);
+	  stateman.util = __webpack_require__(34);
 	  stateman.isServer = false;
 	}else{
-	  stateman = __webpack_require__(34);
+	  stateman = __webpack_require__(33);
 	  stateman.isServer = true;
 	}
 
 
-	stateman.State = __webpack_require__(37);
+	stateman.State = __webpack_require__(36);
 
 	module.exports = stateman;
 
 
 /***/ },
-/* 40 */
+/* 42 */
 /***/ function(module, exports, __webpack_require__) {
 
 	
-	var State = __webpack_require__(37),
-	  History = __webpack_require__(41),
-	  Base = __webpack_require__(36),
-	  _ = __webpack_require__(35),
+	var State = __webpack_require__(36),
+	  History = __webpack_require__(43),
+	  Base = __webpack_require__(35),
+	  _ = __webpack_require__(34),
 	  baseTitle = document.title,
 	  stateFn = State.prototype.state;
 
@@ -7129,7 +7142,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	      // if we done the navigating when start
 	      function done(success){
 	        over = true;
-	        if( success !== false ) self.emit("end");
+	        if( success !== false ) self.emit("end", option);
 	        self.pending = null;
 	        self._popStash(option);
 	      }
@@ -7395,7 +7408,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 
 /***/ },
-/* 41 */
+/* 43 */
 /***/ function(module, exports, __webpack_require__) {
 
 	
@@ -7403,8 +7416,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	// Thx Backbone.js 1.1.2  and https://github.com/cowboy/jquery-hashchange/blob/master/jquery.ba-hashchange.js
 	// for iframe patches in old ie.
 
-	var browser = __webpack_require__(42);
-	var _ = __webpack_require__(35);
+	var browser = __webpack_require__(44);
+	var _ = __webpack_require__(34);
 
 
 	// the mode const
@@ -7615,7 +7628,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 
 /***/ },
-/* 42 */
+/* 44 */
 /***/ function(module, exports) {
 
 	var win = window,

@@ -174,7 +174,7 @@ gulp.task('mocha', function(){
 
 gulp.task('watch', ["build"], function(){
   gulp.watch(['src/*.js'], ['build'])
-  gulp.watch(['test/spec/*.js', 'test/spec/export.js'], ['buildtest'])
+  gulp.watch(['test/**/*.js'], ['buildtest'])
 })
 
 

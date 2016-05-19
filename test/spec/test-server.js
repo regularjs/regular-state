@@ -27,10 +27,17 @@ describe("Simple Test", function(){
       throw err
     })
   })
-  it("behavior purpose here", function( done){
+  it("single level should run", function( done){
 
-
-    expect(1).to.not.be.equal(2);
-    done()
+    manager.run('/login').then(function(arg){
+      expect(arg.html).to.equal('<div class="m-login"></div>')
+      expect(arg.data).to.eql({
+        "login": undefined,
+      })
+      done();
+    }).catch(function(err){
+      console.log(err)
+      throw err
+    })
   })
 })
