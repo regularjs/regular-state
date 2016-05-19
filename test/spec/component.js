@@ -115,9 +115,11 @@ describe("Simple Test", function(){
   it("navigate to onlybrowser", function(done){
 
     var container = document.createElement('div');
+    Regular.env.node = true;
     manager.run('/onlybrowser').then(function(arg){
+      Regular.env.node = false;
       container.innerHTML = arg.html
-      expect(container.firstElementChild.tagName.toLowerCase()).to.equal('div')
+      expect(container.querySelectorAll('div').length).to.equal(1);
       var myConfig = Regular.util.extend({
         view: container,
         ssr: true

@@ -168,9 +168,11 @@
 	  it("navigate to onlybrowser", function(done){
 	
 	    var container = document.createElement('div');
+	    Regular.env.node = true;
 	    manager.run('/onlybrowser').then(function(arg){
+	      Regular.env.node = false;
 	      container.innerHTML = arg.html
-	      expect(container.firstElementChild.tagName.toLowerCase()).to.equal('div')
+	      expect(container.querySelectorAll('div').length).to.equal(1);
 	      var myConfig = Regular.util.extend({
 	        view: container,
 	        ssr: true
@@ -7917,16 +7919,18 @@
 	        ret = dataProvider && dataProvider.call(this, option);
 	      }
 	
-	      return u.normPromise( ret, option)
+	      return u.normPromise( ret )
 	    },
 	    installView: function( option ){
 	      var  state = option.state ,Comp = state.view;
 	      // if(typeof Comp !== 'function') throw Error('view of [' + state.name + '] with wrong type')
 	      // Lazy load
-	      if( !(Comp.prototype instanceof Regular) ){
+	      if(state.ssr === false && Regular.env.node ) {
+	        Comp = undefined;
+	      } else if( !(Comp.prototype instanceof Regular) ){
 	        Comp = Comp.call(this, option);
 	      }
-	      return u.normPromise( Comp, option );
+	      return u.normPromise( Comp );
 	    },
 	    install: function( option ){
 	      return Promise.all([this.installData( option ), this.installView( option)]).then(function(ret){
@@ -8005,7 +8009,7 @@
 	        var parent = this.parent, view;
 	        var self = this;
 	        var noComponent = !component || component.$phase === 'destroyed';
-	        var ssr = option.ssr = option.firstTime && manager.ssr;
+	        var ssr = option.ssr = option.firstTime && manager.ssr && this.ssr !== false;
 	
 	        var installOption = {
 	          state: this,
@@ -8877,15 +8881,10 @@
 	        }
 	      },
 	      "app.onlybrowser": {
-	        view: function(){
-	          if(Regular.env.node){
-	            return null
-	          }else{
-	            return Regular.extend({
-	              template: "<div class='onlybrowser'>onlybrowser</div>"
-	            })
-	          } 
-	        }
+	        ssr: false,
+	        view: Regular.extend({
+	          template: "<div class='onlybrowser'>onlybrowser</div>"
+	        })
 	      }
 	    }
 	  }

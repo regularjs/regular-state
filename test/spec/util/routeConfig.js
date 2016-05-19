@@ -74,15 +74,10 @@ module.exports = {
         }
       },
       "app.onlybrowser": {
-        view: function(){
-          if(Regular.env.node){
-            return null
-          }else{
-            return Regular.extend({
-              template: "<div class='onlybrowser'>onlybrowser</div>"
-            })
-          } 
-        }
+        ssr: false,
+        view: Regular.extend({
+          template: "<div class='onlybrowser'>onlybrowser</div>"
+        })
       }
     }
   }

@@ -28,16 +28,18 @@ function createRestate( Stateman ){
         ret = dataProvider && dataProvider.call(this, option);
       }
 
-      return u.normPromise( ret, option)
+      return u.normPromise( ret )
     },
     installView: function( option ){
       var  state = option.state ,Comp = state.view;
       // if(typeof Comp !== 'function') throw Error('view of [' + state.name + '] with wrong type')
       // Lazy load
-      if( !(Comp.prototype instanceof Regular) ){
+      if(state.ssr === false && Regular.env.node ) {
+        Comp = undefined;
+      } else if( !(Comp.prototype instanceof Regular) ){
         Comp = Comp.call(this, option);
       }
-      return u.normPromise( Comp, option );
+      return u.normPromise( Comp );
     },
     install: function( option ){
       return Promise.all([this.installData( option ), this.installView( option)]).then(function(ret){

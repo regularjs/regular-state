@@ -26,7 +26,7 @@ so.state = function(name, config){
         var parent = this.parent, view;
         var self = this;
         var noComponent = !component || component.$phase === 'destroyed';
-        var ssr = option.ssr = option.firstTime && manager.ssr;
+        var ssr = option.ssr = option.firstTime && manager.ssr && this.ssr !== false;
 
         var installOption = {
           state: this,
