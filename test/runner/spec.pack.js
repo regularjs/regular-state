@@ -165,6 +165,28 @@
 	        })
 	    })
 	  })
+	  it("navigate to onlybrowser", function(done){
+	
+	    var container = document.createElement('div');
+	    manager.run('/onlybrowser').then(function(arg){
+	      container.innerHTML = arg.html
+	      expect(container.firstElementChild.tagName.toLowerCase()).to.equal('div')
+	      var myConfig = Regular.util.extend({
+	        view: container,
+	        ssr: true
+	      }, blogConfig)
+	
+	      client(myConfig)
+	        .on('end', function(){
+	          expect(container.querySelector('.onlybrowser').innerHTML).to.equal('onlybrowser');
+	          done()
+	        })
+	        .start({
+	          location: loc('/onlybrowser'),
+	          html5: true
+	        })
+	    })
+	  })
 	})
 
 /***/ },
@@ -1285,10 +1307,14 @@
 	    }
 	    return self.install( installOption ).then( function(installed){
 	      var data = installed.data;
-	      var html = SSR.render( installed.Component, {
-	        data: u.extend({}, data), 
-	        $state: self 
-	      })
+	      if(!installed.Component){
+	        html = "";
+	      }else{
+	        var html = SSR.render( installed.Component, {
+	          data: u.extend({}, data), 
+	          $state: self 
+	        })
+	      }
 	      return {
 	        name: state.name,
 	        html: html,
@@ -7904,7 +7930,6 @@
 	    },
 	    install: function( option ){
 	      return Promise.all([this.installData( option ), this.installView( option)]).then(function(ret){
-	        console.log(ret[1])
 	        return {
 	          Component: ret[1],
 	          data: ret[0]
@@ -8844,11 +8869,22 @@
 	            setTimeout(function(){
 	              resolve(
 	                Regular.extend({
-	                  template: `<div class='lazyload'>LazyLoad</div>`
+	                  template: "<div class='lazyload'>LazyLoad</div>"
 	                })
 	              )
 	            }, 100)
 	          })
+	        }
+	      },
+	      "app.onlybrowser": {
+	        view: function(){
+	          if(Regular.env.node){
+	            return null
+	          }else{
+	            return Regular.extend({
+	              template: "<div class='onlybrowser'>onlybrowser</div>"
+	            })
+	          } 
 	        }
 	      }
 	    }

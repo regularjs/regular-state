@@ -25,10 +25,14 @@ so.run = function(path, option){
     }
     return self.install( installOption ).then( function(installed){
       var data = installed.data;
-      var html = SSR.render( installed.Component, {
-        data: u.extend({}, data), 
-        $state: self 
-      })
+      if(!installed.Component){
+        html = "";
+      }else{
+        var html = SSR.render( installed.Component, {
+          data: u.extend({}, data), 
+          $state: self 
+        })
+      }
       return {
         name: state.name,
         html: html,

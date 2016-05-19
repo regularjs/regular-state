@@ -112,4 +112,26 @@ describe("Simple Test", function(){
         })
     })
   })
+  it("navigate to onlybrowser", function(done){
+
+    var container = document.createElement('div');
+    manager.run('/onlybrowser').then(function(arg){
+      container.innerHTML = arg.html
+      expect(container.firstElementChild.tagName.toLowerCase()).to.equal('div')
+      var myConfig = Regular.util.extend({
+        view: container,
+        ssr: true
+      }, blogConfig)
+
+      client(myConfig)
+        .on('end', function(){
+          expect(container.querySelector('.onlybrowser').innerHTML).to.equal('onlybrowser');
+          done()
+        })
+        .start({
+          location: loc('/onlybrowser'),
+          html5: true
+        })
+    })
+  })
 })

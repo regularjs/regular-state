@@ -41,7 +41,6 @@ function createRestate( Stateman ){
     },
     install: function( option ){
       return Promise.all([this.installData( option ), this.installView( option)]).then(function(ret){
-        console.log(ret[1])
         return {
           Component: ret[1],
           data: ret[0]

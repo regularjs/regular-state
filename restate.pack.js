@@ -6160,10 +6160,14 @@ return /******/ (function(modules) { // webpackBootstrap
 	    }
 	    return self.install( installOption ).then( function(installed){
 	      var data = installed.data;
-	      var html = SSR.render( installed.Component, {
-	        data: u.extend({}, data), 
-	        $state: self 
-	      })
+	      if(!installed.Component){
+	        html = "";
+	      }else{
+	        var html = SSR.render( installed.Component, {
+	          data: u.extend({}, data), 
+	          $state: self 
+	        })
+	      }
 	      return {
 	        name: state.name,
 	        html: html,
@@ -6818,7 +6822,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	    },
 	    install: function( option ){
 	      return Promise.all([this.installData( option ), this.installView( option)]).then(function(ret){
-	        console.log(ret[1])
 	        return {
 	          Component: ret[1],
 	          data: ret[0]

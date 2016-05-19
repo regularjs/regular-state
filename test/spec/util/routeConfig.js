@@ -66,11 +66,22 @@ module.exports = {
             setTimeout(function(){
               resolve(
                 Regular.extend({
-                  template: `<div class='lazyload'>LazyLoad</div>`
+                  template: "<div class='lazyload'>LazyLoad</div>"
                 })
               )
             }, 100)
           })
+        }
+      },
+      "app.onlybrowser": {
+        view: function(){
+          if(Regular.env.node){
+            return null
+          }else{
+            return Regular.extend({
+              template: "<div class='onlybrowser'>onlybrowser</div>"
+            })
+          } 
         }
       }
     }
