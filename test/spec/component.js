@@ -136,4 +136,35 @@ describe("Simple Test", function(){
         })
     })
   })
+
+  it("update should update the data", function(done){
+       var container = document.createElement('div');
+    var myConfig = extend({
+      view: container,
+      ssr:false
+    }, blogConfig)
+
+    var clientManager = client(myConfig)
+      .start({ 
+        location: loc('/blog/1/detail?rid=3'),
+        html5: true 
+      }, function(){
+        expect(container.querySelector('.detail').innerHTML).to.equal(
+         'Blog Content Here3'
+        )
+        clientManager.go('~', { param: {rid: 4} }, function(){
+
+          setTimeout(function(){
+            expect(container.querySelector('.detail').innerHTML).to.equal(
+             'Blog Content Here4'
+            )
+            done()
+            console.log(container.innerHTML);
+          },0)
+          
+          
+        })
+      })
+
+  })
 })

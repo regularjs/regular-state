@@ -11,7 +11,7 @@ describe("Simple Test", function(){
   it("check Server render result ", function( done){
 
     manager.run('/blog/1/detail?rid=3').then(function(arg){
-      expect(arg.html.replace(/\s*\>\s*\</g, '><')).to.equal('<div><div><h2 class="hook">Hello Blog</h2><div><div>Blog Content Here</div></div></div></div>')
+      expect(arg.html.replace(/\s*\>\s*\</g, '><')).to.equal('<div><div><h2 class="hook">Hello Blog</h2><div><div class="class="detail">Blog Content Here</div></div></div></div>')
       expect(arg.data).to.eql({
         "app": undefined,
         "app.blog": {

@@ -6934,11 +6934,13 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	          var result = component.enter && component.enter(option);
 
+
+	          return result;
+	        }).then(function(){
 	          component.$update(function(){
 	            component.$mute(false);
 	          })
-
-	          return result;
+	          return true;
 	        })
 
 
@@ -6955,12 +6957,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	          param: option.param
 	        }).then(function(data){
 
-	          _.extend( component.data, data , true )
+	          _.extend( component.data, data.data , true )
 	          
 	          return component.update && component.update(option);
 
 	        }).then(function(){
 	          component.$update();
+	          return true;
 	        })
 
 	      },
@@ -7046,8 +7049,9 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	_.extend(o , {
 
-	    start: function(options){
+	    start: function(options, callback){
 
+	      this._startCallback = callback;
 	      if( !this.history ) this.history = new History(options); 
 	      if( !this.history.isStart ){
 	        this.history.on("change", _.bind(this._afterPathChange, this));
@@ -7117,6 +7121,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	      }
 
 	      options.param = found.param;
+
+	      if( options.firstTime && !callback){
+	        callback =  this._startCallback;
+	        delete this._startCallback;
+	      }
 
 	      this._go( found.state, options, callback );
 	    },
@@ -7462,7 +7471,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	_.extend( _.emitable(History), {
 	  // check the
-	  start: function(){
+	  start: function(callback){
 	    var path = this.getPath();
 	    this._checkPath = _.bind(this.checkPath, this);
 

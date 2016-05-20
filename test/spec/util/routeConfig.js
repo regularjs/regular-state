@@ -13,9 +13,10 @@ module.exports = {
           title: 'Hello Blog',
         }
       },
-      "app.blog.detail": function(){
+      "app.blog.detail": function(option){
+        var param = option.param;
         return {
-          content: 'Blog Content Here'
+          content: 'Blog Content Here'+param.rid
         }
       }
     },
@@ -57,7 +58,7 @@ module.exports = {
         url: ':id/detail',
         view: Regular.extend({
           template: 
-            '<div>{content}</div>'
+            '<div class="detail">{content}</div>'
         })
       },
       'app.lazyload': {

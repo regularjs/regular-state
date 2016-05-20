@@ -61,11 +61,13 @@ so.state = function(name, config){
 
           var result = component.enter && component.enter(option);
 
+
+          return result;
+        }).then(function(){
           component.$update(function(){
             component.$mute(false);
           })
-
-          return result;
+          return true;
         })
 
 
@@ -82,12 +84,13 @@ so.state = function(name, config){
           param: option.param
         }).then(function(data){
 
-          _.extend( component.data, data , true )
+          _.extend( component.data, data.data , true )
           
           return component.update && component.update(option);
 
         }).then(function(){
           component.$update();
+          return true;
         })
 
       },
