@@ -24,7 +24,7 @@
   "homepage": "https://github.com/regularjs/regular-state",
   "dependencies":{
     "regularjs": "regularjs/regular#ssr",
-    "stateman": "leeluolee/stateman#ssr",
+    "stateman": "leeluolee/stateman#ssr"
   },
   "devDependencies": {
     "browserify-istanbul": "^0.2.1",
