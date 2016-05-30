@@ -2,13 +2,15 @@ var Regular = require('regularjs');
 var u = require('./util');
 var extend = u.extend;
 
-require('./extension');
+var extension = require('./extension');
 
 function createRestate( Stateman ){
 
   function Restate( options ){
+    options = options || {};
     if( !(this instanceof Restate)) return new Restate( options );
     extend(this, options);
+    extension( this);
     Stateman.call(this, options);
   }
 

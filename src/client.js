@@ -1,6 +1,7 @@
 var Regular = require('regularjs');
 var Stateman = require('stateman');
 var _ = require('./util');
+var dom =Regular.dom;
 
 var createRestate = require('./base');
 
@@ -9,11 +10,30 @@ var so = Restate.prototype;
 
 
 var oldStateFn = so.state;
+var oldStart = so.start;
+
+
+so.start = function(options){
+  this.view = options.view;
+  options = options || {};
+  // prevent default stateman autoLink feature 
+  options.autoLink = false;
+  if(this.ssr) options.autofix = false;
+  var self = this;
+  dom.on( document.body, "click", function(ev){
+    var target = ev.target, href;
+    if(target.getAttribute('data-autolink') != null){
+      ev.preventDefault();
+      href = dom.attr(target, 'href');
+      self.nav(href);
+    }
+  });
+  return oldStart.apply(this, arguments)
+}
 
 so.state = function(name, config){
   var manager = this;
   var oldConfig, Component;
-  var globalView = this.view;
   if( typeof name === 'string'){
     if(!config) return oldStateFn.call(this, name)
     oldConfig = config;
@@ -22,6 +42,7 @@ so.state = function(name, config){
     config = {
       component: null,
       enter: function( option ){
+        var globalView = manager.view;
         var component = this.component;
         var parent = this.parent, view;
         var self = this;
@@ -40,7 +61,7 @@ so.state = function(name, config){
           Component = installed.Component;
           if(parent.component){
             view = parent.component.$viewport;
-            if(!view) throw self.parent.name + " should have a element with [rg-view]";
+            if(!view) throw self.parent.name + " should have a element with [r-view]";
           }else{
             view = globalView;
           }
@@ -78,7 +99,7 @@ so.state = function(name, config){
         var component = this.component;
         if(!component) return;
 
-        manager.install({
+        return manager.install({
           component: component,
           state: this,
           param: option.param
@@ -88,9 +109,9 @@ so.state = function(name, config){
           
           return component.update && component.update(option);
 
-        }).then(function(){
+        }).then(function( ret){
           component.$update();
-          return true;
+          return ret;
         })
 
       },

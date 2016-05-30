@@ -56,7 +56,7 @@ so.run = function(path, option){
       var nextRendered = rendereds[i];
 
       // <div rg-view >
-      retView = retView.replace(/rg-view([^>]*\>)/, function(all ,capture){
+      retView = retView.replace(/r-view([^>]*\>)/, function(all ,capture){
 
         return capture + nextRendered.html;
       })

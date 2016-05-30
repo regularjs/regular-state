@@ -29,7 +29,7 @@ module.exports = {
       'app': {
         url: '',
         view: Regular.extend({
-          template: '<div rg-view ></div>'
+          template: '<div r-view ></div>'
         })
       },
       'app.index': {
@@ -37,7 +37,7 @@ module.exports = {
           template: 
             '<div>\
               <h2 class="index">{title}</h2>\
-              <div rg-view ></div>\
+              <div r-view ></div>\
             </div>'
         })
 
@@ -47,7 +47,7 @@ module.exports = {
           template: 
             '<div>\
               <h2 class="hook">{title}</h2>\
-              <div rg-view ></div>\
+              <div r-view ></div>\
             </div>' ,
             enter: function(){
               this.data.title='修改后的title'

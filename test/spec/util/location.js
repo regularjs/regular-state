@@ -16,6 +16,14 @@ function loc(href){
       }, true)
       if (!/^\//.test(this.pathname)) this.pathname = '/' + this.pathname;
       return this;
+    },
+    history: {
+      replaceState: function(obj, title, path){
+        a.pathname = path
+      },
+      pushState: function(obj, title, path){
+        a.pathname = path
+      }
     }
   }).replace(href)
 }

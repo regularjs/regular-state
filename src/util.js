@@ -10,8 +10,25 @@ var util = {
   normPromise: function ( ret ){
     return util.isPromiseLike(ret) ? ret: Promise.resolve(ret)
   },
-  extend: Regular.util.extend
+  extend: Regular.util.extend,
+  extractState: (function(){
+    var rStateLink = /^([\w-]+(?:\.[\w-]+)*)\((.*)\)$/;
+
+    // app.blog({id:3})
+    return function extractState( stateLinkExpr ){
+      stateLinkExpr = stateLinkExpr.replace(/\s+/g, '');
+      var parsed = rStateLink.exec(stateLinkExpr);
+      if(parsed){
+        return {
+          name: parsed[1],
+          param: parsed[2]
+        }
+      }
+    }
+  })()
+
 }
+
 
 
 
