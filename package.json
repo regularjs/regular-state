@@ -22,10 +22,12 @@
     "url": "https://github.com/regularjs/regular-state/issues"
   },
   "homepage": "https://github.com/regularjs/regular-state",
-  "devDependencies": {
-    "browserify-istanbul": "^0.2.1",
+  "dependencies":{
     "regularjs": "regularjs/regular#ssr",
     "stateman": "leeluolee/stateman#ssr",
+  },
+  "devDependencies": {
+    "browserify-istanbul": "^0.2.1",
     "es6-promise": "^3.1.2",
     "expect.js": "^0.3.1",
     "gulp": "^3.8.10",
