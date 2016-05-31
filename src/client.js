@@ -13,22 +13,35 @@ var oldStateFn = so.state;
 var oldStart = so.start;
 
 
-so.start = function(options){
-  this.view = options.view;
-  options = options || {};
-  // prevent default stateman autoLink feature 
-  options.autoLink = false;
-  if(this.ssr) options.autofix = false;
+so.start = function(options, callback){
   var self = this;
-  dom.on( document.body, "click", function(ev){
-    var target = ev.target, href;
-    if(target.getAttribute('data-autolink') != null){
-      ev.preventDefault();
-      href = dom.attr(target, 'href');
-      self.nav(href);
-    }
-  });
-  return oldStart.apply(this, arguments)
+  options = options || {};
+  var ssr = options.ssr;
+  var view = options.view;
+  this.view = view;
+  // prevent default stateman autoLink feature 
+  options.autolink = false;
+  if(ssr) {
+    // wont fix .
+    options.autofix = false;
+    options.html5 = true;
+  }
+  // delete unused options of stateman
+  delete options.ssr;
+  delete options.view;
+  if( ssr && window.history && "onpopstate" in window ){
+    this.ssr = true;
+    dom.on( document.body, "click", function(ev){
+      var target = ev.target, href;
+      if(target.getAttribute('data-autolink') != null){
+        ev.preventDefault();
+        href = dom.attr(target, 'href');
+        self.nav(href);
+      }
+    });
+  }
+  oldStart.call(this, options, callback)
+  return this;
 }
 
 so.state = function(name, config){

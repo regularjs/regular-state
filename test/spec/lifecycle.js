@@ -24,13 +24,13 @@ describe("Simple Test", function(){
     manager.run('/blog/1/detail?rid=3').then(function(arg){
       container.innerHTML = arg.html
       expect(container.firstElementChild.tagName.toLowerCase()).to.equal('div')
-      blogConfig.ssr = true;
       client(blogConfig)
         .on('end', function(){
           expect(container.querySelector('.hook').innerHTML).to.equal('修改后的title');
           done()
         })
         .start({
+          ssr: true,
           view: container,
           location:  loc('/blog/1/detail?rid=3'),
           html5: true
@@ -48,7 +48,6 @@ describe("Simple Test", function(){
       expect(container.firstElementChild.tagName.toLowerCase()).to.equal('div')
       
       var myConfig = Regular.util.extend({
-        ssr: true,
         dataProvider: function(option){
           return arg.data[option.state.name]
         }
@@ -59,6 +58,7 @@ describe("Simple Test", function(){
           done()
         })
         .start({
+          ssr: true,
           view: container,
           location: loc('/blog/1/detail?rid=3'),
           html5: true
@@ -142,6 +142,8 @@ describe("Simple Test", function(){
         })
     })
   })
+
+
 
   it("update should update the data", function(done){
      var container = document.createElement('div');
