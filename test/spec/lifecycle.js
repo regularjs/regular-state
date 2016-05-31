@@ -73,19 +73,18 @@ describe("Simple Test", function(){
         view: container,
         location: loc('/blog/1/detail?rid=3'),
         html5: true 
+      },function(){
+        clientManager.nav('/index', function(){
+          expect(container.querySelector('.hook')).to.equal(null)
+          expect(container.querySelector('h2').innerHTML).to.equal('Hello Index')
+          clientManager.nav('/blog/1/detail', function(){
+            expect(container.querySelector('.hook').innerHTML).to.equal('修改后的title')
+            expect(container.querySelectorAll('h2').length).to.equal(1)
+            done();
+          })
+        })
       })
 
-    setTimeout(function(){
-    clientManager.nav('/index', function(){
-      expect(container.querySelector('.hook')).to.equal(null)
-      expect(container.querySelector('h2').innerHTML).to.equal('Hello Index')
-      clientManager.nav('/blog/1/detail', function(){
-        expect(container.querySelector('.hook').innerHTML).to.equal('修改后的title')
-        expect(container.querySelectorAll('h2').length).to.equal(1)
-        done();
-      })
-    })
-    },0)
 
 
   })
@@ -238,37 +237,55 @@ describe("Regular extension", function(){
     var container = document.createElement('div');
 
     manager.run('/blog/1').then(function(options){
-      container.innerHTMl = options.html;
+      container.innerHTML = options.html;
       var link = container.querySelector('.blog_detail a')
-      expect(link.pathname).to.equal( '/blog/1/edit' )
+      expect(Regular.dom.attr(link, 'href')).to.equal('/blog/1/edit')
       done();
     })
 
   })
 
   it('r-link should work at hash mode', function(done){
+
     var container = document.createElement('div');
 
+    var clientManager = client(extend( {},routeConfig) )
+      .start({ 
+        view: container,
+        location: loc('#/blog/1'),
+        html5: false 
+      }, function(){
+        var link = container.querySelector('.blog_detail a')
+        expect(link.hash).to.equal(
+          '#/blog/1/edit'
+        )
+        clientManager.go('~', { param: {id: 4} }, function(){
+
+          expect(link.hash).to.equal(
+            '#/blog/4/edit'
+          )
+          done()
+          
+        })
+      })
+  })
+
+  it("autolink should work with r-link", function(done){
+
+    var container = document.createElement('div');
 
     var clientManager = client(extend( {},routeConfig) )
       .start({ 
         view: container,
         location: loc('/blog/1'),
-        html5: false 
+        html5: true 
       }, function(){
         var link = container.querySelector('.blog_detail a')
         expect(link.pathname).to.equal(
           '/blog/1/edit'
         )
-        clientManager.go('~', { param: {id: 4} }, function(){
-
-          expect(link.pathname).to.equal(
-            '/blog/4/edit'
-          )
-          done()
-          
-          
-        })
+        expect(Regular.dom.attr(link, 'data-autolink') == null).to.equal(false);
+        done();
       })
   })
 })

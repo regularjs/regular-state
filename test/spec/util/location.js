@@ -19,10 +19,10 @@ function loc(href){
     },
     history: {
       replaceState: function(obj, title, path){
-        a.pathname = path
+        a.href = path
       },
       pushState: function(obj, title, path){
-        a.pathname = path
+        a.href = path
       }
     }
   }).replace(href)
