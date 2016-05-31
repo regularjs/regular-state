@@ -62,11 +62,18 @@
 	var server = __webpack_require__(8);
 	var client = __webpack_require__(47);
 	var Regular = __webpack_require__(27);
+	var dom = Regular.dom;
 	var loc = __webpack_require__ (52);
 	var blogConfig = __webpack_require__(53).blog;
 	var manager = server(blogConfig);
 	var extend = Regular.util.extend;
 	var localPathname = location.pathname;
+	var $ = function(sl, container){
+	  return (container || document).querySelector(sl)
+	}
+	var $$ = function(sl, container){
+	  return (container || document).querySelectorAll(sl)
+	}
 	
 	
 	describe("Simple Test", function(){
@@ -225,7 +232,7 @@
 	})
 	
 	describe("Regular extension", function(){
-	      var routeConfig = {
+	    var routeConfig = {
 	      dataProvider: {
 	        "app.blog.edit": function(option){
 	          return {
@@ -329,6 +336,8 @@
 	      })
 	  })
 	
+	
+	
 	  it("autolink should work with r-link", function(done){
 	
 	    var container = document.createElement('div');
@@ -345,6 +354,63 @@
 	        )
 	        expect(Regular.dom.attr(link, 'data-autolink') == null).to.equal(false);
 	        done();
+	      })
+	  })
+	  it("r-link should work with Expression", function(done){
+	
+	    var routeConfig = {
+	
+	      routes: {
+	        'app':{
+	          url: "",
+	          view: Regular.extend({
+	            template: '<div class="app" r-view></div>'
+	          })
+	         },
+	        'app.blog': {
+	          view: Regular.extend({
+	            template: '<a class="a1" r-link="/app/blog"></a><a class="a2" r-link={"/app/blog/" + id}></a>',
+	            enter: function(){
+	              this.data.id = 1
+	            }
+	          })
+	
+	        }
+	      }
+	    }
+	    var container = document.createElement('div');
+	
+	    var clientManager = client(extend( {},routeConfig) )
+	      .start({ 
+	        view: container,
+	        location: loc('#/blog'),
+	        html5: false 
+	      }, function(){
+	        expect(dom.attr($('.a1', container), 'href')).to.equal(
+	          '#/app/blog'
+	        )
+	        expect(dom.attr($('.a2', container), 'href')).to.equal(
+	          '#/app/blog/1'
+	        )
+	
+	        clientManager.stop();
+	
+	        container.innerHTML = '';
+	
+	        client(extend( {},routeConfig) ).start({
+	          html5: true,
+	          view: container,
+	          location: loc('/blog')
+	        }, function(){
+	          expect(dom.attr($('.a1', container), 'href')).to.equal(
+	            '/app/blog'
+	          )
+	          expect(dom.attr($('.a2', container), 'href')).to.equal(
+	            '/app/blog/1'
+	          )
+	
+	          done()
+	        })
 	      })
 	  })
 	})
@@ -8286,6 +8352,12 @@
 
 	var _ = __webpack_require__(26);
 	var Regular = __webpack_require__(27);
+	var dom = Regular.dom;
+	
+	
+	function handleUrl(url, history){
+	  return history.mode === 2? url : history.prefix + url
+	}
 	
 	module.exports = function( stateman  ){
 	
@@ -8302,27 +8374,57 @@
 	      nps: true,
 	      link: function(element, value){
 	
+	        // use html5 history
+	        if(stateman.history.mode === 2){
+	          dom.attr(element, 'data-autolink', 'data-autolink');
+	        }
+	        if(value && value.type === 'expression'){
+	          
+	          this.$watch( value, function( val){
+	            dom.attr(element, 'href', 
+	              handleUrl(
+	                val,
+	                stateman.history
+	              )
+	            )
+	          })
+	          return;
+	        }
 	        var parsedLinkExpr = _.extractState(value);
 	        if(parsedLinkExpr){
 	
-	          // use html5 history
-	          if(stateman.history.mode === 2){
-	            Regular.dom.attr(element, 'data-autolink', 'data-autolink');
-	          }
-	          
 	          this.$watch( parsedLinkExpr.param, function(param){
-	            Regular.dom.attr(element, 'href', stateman.encode(parsedLinkExpr.name, param, true))
+	            dom.attr(element, 'href', 
+	              handleUrl(
+	                stateman.encode(parsedLinkExpr.name, param),
+	                stateman.history
+	              )
+	              
+	            )
 	          } , {deep: true} )
 	        }else{
-	          throw Error('invalid expr for r-link: ' + value);
+	
+	          dom.attr(element, 'href', 
+	            handleUrl(
+	              value,
+	              stateman.history
+	            )
+	          )
+	
+	          
 	        }
 	      },
 	      ssr: function( value, tag ){
+	
+	        if(value && value.type === 'expression'){
+	          return 'href="' + Regular.util.escape(this.$get(value)) +  '"' 
+	        }
 	        var parsedLinkExpr = _.extractState(value);
 	
 	        if(parsedLinkExpr){
 	          var param = this.$get(parsedLinkExpr.param);
 	          return 'href="' + stateman.encode(parsedLinkExpr.name, param)+ '"' 
+	        }else{
 	        }
 	      }
 	    }

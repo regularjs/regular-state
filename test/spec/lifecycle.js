@@ -3,11 +3,18 @@ require('es6-promise').polyfill();
 var server = require('../../src/server.js');
 var client = require('../../src/client.js');
 var Regular = require('regularjs');
+var dom = Regular.dom;
 var loc = require ('./util/location');
 var blogConfig = require('./util/routeConfig.js').blog;
 var manager = server(blogConfig);
 var extend = Regular.util.extend;
 var localPathname = location.pathname;
+var $ = function(sl, container){
+  return (container || document).querySelector(sl)
+}
+var $$ = function(sl, container){
+  return (container || document).querySelectorAll(sl)
+}
 
 
 describe("Simple Test", function(){
@@ -166,7 +173,7 @@ describe("Simple Test", function(){
 })
 
 describe("Regular extension", function(){
-      var routeConfig = {
+    var routeConfig = {
       dataProvider: {
         "app.blog.edit": function(option){
           return {
@@ -270,6 +277,8 @@ describe("Regular extension", function(){
       })
   })
 
+
+
   it("autolink should work with r-link", function(done){
 
     var container = document.createElement('div');
@@ -286,6 +295,63 @@ describe("Regular extension", function(){
         )
         expect(Regular.dom.attr(link, 'data-autolink') == null).to.equal(false);
         done();
+      })
+  })
+  it("r-link should work with Expression", function(done){
+
+    var routeConfig = {
+
+      routes: {
+        'app':{
+          url: "",
+          view: Regular.extend({
+            template: '<div class="app" r-view></div>'
+          })
+         },
+        'app.blog': {
+          view: Regular.extend({
+            template: '<a class="a1" r-link="/app/blog"></a><a class="a2" r-link={"/app/blog/" + id}></a>',
+            enter: function(){
+              this.data.id = 1
+            }
+          })
+
+        }
+      }
+    }
+    var container = document.createElement('div');
+
+    var clientManager = client(extend( {},routeConfig) )
+      .start({ 
+        view: container,
+        location: loc('#/blog'),
+        html5: false 
+      }, function(){
+        expect(dom.attr($('.a1', container), 'href')).to.equal(
+          '#/app/blog'
+        )
+        expect(dom.attr($('.a2', container), 'href')).to.equal(
+          '#/app/blog/1'
+        )
+
+        clientManager.stop();
+
+        container.innerHTML = '';
+
+        client(extend( {},routeConfig) ).start({
+          html5: true,
+          view: container,
+          location: loc('/blog')
+        }, function(){
+          expect(dom.attr($('.a1', container), 'href')).to.equal(
+            '/app/blog'
+          )
+          expect(dom.attr($('.a2', container), 'href')).to.equal(
+            '/app/blog/1'
+          )
+
+          done()
+        })
       })
   })
 })
