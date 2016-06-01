@@ -29,8 +29,8 @@ so.start = function(options, callback){
   // delete unused options of stateman
   delete options.ssr;
   delete options.view;
-  if( ssr && window.history && "onpopstate" in window ){
-    this.ssr = true;
+  if( options.html5 && window.history && "onpopstate" in window ){
+    this.ssr = ssr;
     dom.on( document.body, "click", function(ev){
       var target = ev.target, href;
       if(target.getAttribute('data-autolink') != null){

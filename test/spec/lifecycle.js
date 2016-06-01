@@ -172,6 +172,15 @@ describe("Simple Test", function(){
       })
 
   })
+  it("ssr will auto set html5=true", function(){
+      var container = document.createElement('div');
+      var myConfig = extend({ ssr:false }, blogConfig)
+
+      var clientManager = client(myConfig).start({
+        ssr: true
+      })
+      expect(clientManager.history.html5).to.equal(true);
+  })
 })
 
 describe("Regular extension", function(){
