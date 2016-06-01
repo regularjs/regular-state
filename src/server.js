@@ -67,4 +67,6 @@ so.run = function(path, option){
   })
 }
 
+Restate.render = SSR.render;
+
 module.exports =  Restate;

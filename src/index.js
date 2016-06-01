@@ -3,8 +3,9 @@ var Regular= require('regularjs');
 
 var Restate;
 
-if( !Regular.env.browser ){
-  Restate = require('./server');
+
+if(  Regular.env.browser !== true ){
+  Restate = require('./server'); 
 }else{
   Restate = require('./client');
 }
@@ -12,4 +13,6 @@ if( !Regular.env.browser ){
 
 
 module.exports = Restate;
+
+Restate.Regular= Regular;
 

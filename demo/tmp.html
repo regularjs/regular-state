@@ -1,31 +1,69 @@
-<div id="app"></div>
-
-<script id="hello" type="text/regular" name="hello">
-
-{#if username}
-  Hello, {username}. <a href="javascript:;" on-click={username = ''}>Logout</a>
-{#else}
-  Sorry, Guest. Please <a href="javascript:;" on-click={this.login()}>Login</a>
-{/if}
-
-</script>
-
-<!-- 引入regular.js -->
-<script src="https://rawgit.com/regularjs/regular/master/dist/regular.js"></script>
-
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>restate single Page Application</title>
+  <script src='../restate.pack.js'></script>
+</head>
+<body>
 
 <script>
-//利用Regular构建你的app吧
-var HelloRegular = Regular.extend({
-  template: '#hello',
-  login: function(){
-    var data = this.data; // get data
-    data.username = prompt("please enter your username", "")
+
+var Regular = restate.Regular;
+
+
+var Blog = Regular.extend({
+  template: `
+    <div class='blog'>{content}</div>
+  `,
+  config(){
+    this.data.content = 'Blog Content'
   }
+})
+
+var User = Regular.extend({
+  template: `
+    <div class='user'>User: {id}</div>
+  `,
+  enter (option){
+    this.data.id = option.param.id;
+  }
+})
+
+var Application = Regular.extend({
+  template: `
+    <div class='main-page'>
+      <h2>Single application</h2>
+      <a r-link='app.blog({})'>Blog Page</a>
+      <a r-link='app.user({id:2})'>User page</a>
+      <div class='container' r-view></div>
+    </div>
+  `
+})
+
+var stateman = restate({
+
+  routes: {
+    'app': {
+      url: '',
+      view: Application
+    },
+    'app.blog': {
+      view: Blog
+    },
+    'app.user': {
+      url: 'user/:id',
+      view: User
+    }
+  }
+})
+
+stateman.start({
+  view: document.body
 });
-// initialize component then $inject to #app's  bottom
-var component = new HelloRegular({
-  data: {username: undefined}
-});
-component.$inject('#app'); 
+
+
 </script>
+  
+</body>
+</html>

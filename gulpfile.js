@@ -79,13 +79,7 @@ gulp.task('jshint', function(){
  
 gulp.task('build', ['jshint', 'buildtest'], function() {
   gulp.src("src/index.js")
-    .pipe(webpack({
-       output: {
-          filename: "restate.pack.js",
-          library: "restate",
-          libraryTarget: "umd"
-        }
-    }))
+    .pipe(webpack(require('./webpack.config')))
     .pipe(gulp.dest('./'))
     .on("error", function(err){
       throw err

@@ -12,6 +12,7 @@ function createRestate( Stateman ){
     extend(this, options);
     extension( this);
     Stateman.call(this, options);
+    
   }
 
   var so = Regular.util.createProto(Restate, Stateman.prototype)

@@ -1582,6 +1582,8 @@
 	  })
 	}
 	
+	Restate.render = SSR.render;
+	
 	module.exports =  Restate;
 
 /***/ },
@@ -1592,7 +1594,7 @@
 	
 	
 	var _ = __webpack_require__(10);
-	var parser = __webpack_require__(14);
+	var parser = __webpack_require__(15);
 	var diffArray = __webpack_require__(20).diffArray;
 	var shared = __webpack_require__(21);
 	
@@ -1814,12 +1816,15 @@
 	
 	ssr.attribute = function(attr, options){
 	
-	  var name = attr.name, 
-	    value = attr.value || "",
+	  var
 	    Component = this.Component,
-	    directive = Component.directive(name);
+	    directive = Component.directive(attr.name);
 	
 	  
+	  shared.prepareAttr(attr, directive);
+	  
+	  var name = attr.name, 
+	    value = attr.value || "";
 	
 	  if( directive ){
 	    if(directive.ssr){
@@ -1880,6 +1885,7 @@
 	var slice = [].slice;
 	var o2str = ({}).toString;
 	var win = typeof window !=='undefined'? window: global;
+	var config = __webpack_require__(14);
 	
 	
 	_.noop = function(){};
@@ -2351,6 +2357,9 @@
 	
 	
 	
+	
+	
+	
 	/* WEBPACK VAR INJECTION */}.call(exports, (function() { return this; }()), __webpack_require__(11).setImmediate))
 
 /***/ },
@@ -2810,11 +2819,22 @@
 
 /***/ },
 /* 14 */
+/***/ function(module, exports) {
+
+	
+	module.exports = {
+	  'BEGIN': '{',
+	  'END': '}',
+	  'PRECOMPILE': false
+	}
+
+/***/ },
+/* 15 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var exprCache = __webpack_require__(15).exprCache;
+	var exprCache = __webpack_require__(16).exprCache;
 	var _ = __webpack_require__(10);
-	var Parser = __webpack_require__(16);
+	var Parser = __webpack_require__(17);
 	module.exports = {
 	  expression: function(expr, simple){
 	    // @TODO cache
@@ -2831,7 +2851,7 @@
 
 
 /***/ },
-/* 15 */
+/* 16 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(process) {// some fixture test;
@@ -2851,12 +2871,12 @@
 	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(4)))
 
 /***/ },
-/* 16 */
+/* 17 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var _ = __webpack_require__(10);
 	
-	var config = __webpack_require__(17);
+	var config = __webpack_require__(14);
 	var node = __webpack_require__(18);
 	var Lexer = __webpack_require__(19);
 	var varName = _.varName;
@@ -3568,17 +3588,6 @@
 
 
 /***/ },
-/* 17 */
-/***/ function(module, exports) {
-
-	
-	module.exports = {
-	  'BEGIN': '{',
-	  'END': '}',
-	  'PRECOMPILE': false
-	}
-
-/***/ },
 /* 18 */
 /***/ function(module, exports) {
 
@@ -3645,7 +3654,7 @@
 /***/ function(module, exports, __webpack_require__) {
 
 	var _ = __webpack_require__(10);
-	var config = __webpack_require__(17);
+	var config = __webpack_require__(14);
 	
 	// some custom tag  will conflict with the Lexer progress
 	var conflictTag = {"}": "{", "]": "["}, map1, map2;
@@ -4193,7 +4202,9 @@
 /***/ function(module, exports, __webpack_require__) {
 
 	var _ = __webpack_require__(10);
-	var parse = __webpack_require__(14);
+	var config = __webpack_require__(14);
+	var parse = __webpack_require__(15);
+	var node = __webpack_require__(18);
 	
 	
 	function initDefinition(context, definition, beforeConfig){
@@ -4288,11 +4299,37 @@
 	})();
 	
 	
+	function prepareAttr ( ast ,directive){
+	  if(ast.parsed ) return ast;
+	  var value = ast.value;
+	  var name=  ast.name, body, constant;
+	  if(typeof value === 'string' && ~value.indexOf(config.BEGIN) && ~value.indexOf(config.END) ){
+	    if( !directive || !directive.nps ) {
+	      var parsed = parse.parse(value, { mode: 2 });
+	      if(parsed.length === 1 && parsed[0].type === 'expression'){ 
+	        body = parsed[0];
+	      } else{
+	        constant = true;
+	        body = [];
+	        parsed.forEach(function(item){
+	          if(!item.constant) constant=false;
+	          // silent the mutiple inteplation
+	            body.push(item.body || "'" + item.text.replace(/'/g, "\\'") + "'");        
+	        });
+	        body = node.expression("[" + body.join(",") + "].join('')", null, constant);
+	      }
+	      ast.value = body;
+	    }
+	  }
+	  ast.parsed = true;
+	  return ast;
+	}
 	
 	module.exports = {
 	  // share logic between server and client
 	  initDefinition: initDefinition,
-	  handleComputed: handleComputed
+	  handleComputed: handleComputed,
+	  prepareAttr: prepareAttr
 	}
 
 /***/ },
@@ -4891,8 +4928,8 @@
 /* 27 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var env =  __webpack_require__(15);
-	var config = __webpack_require__(17); 
+	var env =  __webpack_require__(16);
+	var config = __webpack_require__(14); 
 	var Regular = module.exports = __webpack_require__(28);
 	var Parser = Regular.Parser;
 	var Lexer = Regular.Lexer;
@@ -4934,10 +4971,10 @@
 	 * render for component in browsers
 	 */
 	
-	var env = __webpack_require__(15);
+	var env = __webpack_require__(16);
 	var Lexer = __webpack_require__(19);
-	var Parser = __webpack_require__(16);
-	var config = __webpack_require__(17);
+	var Parser = __webpack_require__(17);
+	var config = __webpack_require__(14);
 	var _ = __webpack_require__(10);
 	var extend = __webpack_require__(29);
 	var shared = __webpack_require__(21);
@@ -4951,7 +4988,7 @@
 	}
 	var events = __webpack_require__(37);
 	var Watcher = __webpack_require__(38);
-	var parse = __webpack_require__(14);
+	var parse = __webpack_require__(15);
 	var filter = __webpack_require__(39);
 	var ERROR = __webpack_require__(31).ERROR;
 	var nodeCursor = __webpack_require__(36);
@@ -5613,7 +5650,7 @@
 	if(typeof window !== 'undefined'){
 	  
 	var dom = module.exports;
-	var env = __webpack_require__(15);
+	var env = __webpack_require__(16);
 	var _ = __webpack_require__(10);
 	var consts = __webpack_require__(31);
 	var tNode = document.createElement('div')
@@ -6020,7 +6057,7 @@
 	var diffArray = __webpack_require__(20).diffArray;
 	var combine = __webpack_require__(33);
 	var animate = __webpack_require__(34);
-	var Parser = __webpack_require__(16);
+	var Parser = __webpack_require__(17);
 	var node = __webpack_require__(18);
 	var Group = __webpack_require__(35);
 	var dom = __webpack_require__(30);
@@ -6029,7 +6066,8 @@
 	var ERROR = consts.ERROR;
 	var MSG = consts.MSG;
 	var nodeCursor = __webpack_require__(36);
-	var config = __webpack_require__(17)
+	var config = __webpack_require__(14)
+	var shared = __webpack_require__(21);
 	
 	
 	
@@ -6564,7 +6602,7 @@
 	    var attr = attrs[i];
 	    // consider disabled   equlasto  disabled={true}
 	
-	    prepareAttr( attr, attr.name === 'ref' && refDirective );
+	    shared.prepareAttr( attr, attr.name === 'ref' && refDirective );
 	
 	    var value = this._touchExpr(attr.value === undefined? true: attr.value);
 	    if(value.constant) value = attr.value = value.get(this);
@@ -6705,7 +6743,7 @@
 	  var name = attr.name;
 	  var directive = Component.directive(name);
 	
-	  prepareAttr(ast, directive);
+	  shared.prepareAttr(ast, directive);
 	
 	  var value = attr.value || "";
 	  var constant = value.constant;
@@ -6743,32 +6781,6 @@
 	    }
 	  }
 	
-	}
-	
-	function prepareAttr( ast ,directive){
-	  if(ast.parsed ) return ast;
-	  var value = ast.value;
-	  var name=  ast.name, body, constant;
-	  if(typeof value === 'string' && ~value.indexOf(config.BEGIN) && ~value.indexOf(config.END) ){
-	    if( !directive || !directive.nps ) {
-	      var parsed = new Parser(value, { mode: 2 }).parse();
-	      if(parsed.length === 1 && parsed[0].type === 'expression'){ 
-	        body = parsed[0];
-	      } else{
-	        constant = true;
-	        body = [];
-	        parsed.forEach(function(item){
-	          if(!item.constant) constant=false;
-	          // silent the mutiple inteplation
-	            body.push(item.body || "'" + item.text.replace(/'/g, "\\'") + "'");        
-	        });
-	        body = node.expression("[" + body.join(",") + "].join('')", null, constant);
-	      }
-	      ast.value = body;
-	    }
-	  }
-	  ast.parsed = true;
-	  return ast;
 	}
 	
 	
@@ -6893,7 +6905,7 @@
 	var _ = __webpack_require__(10);
 	var dom  = __webpack_require__(30);
 	var animate = {};
-	var env = __webpack_require__(15);
+	var env = __webpack_require__(16);
 	
 	
 	if(typeof window !== 'undefined'){
@@ -7278,7 +7290,7 @@
 /***/ function(module, exports, __webpack_require__) {
 
 	var _ = __webpack_require__(10);
-	var parseExpression = __webpack_require__(14).expression;
+	var parseExpression = __webpack_require__(15).expression;
 	var diff = __webpack_require__(20);
 	var diffArray = diff.diffArray;
 	var diffObject = diff.diffObject;
@@ -8298,6 +8310,7 @@
 	    extend(this, options);
 	    extension( this);
 	    Stateman.call(this, options);
+	    
 	  }
 	
 	  var so = Regular.util.createProto(Restate, Stateman.prototype)
@@ -9142,7 +9155,7 @@
 	
 	    if( this.mode !== HISTORY ){
 	      tmp = location.href.match(this.rPrefix);
-	      return tmp && tmp[1]? tmp[1]: "";
+	      return _.cleanPath(tmp && tmp[1]? tmp[1]: "");
 	
 	    }else{
 	      return _.cleanPath(( location.pathname + location.search || "" ).replace( this.rRoot, "/" ));

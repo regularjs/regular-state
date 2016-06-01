@@ -22,8 +22,9 @@
     "url": "https://github.com/regularjs/regular-state/issues"
   },
   "homepage": "https://github.com/regularjs/regular-state",
-  "dependencies":{
-    "stateman": "leeluolee/stateman#ssr"
+  "dependencies": {
+    "stateman": "leeluolee/stateman#ssr",
+    "webpack": "^1.13.1"
   },
   "peerDependencies": {
     "regularjs": "^0.5.0"
