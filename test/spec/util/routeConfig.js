@@ -4,9 +4,9 @@ module.exports = {
     dataProvider: {
 
       "app.index": function(option, resolve){
-        return {
+        resolve({
           title: 'Hello Index'
-        }
+        })
       },
       "app.blog": function(){
         return {

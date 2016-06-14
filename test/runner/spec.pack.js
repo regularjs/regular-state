@@ -425,6 +425,262 @@
 	      })
 	  })
 	})
+	
+	
+	describe("Lifecycel", function(){
+	  var Lazy1Comp = Regular.extend({
+	    template: '<div class="lazy1"></div>'
+	
+	  })
+	  var Lazy2Comp = Regular.extend({
+	    template: '<div class="lazy2"></div>'
+	  })
+	  var routeConfig = {
+	    routes: {
+	      'app':{
+	        url: "",
+	        view: Regular.extend({
+	          template: '<div class="app" r-view></div>'
+	        })
+	       },
+	      'app.blog': {
+	        view: Regular.extend({
+	          template: '<div class="blog" r-view></div>',
+	          canLeave: function(){
+	            return false
+	          }
+	        })
+	      },
+	      'app.chat': {
+	        // @TODO: canEnter wont be proxied
+	        canEnter: function(option){
+	          return false
+	        },
+	        view: Regular.extend({
+	          template: '<div class="chat" r-view></div>'
+	        })
+	      },
+	      'app.user': {
+	        view: Regular.extend({
+	          template: '<div class="user" r-view></div>'
+	        })
+	      },
+	      'app.lazystatic': {
+	        view: function(option){
+	          var type = option.param.type
+	          var state = option.state;
+	          var type = option.param.type
+	          return new Promise(function(resolve, reject){
+	            var Comp = type == '2'? Lazy2Comp: Lazy1Comp;
+	            state.view = Comp;
+	            resolve(state.view);
+	          })
+	        }
+	      },
+	      'app.lazydynamic': {
+	        view: function(option){
+	          var type = option.param.type
+	          return new Promise(function(resolve, reject){
+	            var Comp = type == '2'? Lazy2Comp: Lazy1Comp;
+	            resolve(Comp);
+	          })
+	        }
+	      }
+	    }
+	  }
+	  it("canLeave should work", function( done){
+	
+	      var container = document.createElement('div');
+	      var manager = client(extend( {},routeConfig) ).start({
+	        view: container,
+	        location: loc('/blog'),
+	        html5: true
+	      }, function(){
+	        manager.nav('/chat', function(){
+	          expect(manager.is('app.blog')).to.equal(true);
+	          done();
+	        })
+	      })
+	  })
+	  it("canEnter should work", function( done){
+	
+	      var container = document.createElement('div');
+	      var manager = client(extend( {},routeConfig) ).start({
+	        view: container,
+	        location: loc('/blog'),
+	        html5: true
+	      }, function(){
+	        manager.nav('/chat', function(){
+	          expect(manager.is('app.blog')).to.equal(true);
+	          done();
+	        })
+	      })
+	  })
+	
+	  it("state can setting ssr = false to avoding server side rendering", function( done ){
+	    var selfConfig = extend({ }, routeConfig)
+	
+	    selfConfig.routes = extend({
+	      'app.nossr': {
+	        ssr: false,
+	        view: Regular.extend({
+	          template: '<div class="nossr"></div>'
+	        })
+	      }
+	    }, selfConfig.routes );
+	
+	    var container = document.createElement('div');
+	
+	    server( selfConfig ).run( '/nossr' ).then(function(opt){
+	
+	      container.innerHTML = opt.html;
+	      expect($('.app', container) == null).to.equal(false);
+	      expect($('.app .nossr') == null).to.equal(true);
+	      var manager =client(selfConfig).start({
+	        ssr: true,
+	        location: loc('/nossr'),
+	        view: container
+	      }, function(){
+	        expect($('.app .nossr', container) == null).to.equal(false);
+	        done();
+	      })
+	
+	    })
+	
+	
+	  })
+	  it("you can this.view = Component to avoid refetch async Component", function( done){
+	    var container = document.createElement('div');
+	    var selfConfig = extend({ }, routeConfig);
+	    var manager =client(selfConfig).start({
+	      html5: true,
+	      location: loc('/lazystatic') ,
+	      view: container
+	    }, function(){
+	      expect($('.app .lazy1', container) != null).to.equal(true);
+	      manager.nav('/lazystatic?type=2', function(){
+	        expect($('.app .lazy1', container) != null).to.equal(true);
+	        done();
+	      })
+	    })
+	  })
+	
+	  it("you can get dynamic Component ", function(done){
+	    var container = document.createElement('div');
+	    var selfConfig = extend({ }, routeConfig);
+	    var manager =client(selfConfig).start({
+	      html5: true,
+	      location: loc('/lazydynamic') ,
+	      view: container
+	    }, function(){
+	      expect($('.app .lazy1', container) != null).to.equal(true);
+	      manager.nav('/lazydynamic?type=2', function(){
+	        expect($('.app .lazy2', container) != null).to.equal(true);
+	        done();
+	      })
+	    })
+	 
+	    
+	  })
+	  it("mount should called after both enter and update", function( done ){
+	    var def = {
+	      config: function(data){
+	        data.mount = 0;
+	        data.enter = 0;
+	      },
+	      mount: function(){
+	        this.data.mount++;
+	      },
+	      enter: function(){
+	        this.data.enter++;
+	      }
+	    }
+	    var routeConfig = {
+	      routes: {
+	        'a': {
+	          view: Regular.extend(extend({
+	            template: "<div class='a'>{enter}:{mount}</div><div r-view></div>",
+	          }, def))
+	        },
+	        'a.b': {
+	          view: Regular.extend(extend({
+	            template: "<div class='b'>{enter}:{mount}</div>",
+	          }, def))
+	        },
+	        'a.c': {
+	          view: Regular.extend(extend({
+	            template: "<div class='c'>{enter}:{mount}</div>",
+	          }, def))
+	        }
+	      }
+	    }
+	    var container = document.createElement('div')
+	    var manager =client(routeConfig).start({
+	      html5: true,
+	      location: loc('/a/b') ,
+	      view: container
+	    }, function(){
+	      expect($('.a', container).innerHTML).to.equal('1:1');
+	      expect($('.b', container).innerHTML).to.equal('1:1');
+	      manager.nav('/a/b?type=2', function(){
+	        expect($('.a', container).innerHTML).to.equal('1:2');
+	        expect($('.b', container).innerHTML).to.equal('1:2');
+	        manager.nav('/a/c?type=2', function(){
+	          expect($('.a', container).innerHTML).to.equal('1:3');
+	          expect($('.b', container)).to.equal(null);
+	          expect($('.c', container).innerHTML).to.equal('1:1');
+	          done()
+	        })
+	      })
+	    })
+	    
+	  })
+	  it("实现感兴趣的参数", function(done){
+	    throw new Error('you can this.view = Component to avoding Component')
+	  })
+	  it("实现自定义State功能, 不传入View", function( done ){
+	
+	    var a = 1;
+	    var routeConfig = {
+	      routes: {
+	        'a': {
+	          view: Regular.extend({
+	            template: "<div class='a'></div><div class='container' r-view></div>",
+	          })
+	        },
+	        'a.b': {
+	          enter: function(){
+	            a = 2;
+	          },
+	          leave: function(){
+	            a = 1;
+	          }
+	        },
+	        'a.c': {
+	          view: Regular.extend({
+	            template: "<div class='c'></div>",
+	          })
+	        },
+	      }
+	    }
+	
+	    var container = document.createElement('div')
+	    var manager =client(routeConfig).start({
+	      html5: true,
+	      location: loc('/a/b') ,
+	      view: container
+	    }, function(){
+	      expect($('.container', container).innerHTML).to.equal('');
+	      expect(a).to.equal(2)
+	      manager.nav('/a/c?type=2', function(){
+	        expect($('.container .c', container).nodeType).to.equal(1);
+	        expect(a).to.equal(1)
+	        done()
+	      })
+	    })
+	
+	  })
+	})
 
 /***/ },
 /* 3 */
@@ -4308,7 +4564,7 @@
 	})();
 	
 	
-	function prepareAttr ( ast ,directive){
+	function prepareAttr ( ast ,directive ){
 	  if(ast.parsed ) return ast;
 	  var value = ast.value;
 	  var name=  ast.name, body, constant;
@@ -4401,10 +4657,16 @@
 	  return o1;
 	};
 	
-	_.values = function( o){
+	var rDot = /\./g;
+	_.countDot = function(word){
+	  var ret = word.match(rDot)
+	  return ret? ret.length: 0;
+	}
+	
+	_.values = function( o, key){
 	  var keys = [];
 	  for(var i in o) if( o.hasOwnProperty(i) ){
-	    keys.push( o[i] );
+	    keys.push( key? i: o[i] );
 	  }
 	  return keys;
 	};
@@ -4742,6 +5004,7 @@
 	  if(option) this.config(option);
 	}
 	
+	
 	//regexp cache
 	State.rCache = {};
 	
@@ -4760,8 +5023,14 @@
 	
 	  state: function(stateName, config){
 	    if(_.typeOf(stateName) === "object"){
-	      for(var j in stateName){
-	        this.state(j, stateName[j]);
+	      var keys = _.values(stateName, true);
+	      keys.sort(function(ka, kb){
+	        return _.countDot(ka) - _.countDot(kb);
+	      });
+	
+	      for(var i = 0, len = keys.length; i< len ;i++){
+	        var key = keys[i];
+	        this.state(key, stateName[key])
 	      }
 	      return this;
 	    }
@@ -4909,6 +5178,20 @@
 	  normPromise: function ( ret ){
 	    return util.isPromiseLike(ret) ? ret: Promise.resolve(ret)
 	  },
+	  // if your define second argument, we will automatic generate a promise for you
+	  proxyMethod: function( context, method, option ){
+	    if(!context) return;
+	    var fn = typeof method === 'string'? context[ method ]: method;
+	    if(typeof fn === 'function'){
+	      if(fn.length >= 2){
+	        return new Promise(function(resolve){
+	          fn.call(context, option, resolve);
+	        })
+	      }else{
+	        return fn.call(context, option)
+	      }
+	    }
+	  },
 	  extend: Regular.util.extend,
 	  extractState: (function(){
 	    var rStateLink = /^([\w-]+(?:\.[\w-]+)*)\((.*)\)$/;
@@ -4966,7 +5249,7 @@
 	
 	Regular.isServer = env.node;
 	Regular.isRegular = function( Comp ){
-	  return !( Comp.prototype instanceof Regular );
+	  return  Comp.prototype instanceof Regular;
 	}
 	
 	
@@ -8329,13 +8612,11 @@
 	      var type = typeof  this.dataProvider, 
 	        ret,  state = option.state;
 	
-	      option.server = !Regular.env.browser;
-	
 	      if( type === 'function' ){
-	        ret = this.dataProvider( option );
+	        ret = u.proxyMethod(state, this.dataProvider, option);
 	      }else if(type === 'object'){
 	        var dataProvider = this.dataProvider[ state.name];
-	        ret = dataProvider && dataProvider.call(this, option);
+	        ret = u.proxyMethod(state, dataProvider, option)
 	      }
 	
 	      return u.normPromise( ret )
@@ -8346,8 +8627,8 @@
 	      // Lazy load
 	      if(state.ssr === false && Regular.env.node ) {
 	        Comp = undefined;
-	      } else if( !(Comp.prototype instanceof Regular) ){
-	        Comp = Comp.call(this, option);
+	      } else if( !Regular.isRegular(Comp) ){
+	        Comp = u.proxyMethod(state, Comp, option)
 	      }
 	      return u.normPromise( Comp );
 	    },
@@ -8462,6 +8743,10 @@
 /* 47 */
 /***/ function(module, exports, __webpack_require__) {
 
+	
+	
+	
+	
 	var Regular = __webpack_require__(27);
 	var Stateman = __webpack_require__(48);
 	var _ = __webpack_require__(26);
@@ -8510,114 +8795,127 @@
 	
 	so.state = function(name, config){
 	  var manager = this;
-	  var oldConfig, Component;
+	  var oldConfig;
 	  if( typeof name === 'string'){
 	    if(!config) return oldStateFn.call(this, name)
 	    oldConfig = config;
-	    Component = oldConfig.view;
+	
+	    // 不代理canEnter事件, 因为此时component还不存在
+	    // mount (if not installed, install first)
+	    
+	    // 1. .Null => a.b.c
+	    // canEnter a  -> canEnter a.b -> canEnter a.b.c -> 
+	    //  -> install a ->enter a -> mount a 
+	    //  -> install a.b -> enter a.b -> mount a.b 
+	    //  -> install a.b.c -> enter a.b.c -> mount a.b.c
+	
+	
+	    // 2. update a.b.c
+	    // -> install a -> mount a 
+	    // -> install a.b -> mount a.b 
+	    // -> install a.b.c -> mount a.b.c
+	
+	    // 3. a.b.c -> a.b.d
+	    // canLeave c -> canEnter d -> leave c 
+	    //  -> install a -> mount a -> 
+	    //  -> install b -> mount b -> 
+	    //  -> install d -> enter d -> mount d
+	
+	    function install( option , isEnter){
+	      var component = this.component;
+	      var parent = this.parent;
+	      var self = this;
+	      var ssr = option.ssr = isEnter && option.firstTime && manager.ssr && this.ssr !== false;
+	
+	      var installOption = {
+	        ssr: ssr,
+	        state: this,
+	        param: option.param,
+	        component: component,
+	        originOption: option
+	      }
+	      var installPromise = manager.install( installOption ).then( function( installed ){
+	
+	        var globalView = manager.view, view, ret;
+	        var Component = installed.Component;
+	        var needComponent = !component || component.constructor !== Component;
+	
+	        if(parent.component){
+	          view = parent.component.$viewport;
+	          if(!view) throw Error(self.parent.name + " should have a element with [r-view]");
+	        }else{
+	          view = globalView;
+	        }
+	
+	        if(!view) throw Error('need viewport for ' + self.name );
+	
+	        if( needComponent ){
+	          // 这里需要给出提示
+	          if(component) component.destroy();
+	          var mountNode = ssr && view;
+	
+	          component = self.component = new Component({
+	            mountNode: mountNode,
+	            data: _.extend({}, installed.data),
+	            $state: manager
+	          })
+	        }else{
+	          _.extend( component.data, installed.data, true)
+	        }
+	        if( (needComponent && !mountNode) || (!needComponent && isEnter) ) component.$inject(view);
+	        return component;
+	      })
+	      if(isEnter){
+	        installPromise = installPromise.then(function(){
+	          return _.proxyMethod(self.component, 'enter', option)
+	        })
+	      }
+	      return installPromise.then( self.mount.bind( self, option ) ).then(function(){
+	        self.component.$update();
+	      })
+	    }
+	
 	
 	    config = {
 	      component: null,
-	      enter: function( option ){
-	        var globalView = manager.view;
-	        var component = this.component;
-	        var parent = this.parent, view;
-	        var self = this;
-	        var noComponent = !component || component.$phase === 'destroyed';
-	        var ssr = option.ssr = option.firstTime && manager.ssr && this.ssr !== false;
-	
-	        var installOption = {
-	          state: this,
-	          ssr: ssr,
-	          param: option.param,
-	          component: component
-	        }
-	
-	        return manager.install( installOption ).then( function( installed ){
-	
-	          Component = installed.Component;
-	          if(parent.component){
-	            view = parent.component.$viewport;
-	            if(!view) throw self.parent.name + " should have a element with [r-view]";
-	          }else{
-	            view = globalView;
-	          }
-	
-	          if( noComponent ){
-	            // 这里需要给出提示
-	            var mountNode = ssr && view;
-	            component = self.component = new Component({
-	              mountNode: mountNode,
-	              data: _.extend({}, installed.data),
-	              $state: manager
-	            })
-	          }else{
-	            _.extend( component.data, installed.data, true)
-	          }
-	
-	          if( !mountNode ) component.$inject(view);
-	
-	          var result = component.enter && component.enter(option);
-	
-	
-	          return result;
-	        }).then(function(){
-	          component.$update(function(){
-	            component.$mute(false);
-	          })
-	          return true;
-	        })
-	
-	
-	      
+	      install: install,
+	      mount: function( option ){
+	        return _.proxyMethod(this.component, 'mount', option)
 	      },
-	      update: function( option ){
-	
-	        var component = this.component;
-	        if(!component) return;
-	
-	        return manager.install({
-	          component: component,
-	          state: this,
-	          param: option.param
-	        }).then(function(data){
-	
-	          _.extend( component.data, data.data , true )
-	          
-	          return component.update && component.update(option);
-	
-	        }).then(function( ret){
-	          component.$update();
-	          return ret;
-	        })
-	
+	      canEnter: function(option){
+	        return _.proxyMethod(this, oldConfig.canEnter, option )
+	      },
+	      canLeave: function(option){
+	        return _.proxyMethod(this.component, 'canEnter', option)
+	      },
+	      update: function(option){
+	        return this.install(option, false);
+	      },
+	      enter: function(option){
+	        return this.install(option, true);
 	      },
 	      leave: function( option ){
 	        var component = this.component;
 	        if(!component) return;
 	
-	        var result = component.leave && component.leave(option);
-	
-	        component.$inject(false);
-	        component.$mute(true);
-	
-	        return result;
-	
+	        return Promise.resolve().then(function(){
+	          return _.proxyMethod(component, 'leave', option)
+	        }).then(function(){
+	          component.$inject(false);
+	          component.$mute(true);
+	        })
 	      }
 	    }
-	    _.extend(config, oldConfig)
-	    return oldStateFn.call(this, name, config)    
-	  }else{
-	    for(var i in name){
-	      this.state(i, name[i])
-	    }
-	    return this;
+	    _.extend(config, oldConfig, true)
+	    
 	  }
+	  return oldStateFn.call(this, name, config)    
 	}
 	
 	
 	
 	module.exports = Restate;
+	
 	
 
 
@@ -8871,13 +9169,12 @@
 	
 	        // only actual transiton need update base state;
 	        option.backward = false;
-	        self._walkUpdate(parent, option, callForPermit, function(notRejected){
+	        self._walkUpdate(self, parent, option, callForPermit, function(notRejected){
 	          if(notRejected === false) return callback(notRejected);
 	
 	          self._transit( parent, to, option, callForPermit,  callback);
 	
 	        });
-	
 	
 	      });
 	
@@ -9027,22 +9324,26 @@
 	      }
 	    },
 	    // check the query and Param
-	    _walkUpdate: function(baseState, options, callForPermit,  done){
+	    _walkUpdate: function(baseState, to, options, callForPermit,  done){
 	
 	      var method = callForPermit? 'canUpdate': 'update';
 	      var from = baseState;
 	      var self = this;
 	
-	      if(from === this) return done();
-	
-	      var loop = function(notRejected){
-	        if(notRejected === false) return done(false);
-	        from = from.parent;
-	        if(from === self) return done();
-	        self._moveOn(from, method, options, loop)
+	      var pathes = [], node = to;
+	      while(node !== this){
+	        pathes.push( node );
+	        node = node.parent;
 	      }
 	
-	      self._moveOn(from, method, options, loop)
+	      var loop = function( notRejected ){
+	        if( notRejected === false ) return done( false );
+	        if( !pathes.length ) return done();
+	        from = pathes.pop();
+	        self._moveOn( from, method, options, loop )
+	      }
+	
+	      self._moveOn( from, method, options, loop )
 	    }
 	
 	}, true);
@@ -9352,9 +9653,9 @@
 	    dataProvider: {
 	
 	      "app.index": function(option, resolve){
-	        return {
+	        resolve({
 	          title: 'Hello Index'
-	        }
+	        })
 	      },
 	      "app.blog": function(){
 	        return {

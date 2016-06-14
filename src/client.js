@@ -1,3 +1,7 @@
+
+
+
+
 var Regular = require('regularjs');
 var Stateman = require('stateman');
 var _ = require('./util');
@@ -46,112 +50,125 @@ so.start = function(options, callback){
 
 so.state = function(name, config){
   var manager = this;
-  var oldConfig, Component;
+  var oldConfig;
   if( typeof name === 'string'){
     if(!config) return oldStateFn.call(this, name)
     oldConfig = config;
-    Component = oldConfig.view;
+
+    // 不代理canEnter事件, 因为此时component还不存在
+    // mount (if not installed, install first)
+    
+    // 1. .Null => a.b.c
+    // canEnter a  -> canEnter a.b -> canEnter a.b.c -> 
+    //  -> install a ->enter a -> mount a 
+    //  -> install a.b -> enter a.b -> mount a.b 
+    //  -> install a.b.c -> enter a.b.c -> mount a.b.c
+
+
+    // 2. update a.b.c
+    // -> install a -> mount a 
+    // -> install a.b -> mount a.b 
+    // -> install a.b.c -> mount a.b.c
+
+    // 3. a.b.c -> a.b.d
+    // canLeave c -> canEnter d -> leave c 
+    //  -> install a -> mount a -> 
+    //  -> install b -> mount b -> 
+    //  -> install d -> enter d -> mount d
+
+    function install( option , isEnter){
+      var component = this.component;
+      var parent = this.parent;
+      var self = this;
+      var ssr = option.ssr = isEnter && option.firstTime && manager.ssr && this.ssr !== false;
+
+      var installOption = {
+        ssr: ssr,
+        state: this,
+        param: option.param,
+        component: component,
+        originOption: option
+      }
+      var installPromise = manager.install( installOption ).then( function( installed ){
+
+        var globalView = manager.view, view, ret;
+        var Component = installed.Component;
+        var needComponent = !component || component.constructor !== Component;
+
+        if(parent.component){
+          view = parent.component.$viewport;
+          if(!view) throw Error(self.parent.name + " should have a element with [r-view]");
+        }else{
+          view = globalView;
+        }
+
+        if(!view) throw Error('need viewport for ' + self.name );
+
+        if( needComponent ){
+          // 这里需要给出提示
+          if(component) component.destroy();
+          var mountNode = ssr && view;
+
+          component = self.component = new Component({
+            mountNode: mountNode,
+            data: _.extend({}, installed.data),
+            $state: manager
+          })
+        }else{
+          _.extend( component.data, installed.data, true)
+        }
+        if( (needComponent && !mountNode) || (!needComponent && isEnter) ) component.$inject(view);
+        return component;
+      })
+      if(isEnter){
+        installPromise = installPromise.then(function(){
+          return _.proxyMethod(self.component, 'enter', option)
+        })
+      }
+      return installPromise.then( self.mount.bind( self, option ) ).then(function(){
+        self.component.$update();
+      })
+    }
+
 
     config = {
       component: null,
-      enter: function( option ){
-        var globalView = manager.view;
-        var component = this.component;
-        var parent = this.parent, view;
-        var self = this;
-        var noComponent = !component || component.$phase === 'destroyed';
-        var ssr = option.ssr = option.firstTime && manager.ssr && this.ssr !== false;
-
-        var installOption = {
-          state: this,
-          ssr: ssr,
-          param: option.param,
-          component: component
-        }
-
-        return manager.install( installOption ).then( function( installed ){
-
-          Component = installed.Component;
-          if(parent.component){
-            view = parent.component.$viewport;
-            if(!view) throw self.parent.name + " should have a element with [r-view]";
-          }else{
-            view = globalView;
-          }
-
-          if( noComponent ){
-            // 这里需要给出提示
-            var mountNode = ssr && view;
-            component = self.component = new Component({
-              mountNode: mountNode,
-              data: _.extend({}, installed.data),
-              $state: manager
-            })
-          }else{
-            _.extend( component.data, installed.data, true)
-          }
-
-          if( !mountNode ) component.$inject(view);
-
-          var result = component.enter && component.enter(option);
-
-
-          return result;
-        }).then(function(){
-          component.$update(function(){
-            component.$mute(false);
-          })
-          return true;
-        })
-
-
-      
+      install: install,
+      mount: function( option ){
+        return _.proxyMethod(this.component, 'mount', option)
       },
-      update: function( option ){
-
-        var component = this.component;
-        if(!component) return;
-
-        return manager.install({
-          component: component,
-          state: this,
-          param: option.param
-        }).then(function(data){
-
-          _.extend( component.data, data.data , true )
-          
-          return component.update && component.update(option);
-
-        }).then(function( ret){
-          component.$update();
-          return ret;
-        })
-
+      canEnter: function(option){
+        return _.proxyMethod(this, oldConfig.canEnter, option )
+      },
+      canLeave: function(option){
+        return _.proxyMethod(this.component, 'canEnter', option)
+      },
+      update: function(option){
+        return this.install(option, false);
+      },
+      enter: function(option){
+        return this.install(option, true);
       },
       leave: function( option ){
         var component = this.component;
         if(!component) return;
 
-        var result = component.leave && component.leave(option);
-
-        component.$inject(false);
-        component.$mute(true);
-
-        return result;
-
+        return Promise.resolve().then(function(){
+          return _.proxyMethod(component, 'leave', option)
+        }).then(function(){
+          component.$inject(false);
+          component.$mute(true);
+        })
       }
     }
-    _.extend(config, oldConfig)
-    return oldStateFn.call(this, name, config)    
-  }else{
-    for(var i in name){
-      this.state(i, name[i])
-    }
-    return this;
+    _.extend(config, oldConfig, true)
+    
   }
+  return oldStateFn.call(this, name, config)    
 }
 
 
 
 module.exports = Restate;
+
 

@@ -366,3 +366,259 @@ describe("Regular extension", function(){
       })
   })
 })
+
+
+describe("Lifecycel", function(){
+  var Lazy1Comp = Regular.extend({
+    template: '<div class="lazy1"></div>'
+
+  })
+  var Lazy2Comp = Regular.extend({
+    template: '<div class="lazy2"></div>'
+  })
+  var routeConfig = {
+    routes: {
+      'app':{
+        url: "",
+        view: Regular.extend({
+          template: '<div class="app" r-view></div>'
+        })
+       },
+      'app.blog': {
+        view: Regular.extend({
+          template: '<div class="blog" r-view></div>',
+          canLeave: function(){
+            return false
+          }
+        })
+      },
+      'app.chat': {
+        // @TODO: canEnter wont be proxied
+        canEnter: function(option){
+          return false
+        },
+        view: Regular.extend({
+          template: '<div class="chat" r-view></div>'
+        })
+      },
+      'app.user': {
+        view: Regular.extend({
+          template: '<div class="user" r-view></div>'
+        })
+      },
+      'app.lazystatic': {
+        view: function(option){
+          var type = option.param.type
+          var state = option.state;
+          var type = option.param.type
+          return new Promise(function(resolve, reject){
+            var Comp = type == '2'? Lazy2Comp: Lazy1Comp;
+            state.view = Comp;
+            resolve(state.view);
+          })
+        }
+      },
+      'app.lazydynamic': {
+        view: function(option){
+          var type = option.param.type
+          return new Promise(function(resolve, reject){
+            var Comp = type == '2'? Lazy2Comp: Lazy1Comp;
+            resolve(Comp);
+          })
+        }
+      }
+    }
+  }
+  it("canLeave should work", function( done){
+
+      var container = document.createElement('div');
+      var manager = client(extend( {},routeConfig) ).start({
+        view: container,
+        location: loc('/blog'),
+        html5: true
+      }, function(){
+        manager.nav('/chat', function(){
+          expect(manager.is('app.blog')).to.equal(true);
+          done();
+        })
+      })
+  })
+  it("canEnter should work", function( done){
+
+      var container = document.createElement('div');
+      var manager = client(extend( {},routeConfig) ).start({
+        view: container,
+        location: loc('/blog'),
+        html5: true
+      }, function(){
+        manager.nav('/chat', function(){
+          expect(manager.is('app.blog')).to.equal(true);
+          done();
+        })
+      })
+  })
+
+  it("state can setting ssr = false to avoding server side rendering", function( done ){
+    var selfConfig = extend({ }, routeConfig)
+
+    selfConfig.routes = extend({
+      'app.nossr': {
+        ssr: false,
+        view: Regular.extend({
+          template: '<div class="nossr"></div>'
+        })
+      }
+    }, selfConfig.routes );
+
+    var container = document.createElement('div');
+
+    server( selfConfig ).run( '/nossr' ).then(function(opt){
+
+      container.innerHTML = opt.html;
+      expect($('.app', container) == null).to.equal(false);
+      expect($('.app .nossr') == null).to.equal(true);
+      var manager =client(selfConfig).start({
+        ssr: true,
+        location: loc('/nossr'),
+        view: container
+      }, function(){
+        expect($('.app .nossr', container) == null).to.equal(false);
+        done();
+      })
+
+    })
+
+
+  })
+  it("you can this.view = Component to avoid refetch async Component", function( done){
+    var container = document.createElement('div');
+    var selfConfig = extend({ }, routeConfig);
+    var manager =client(selfConfig).start({
+      html5: true,
+      location: loc('/lazystatic') ,
+      view: container
+    }, function(){
+      expect($('.app .lazy1', container) != null).to.equal(true);
+      manager.nav('/lazystatic?type=2', function(){
+        expect($('.app .lazy1', container) != null).to.equal(true);
+        done();
+      })
+    })
+  })
+
+  it("you can get dynamic Component ", function(done){
+    var container = document.createElement('div');
+    var selfConfig = extend({ }, routeConfig);
+    var manager =client(selfConfig).start({
+      html5: true,
+      location: loc('/lazydynamic') ,
+      view: container
+    }, function(){
+      expect($('.app .lazy1', container) != null).to.equal(true);
+      manager.nav('/lazydynamic?type=2', function(){
+        expect($('.app .lazy2', container) != null).to.equal(true);
+        done();
+      })
+    })
+ 
+    
+  })
+  it("mount should called after both enter and update", function( done ){
+    var def = {
+      config: function(data){
+        data.mount = 0;
+        data.enter = 0;
+      },
+      mount: function(){
+        this.data.mount++;
+      },
+      enter: function(){
+        this.data.enter++;
+      }
+    }
+    var routeConfig = {
+      routes: {
+        'a': {
+          view: Regular.extend(extend({
+            template: "<div class='a'>{enter}:{mount}</div><div r-view></div>",
+          }, def))
+        },
+        'a.b': {
+          view: Regular.extend(extend({
+            template: "<div class='b'>{enter}:{mount}</div>",
+          }, def))
+        },
+        'a.c': {
+          view: Regular.extend(extend({
+            template: "<div class='c'>{enter}:{mount}</div>",
+          }, def))
+        }
+      }
+    }
+    var container = document.createElement('div')
+    var manager =client(routeConfig).start({
+      html5: true,
+      location: loc('/a/b') ,
+      view: container
+    }, function(){
+      expect($('.a', container).innerHTML).to.equal('1:1');
+      expect($('.b', container).innerHTML).to.equal('1:1');
+      manager.nav('/a/b?type=2', function(){
+        expect($('.a', container).innerHTML).to.equal('1:2');
+        expect($('.b', container).innerHTML).to.equal('1:2');
+        manager.nav('/a/c?type=2', function(){
+          expect($('.a', container).innerHTML).to.equal('1:3');
+          expect($('.b', container)).to.equal(null);
+          expect($('.c', container).innerHTML).to.equal('1:1');
+          done()
+        })
+      })
+    })
+    
+  })
+  it("实现感兴趣的参数", function(done){
+    throw new Error('you can this.view = Component to avoding Component')
+  })
+  it("实现自定义State功能, 不传入View", function( done ){
+
+    var a = 1;
+    var routeConfig = {
+      routes: {
+        'a': {
+          view: Regular.extend({
+            template: "<div class='a'></div><div class='container' r-view></div>",
+          })
+        },
+        'a.b': {
+          enter: function(){
+            a = 2;
+          },
+          leave: function(){
+            a = 1;
+          }
+        },
+        'a.c': {
+          view: Regular.extend({
+            template: "<div class='c'></div>",
+          })
+        },
+      }
+    }
+
+    var container = document.createElement('div')
+    var manager =client(routeConfig).start({
+      html5: true,
+      location: loc('/a/b') ,
+      view: container
+    }, function(){
+      expect($('.container', container).innerHTML).to.equal('');
+      expect(a).to.equal(2)
+      manager.nav('/a/c?type=2', function(){
+        expect($('.container .c', container).nodeType).to.equal(1);
+        expect(a).to.equal(1)
+        done()
+      })
+    })
+
+  })
+})

@@ -22,13 +22,11 @@ function createRestate( Stateman ){
       var type = typeof  this.dataProvider, 
         ret,  state = option.state;
 
-      option.server = !Regular.env.browser;
-
       if( type === 'function' ){
-        ret = this.dataProvider( option );
+        ret = u.proxyMethod(state, this.dataProvider, option);
       }else if(type === 'object'){
         var dataProvider = this.dataProvider[ state.name];
-        ret = dataProvider && dataProvider.call(this, option);
+        ret = u.proxyMethod(state, dataProvider, option)
       }
 
       return u.normPromise( ret )
@@ -39,8 +37,8 @@ function createRestate( Stateman ){
       // Lazy load
       if(state.ssr === false && Regular.env.node ) {
         Comp = undefined;
-      } else if( !(Comp.prototype instanceof Regular) ){
-        Comp = Comp.call(this, option);
+      } else if( !Regular.isRegular(Comp) ){
+        Comp = u.proxyMethod(state, Comp, option)
       }
       return u.normPromise( Comp );
     },
