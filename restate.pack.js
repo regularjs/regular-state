@@ -192,7 +192,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	        })
 	      }
 	      return installPromise.then( self.mount.bind( self, option ) ).then(function(){
-	        self.component.$update();
+	        self.component.$update(function(){
+	          self.component.$mute(false)
+	        });
 	      })
 	    }
 	

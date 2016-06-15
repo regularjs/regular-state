@@ -427,7 +427,7 @@
 	})
 	
 	
-	describe("Lifecycel", function(){
+	describe("Lifecycle", function(){
 	  var Lazy1Comp = Regular.extend({
 	    template: '<div class="lazy1"></div>'
 	
@@ -638,6 +638,47 @@
 	  it("实现感兴趣的参数", function(done){
 	    throw new Error('you can this.view = Component to avoding Component')
 	  })
+	  it("自定义State，无法ssr, 并且考虑没有view的默认就是ssr:false", function(done){
+	    
+	  })
+	  it("mute(false) 失效啊", function(done){
+	    var container = document.createElement('div')
+	    var manager =client().state({
+	      'a': {
+	        view: Regular.extend({
+	          config: function( data){
+	            data.num = 1
+	          },
+	          template: '<div class=a >{num}</div>',
+	          enter: function(){
+	            this.data.num ++;
+	          }
+	        })
+	      },
+	      'b':{
+	        view: Regular.extend({
+	          config: function( data){
+	            data.num = 1
+	          },
+	          template: '<div class=b >{num}</div>'
+	        })
+	      }
+	    }).start({
+	      html5: true,
+	      location: loc('/a') ,
+	      view: container
+	    }, function(){
+	      expect($('.a', container).innerHTML).to.equal('2');
+	      manager.nav('/b', function(){
+	        expect($('.b', container).innerHTML).to.equal('1');
+	        manager.nav('/a', function(){
+	          expect($('.a', container).innerHTML).to.equal('3');
+	          done()
+	        })
+	      })
+	    })
+	  })
+	
 	  it("实现自定义State功能, 不传入View", function( done ){
 	
 	    var a = 1;
@@ -681,6 +722,9 @@
 	
 	  })
 	})
+	
+	
+
 
 /***/ },
 /* 3 */
@@ -8871,7 +8915,9 @@
 	        })
 	      }
 	      return installPromise.then( self.mount.bind( self, option ) ).then(function(){
-	        self.component.$update();
+	        self.component.$update(function(){
+	          self.component.$mute(false)
+	        });
 	      })
 	    }
 	

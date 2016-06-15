@@ -12,8 +12,6 @@ regular-state是基于[stateman](https://github.com/leeluolee/stateman) 和 Regu
 
 
 
-
-
 ##遗留问题
 
 # 低版本IE的fallback
@@ -23,5 +21,4 @@ regular-state是基于[stateman](https://github.com/leeluolee/stateman) 和 Regu
 # 单双引号， 属性设置有坑
 # isRunning 有坑
 # run 需要try 太白痴了
-
 
