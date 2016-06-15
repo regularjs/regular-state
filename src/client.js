@@ -97,12 +97,11 @@ so.state = function(name, config){
 
         if(parent.component){
           view = parent.component.$viewport;
-          if(!view) throw Error(self.parent.name + " should have a element with [r-view]");
         }else{
           view = globalView;
         }
 
-        if(!view) throw Error('need viewport for ' + self.name );
+        // if(!view) throw Error('need viewport for ' + self.name );
 
         if( needComponent ){
           // 这里需要给出提示
