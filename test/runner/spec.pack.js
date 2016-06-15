@@ -309,6 +309,32 @@
 	      })
 	
 	  })
+	
+	  it("r-link should work when no param passed in", function( done){
+	    var container = document.createElement('div');
+	    var clientManager = client({
+	      routes: {
+	        'a': {
+	          view: Regular.extend({
+	            template: '<a r-link="a()"></a><a r-link="a({id: 1})"></a>'
+	          })
+	        } 
+	      }
+	    }).start({ 
+	        view: container,
+	        location: loc('#/a'),
+	        html5: false 
+	      }, function(){
+	        var links = $$('a', container);
+	        expect(Regular.dom.attr(links[0],'href')).to.equal(
+	          '#/a'
+	        )
+	        expect(Regular.dom.attr(links[1],'href')).to.equal(
+	          '#/a?id=1'
+	        )
+	        done()
+	      })
+	  })
 	  it('r-link should work at server', function(done){
 	    var manager = server(extend( {ssr: true}, routeConfig)) 
 	    var container = document.createElement('div');
@@ -8710,6 +8736,14 @@
 	
 	module.exports = function( stateman  ){
 	
+	  function getParam(name, context){
+	    if(typeof name !== 'string' || name.toLowerCase().trim() === ''){
+	      return null
+	    }else{
+	      return context.$get(name);
+	    }
+	  }
+	
 	  Regular.directive({
 	    'r-view': {
 	      link: function(element){
@@ -8740,38 +8774,43 @@
 	          return;
 	        }
 	        var parsedLinkExpr = _.extractState(value);
+	
 	        if(parsedLinkExpr){
 	
-	          this.$watch( parsedLinkExpr.param, function(param){
-	            dom.attr(element, 'href', 
-	              handleUrl(
-	                stateman.encode(parsedLinkExpr.name, param),
-	                stateman.history
+	          var param = parsedLinkExpr.param;
+	          if(param.trim() === '' ){
+	            value = stateman.encode(parsedLinkExpr.name)
+	          }else{
+	            return this.$watch( parsedLinkExpr.param, function(param){
+	              dom.attr(element, 'href', 
+	                handleUrl(
+	                  stateman.encode(parsedLinkExpr.name, param),
+	                  stateman.history
+	                )
+	                
 	              )
-	              
-	            )
-	          } , {deep: true} )
-	        }else{
+	            } , {deep: true} )
+	          }
+	        }
 	
-	          dom.attr(element, 'href', 
-	            handleUrl(
-	              value,
-	              stateman.history
-	            )
+	        dom.attr(element, 'href', 
+	          handleUrl(
+	            value,
+	            stateman.history
 	          )
+	        )
 	
 	          
-	        }
 	      },
 	      ssr: function( value, tag ){
 	
 	        if(value && value.type === 'expression'){
-	          return 'href="' + Regular.util.escape(this.$get(value)) +  '"' 
+	          return 'href="' + Regular.util.escape(getParam(value,this)) +  '"' 
 	        }
 	        var parsedLinkExpr = _.extractState(value);
 	
 	        if(parsedLinkExpr){
-	          var param = this.$get(parsedLinkExpr.param);
+	          var param = getParam(parsedLinkExpr.param, this);
 	          return 'href="' + stateman.encode(parsedLinkExpr.name, param)+ '"' 
 	        }else{
 	        }

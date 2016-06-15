@@ -250,6 +250,32 @@ describe("Regular extension", function(){
       })
 
   })
+
+  it("r-link should work when no param passed in", function( done){
+    var container = document.createElement('div');
+    var clientManager = client({
+      routes: {
+        'a': {
+          view: Regular.extend({
+            template: '<a r-link="a()"></a><a r-link="a({id: 1})"></a>'
+          })
+        } 
+      }
+    }).start({ 
+        view: container,
+        location: loc('#/a'),
+        html5: false 
+      }, function(){
+        var links = $$('a', container);
+        expect(Regular.dom.attr(links[0],'href')).to.equal(
+          '#/a'
+        )
+        expect(Regular.dom.attr(links[1],'href')).to.equal(
+          '#/a?id=1'
+        )
+        done()
+      })
+  })
   it('r-link should work at server', function(done){
     var manager = server(extend( {ssr: true}, routeConfig)) 
     var container = document.createElement('div');
