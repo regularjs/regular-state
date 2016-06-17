@@ -1681,7 +1681,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	          if(param.trim() === '' ){
 	            value = stateman.encode(parsedLinkExpr.name)
 	          }else{
-	            return this.$watch( parsedLinkExpr.param, function(param){
+	            this.$watch( parsedLinkExpr.param, function(param){
 	              dom.attr(element, 'href', 
 	                handleUrl(
 	                  stateman.encode(parsedLinkExpr.name, param),
@@ -1690,6 +1690,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	                
 	              )
 	            } , {deep: true} )
+	            return ;
 	          }
 	        }
 	

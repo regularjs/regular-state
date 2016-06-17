@@ -1,6 +1,8 @@
 # regular-state
 
-regular-state是基于[stateman](https://github.com/leeluolee/stateman) 和 Regular的单页应用框架.
+**regular-state**是整合了 [Regularjs(MVVM组件框架)](https://github.com/regularjs/regular)和 [Stateman(基于状态抽象的路由库)](https://github.com/leeluolee/stateman)的单页系统框架，它支持**服务端渲染(Server side Rendering)**
+
+
 
 ## 文档
 
@@ -12,7 +14,7 @@ regular-state是基于[stateman](https://github.com/leeluolee/stateman) 和 Regu
 
 
 
-##遗留问题
+## TODO
 
 # 低版本IE的fallback
 # Promise 
