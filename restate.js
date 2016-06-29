@@ -80,19 +80,20 @@
           component: null,
 
           // @TODO:
-          canUpdate: function(){
+          canUpdate: function(option){
 
             var canUpdate = this.component && this.component.canUpdate;
 
-            if( canUpdate ) return this.component.canUpdate();
+            if( canUpdate ) return this.component.canUpdate(option);
           },
 
 
-          canLeave: function(){
+          canLeave: function(option){
+
 
             var canLeave = this.component && this.component.canLeave;
 
-            if( canLeave ) return this.component.canLeave();
+            if( canLeave ) return this.component.canLeave(option);
 
           },
 
@@ -160,7 +161,7 @@
             }
             var canEnter = this.component && this.component.canEnter;
 
-            if( canEnter ) return this.component.canEnter();
+            if( canEnter ) return this.component.canEnter(option);
           },
 
           enter: function( option ){
