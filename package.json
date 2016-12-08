@@ -23,7 +23,7 @@
   },
   "homepage": "https://github.com/regularjs/regular-state",
   "dependencies": {
-    "stateman": "https://github.com/leeluolee/stateman#ssr",
+    "stateman": "https://github.com/leeluolee/stateman#ssr"
   },
   "peerDependencies": {
     "regularjs": ">=0.6.0"
