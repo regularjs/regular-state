@@ -27,7 +27,7 @@
     "webpack": "^1.13.1"
   },
   "peerDependencies": {
-    "regularjs": "^0.5.0"
+    "regularjs": ">=0.6.0"
   },
   "devDependencies": {
     "regularjs": "regularjs/regular#ssr",
