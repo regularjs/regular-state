@@ -23,14 +23,13 @@
   },
   "homepage": "https://github.com/regularjs/regular-state",
   "dependencies": {
-    "stateman": "https://github.com/leeluolee/stateman#ssr"
+    "stateman": "^0.3.0-beta.1"
   },
   "peerDependencies": {
     "regularjs": "*"
   },
   "devDependencies": {
     "webpack": "^1.13.1",
-    "regularjs": "regularjs/regular#ssr",
     "browserify-istanbul": "^0.2.1",
     "es6-promise": "^3.1.2",
     "expect.js": "^0.3.1",
