@@ -26,7 +26,7 @@ so.run = function(path, option){
     return self.install( installOption ).then( function(installed){
       var data = installed.data;
       if(!installed.Component){
-        html = "";
+        html = '';
       }else{
         var html = SSR.render( installed.Component, {
           data: u.extend({}, data), 
