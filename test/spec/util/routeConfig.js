@@ -1,25 +1,6 @@
 var Regular = require('regularjs');
 module.exports = {
   "blog": {
-    dataProvider: {
-
-      "app.index": function(option, resolve){
-        resolve({
-          title: 'Hello Index'
-        })
-      },
-      "app.blog": function(){
-        return {
-          title: 'Hello Blog',
-        }
-      },
-      "app.blog.detail": function(option){
-        var param = option.param;
-        return {
-          content: 'Blog Content Here'+param.rid
-        }
-      }
-    },
     routes: {
       "login": {
         view: Regular.extend({
@@ -39,7 +20,12 @@ module.exports = {
               <h2 class="index">{title}</h2>\
               <div r-view ></div>\
             </div>'
-        })
+        }),
+        data: function(option, resolve){
+          resolve({
+            title: 'Hello Index'
+          })
+        }
 
       },
       'app.blog': {
@@ -52,14 +38,25 @@ module.exports = {
             enter: function(){
               this.data.title='修改后的title'
             }
-        })
+        }),
+        data: function(){
+          return {
+            title: 'Hello Blog',
+          }
+        }
       },
       'app.blog.detail': {
         url: ':id/detail',
         view: Regular.extend({
           template: 
             '<div class="detail">{content}</div>'
-        })
+        }),
+        data: function(option){
+          var param = option.param;
+          return {
+            content: 'Blog Content Here'+param.rid
+          }
+        }
       },
       'app.lazyload': {
         view: function(option){

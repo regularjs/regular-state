@@ -1561,6 +1561,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	var Regular = __webpack_require__(2);
 	var u = __webpack_require__(11);
 	var extend = u.extend;
+	var win = typeof window !== 'undefined' && window;
 	
 	var extension = __webpack_require__(13);
 	
@@ -1579,17 +1580,23 @@ return /******/ (function(modules) { // webpackBootstrap
 	
 	  extend(so, {
 	    installData: function( option ){
-	      var type = typeof  this.dataProvider, 
-	        ret,  state = option.state;
+	      var ret,  state = option.state;
+	      var firstData = this.firstData;
 	
-	      if( type === 'function' ){
-	        ret = u.proxyMethod(state, this.dataProvider, option);
-	      }else if(type === 'object'){
-	        var dataProvider = this.dataProvider[ state.name];
-	        ret = u.proxyMethod(state, dataProvider, option)
+	      if(option.ssr){ //证明首次服务端渲染后的初始化
+	        var type = typeof firstData;
+	
+	        if( type === 'string' ){
+	          ret = win[ firstData ][ state.name ];
+	        }
+	        if(type === 'function'){
+	          ret = u.proxyMethod( this, 'firstData', option );
+	        }
 	      }
 	
-	      return u.normPromise( ret )
+	      if( ret ) return u.normPromise( ret );
+	
+	      return u.proxyMethod(state, 'data', option)
 	    },
 	    installView: function( option ){
 	      var  state = option.state ,Comp = state.view;

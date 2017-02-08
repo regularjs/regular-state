@@ -44,27 +44,449 @@
 /* 0 */
 /***/ function(module, exports, __webpack_require__) {
 
-	__webpack_require__(1);
-	__webpack_require__(2);
+	if(!window.Promise){
+	  window.Promise = __webpack_require__(1) 
+	}
+	__webpack_require__(4);
+	__webpack_require__(5);
 
 /***/ },
 /* 1 */
-/***/ function(module, exports) {
+/***/ function(module, exports, __webpack_require__) {
 
-
+	/* WEBPACK VAR INJECTION */(function(setImmediate) {(function (root) {
+	
+	  // Store setTimeout reference so promise-polyfill will be unaffected by
+	  // other code modifying setTimeout (like sinon.useFakeTimers())
+	  var setTimeoutFunc = setTimeout;
+	
+	  function noop() {}
+	  
+	  // Polyfill for Function.prototype.bind
+	  function bind(fn, thisArg) {
+	    return function () {
+	      fn.apply(thisArg, arguments);
+	    };
+	  }
+	
+	  function Promise(fn) {
+	    if (typeof this !== 'object') throw new TypeError('Promises must be constructed via new');
+	    if (typeof fn !== 'function') throw new TypeError('not a function');
+	    this._state = 0;
+	    this._handled = false;
+	    this._value = undefined;
+	    this._deferreds = [];
+	
+	    doResolve(fn, this);
+	  }
+	
+	  function handle(self, deferred) {
+	    while (self._state === 3) {
+	      self = self._value;
+	    }
+	    if (self._state === 0) {
+	      self._deferreds.push(deferred);
+	      return;
+	    }
+	    self._handled = true;
+	    Promise._immediateFn(function () {
+	      var cb = self._state === 1 ? deferred.onFulfilled : deferred.onRejected;
+	      if (cb === null) {
+	        (self._state === 1 ? resolve : reject)(deferred.promise, self._value);
+	        return;
+	      }
+	      var ret;
+	      try {
+	        ret = cb(self._value);
+	      } catch (e) {
+	        reject(deferred.promise, e);
+	        return;
+	      }
+	      resolve(deferred.promise, ret);
+	    });
+	  }
+	
+	  function resolve(self, newValue) {
+	    try {
+	      // Promise Resolution Procedure: https://github.com/promises-aplus/promises-spec#the-promise-resolution-procedure
+	      if (newValue === self) throw new TypeError('A promise cannot be resolved with itself.');
+	      if (newValue && (typeof newValue === 'object' || typeof newValue === 'function')) {
+	        var then = newValue.then;
+	        if (newValue instanceof Promise) {
+	          self._state = 3;
+	          self._value = newValue;
+	          finale(self);
+	          return;
+	        } else if (typeof then === 'function') {
+	          doResolve(bind(then, newValue), self);
+	          return;
+	        }
+	      }
+	      self._state = 1;
+	      self._value = newValue;
+	      finale(self);
+	    } catch (e) {
+	      reject(self, e);
+	    }
+	  }
+	
+	  function reject(self, newValue) {
+	    self._state = 2;
+	    self._value = newValue;
+	    finale(self);
+	  }
+	
+	  function finale(self) {
+	    if (self._state === 2 && self._deferreds.length === 0) {
+	      Promise._immediateFn(function() {
+	        if (!self._handled) {
+	          Promise._unhandledRejectionFn(self._value);
+	        }
+	      });
+	    }
+	
+	    for (var i = 0, len = self._deferreds.length; i < len; i++) {
+	      handle(self, self._deferreds[i]);
+	    }
+	    self._deferreds = null;
+	  }
+	
+	  function Handler(onFulfilled, onRejected, promise) {
+	    this.onFulfilled = typeof onFulfilled === 'function' ? onFulfilled : null;
+	    this.onRejected = typeof onRejected === 'function' ? onRejected : null;
+	    this.promise = promise;
+	  }
+	
+	  /**
+	   * Take a potentially misbehaving resolver function and make sure
+	   * onFulfilled and onRejected are only called once.
+	   *
+	   * Makes no guarantees about asynchrony.
+	   */
+	  function doResolve(fn, self) {
+	    var done = false;
+	    try {
+	      fn(function (value) {
+	        if (done) return;
+	        done = true;
+	        resolve(self, value);
+	      }, function (reason) {
+	        if (done) return;
+	        done = true;
+	        reject(self, reason);
+	      });
+	    } catch (ex) {
+	      if (done) return;
+	      done = true;
+	      reject(self, ex);
+	    }
+	  }
+	
+	  Promise.prototype['catch'] = function (onRejected) {
+	    return this.then(null, onRejected);
+	  };
+	
+	  Promise.prototype.then = function (onFulfilled, onRejected) {
+	    var prom = new (this.constructor)(noop);
+	
+	    handle(this, new Handler(onFulfilled, onRejected, prom));
+	    return prom;
+	  };
+	
+	  Promise.all = function (arr) {
+	    var args = Array.prototype.slice.call(arr);
+	
+	    return new Promise(function (resolve, reject) {
+	      if (args.length === 0) return resolve([]);
+	      var remaining = args.length;
+	
+	      function res(i, val) {
+	        try {
+	          if (val && (typeof val === 'object' || typeof val === 'function')) {
+	            var then = val.then;
+	            if (typeof then === 'function') {
+	              then.call(val, function (val) {
+	                res(i, val);
+	              }, reject);
+	              return;
+	            }
+	          }
+	          args[i] = val;
+	          if (--remaining === 0) {
+	            resolve(args);
+	          }
+	        } catch (ex) {
+	          reject(ex);
+	        }
+	      }
+	
+	      for (var i = 0; i < args.length; i++) {
+	        res(i, args[i]);
+	      }
+	    });
+	  };
+	
+	  Promise.resolve = function (value) {
+	    if (value && typeof value === 'object' && value.constructor === Promise) {
+	      return value;
+	    }
+	
+	    return new Promise(function (resolve) {
+	      resolve(value);
+	    });
+	  };
+	
+	  Promise.reject = function (value) {
+	    return new Promise(function (resolve, reject) {
+	      reject(value);
+	    });
+	  };
+	
+	  Promise.race = function (values) {
+	    return new Promise(function (resolve, reject) {
+	      for (var i = 0, len = values.length; i < len; i++) {
+	        values[i].then(resolve, reject);
+	      }
+	    });
+	  };
+	
+	  // Use polyfill for setImmediate for performance gains
+	  Promise._immediateFn = (typeof setImmediate === 'function' && function (fn) { setImmediate(fn); }) ||
+	    function (fn) {
+	      setTimeoutFunc(fn, 0);
+	    };
+	
+	  Promise._unhandledRejectionFn = function _unhandledRejectionFn(err) {
+	    if (typeof console !== 'undefined' && console) {
+	      console.warn('Possible Unhandled Promise Rejection:', err); // eslint-disable-line no-console
+	    }
+	  };
+	
+	  /**
+	   * Set the immediate function to execute callbacks
+	   * @param fn {function} Function to execute
+	   * @deprecated
+	   */
+	  Promise._setImmediateFn = function _setImmediateFn(fn) {
+	    Promise._immediateFn = fn;
+	  };
+	
+	  /**
+	   * Change the function to execute on unhandled rejection
+	   * @param {function} fn Function to execute on unhandled rejection
+	   * @deprecated
+	   */
+	  Promise._setUnhandledRejectionFn = function _setUnhandledRejectionFn(fn) {
+	    Promise._unhandledRejectionFn = fn;
+	  };
+	  
+	  if (typeof module !== 'undefined' && module.exports) {
+	    module.exports = Promise;
+	  } else if (!root.Promise) {
+	    root.Promise = Promise;
+	  }
+	
+	})(this);
+	
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(2).setImmediate))
 
 /***/ },
 /* 2 */
 /***/ function(module, exports, __webpack_require__) {
 
-	__webpack_require__(3).polyfill();
+	/* WEBPACK VAR INJECTION */(function(setImmediate, clearImmediate) {var nextTick = __webpack_require__(3).nextTick;
+	var apply = Function.prototype.apply;
+	var slice = Array.prototype.slice;
+	var immediateIds = {};
+	var nextImmediateId = 0;
 	
-	var server = __webpack_require__(8);
-	var client = __webpack_require__(47);
-	var Regular = __webpack_require__(27);
+	// DOM APIs, for completeness
+	
+	exports.setTimeout = function() {
+	  return new Timeout(apply.call(setTimeout, window, arguments), clearTimeout);
+	};
+	exports.setInterval = function() {
+	  return new Timeout(apply.call(setInterval, window, arguments), clearInterval);
+	};
+	exports.clearTimeout =
+	exports.clearInterval = function(timeout) { timeout.close(); };
+	
+	function Timeout(id, clearFn) {
+	  this._id = id;
+	  this._clearFn = clearFn;
+	}
+	Timeout.prototype.unref = Timeout.prototype.ref = function() {};
+	Timeout.prototype.close = function() {
+	  this._clearFn.call(window, this._id);
+	};
+	
+	// Does not start the time, just sets up the members needed.
+	exports.enroll = function(item, msecs) {
+	  clearTimeout(item._idleTimeoutId);
+	  item._idleTimeout = msecs;
+	};
+	
+	exports.unenroll = function(item) {
+	  clearTimeout(item._idleTimeoutId);
+	  item._idleTimeout = -1;
+	};
+	
+	exports._unrefActive = exports.active = function(item) {
+	  clearTimeout(item._idleTimeoutId);
+	
+	  var msecs = item._idleTimeout;
+	  if (msecs >= 0) {
+	    item._idleTimeoutId = setTimeout(function onTimeout() {
+	      if (item._onTimeout)
+	        item._onTimeout();
+	    }, msecs);
+	  }
+	};
+	
+	// That's not how node.js implements it but the exposed api is the same.
+	exports.setImmediate = typeof setImmediate === "function" ? setImmediate : function(fn) {
+	  var id = nextImmediateId++;
+	  var args = arguments.length < 2 ? false : slice.call(arguments, 1);
+	
+	  immediateIds[id] = true;
+	
+	  nextTick(function onNextTick() {
+	    if (immediateIds[id]) {
+	      // fn.call() is faster so we optimize for the common use-case
+	      // @see http://jsperf.com/call-apply-segu
+	      if (args) {
+	        fn.apply(null, args);
+	      } else {
+	        fn.call(null);
+	      }
+	      // Prevent ids from leaking
+	      exports.clearImmediate(id);
+	    }
+	  });
+	
+	  return id;
+	};
+	
+	exports.clearImmediate = typeof clearImmediate === "function" ? clearImmediate : function(id) {
+	  delete immediateIds[id];
+	};
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(2).setImmediate, __webpack_require__(2).clearImmediate))
+
+/***/ },
+/* 3 */
+/***/ function(module, exports) {
+
+	// shim for using process in browser
+	
+	var process = module.exports = {};
+	var queue = [];
+	var draining = false;
+	var currentQueue;
+	var queueIndex = -1;
+	
+	function cleanUpNextTick() {
+	    draining = false;
+	    if (currentQueue.length) {
+	        queue = currentQueue.concat(queue);
+	    } else {
+	        queueIndex = -1;
+	    }
+	    if (queue.length) {
+	        drainQueue();
+	    }
+	}
+	
+	function drainQueue() {
+	    if (draining) {
+	        return;
+	    }
+	    var timeout = setTimeout(cleanUpNextTick);
+	    draining = true;
+	
+	    var len = queue.length;
+	    while(len) {
+	        currentQueue = queue;
+	        queue = [];
+	        while (++queueIndex < len) {
+	            if (currentQueue) {
+	                currentQueue[queueIndex].run();
+	            }
+	        }
+	        queueIndex = -1;
+	        len = queue.length;
+	    }
+	    currentQueue = null;
+	    draining = false;
+	    clearTimeout(timeout);
+	}
+	
+	process.nextTick = function (fun) {
+	    var args = new Array(arguments.length - 1);
+	    if (arguments.length > 1) {
+	        for (var i = 1; i < arguments.length; i++) {
+	            args[i - 1] = arguments[i];
+	        }
+	    }
+	    queue.push(new Item(fun, args));
+	    if (queue.length === 1 && !draining) {
+	        setTimeout(drainQueue, 0);
+	    }
+	};
+	
+	// v8 likes predictible objects
+	function Item(fun, array) {
+	    this.fun = fun;
+	    this.array = array;
+	}
+	Item.prototype.run = function () {
+	    this.fun.apply(null, this.array);
+	};
+	process.title = 'browser';
+	process.browser = true;
+	process.env = {};
+	process.argv = [];
+	process.version = ''; // empty string to avoid regexp issues
+	process.versions = {};
+	
+	function noop() {}
+	
+	process.on = noop;
+	process.addListener = noop;
+	process.once = noop;
+	process.off = noop;
+	process.removeListener = noop;
+	process.removeAllListeners = noop;
+	process.emit = noop;
+	
+	process.binding = function (name) {
+	    throw new Error('process.binding is not supported');
+	};
+	
+	process.cwd = function () { return '/' };
+	process.chdir = function (dir) {
+	    throw new Error('process.chdir is not supported');
+	};
+	process.umask = function() { return 0; };
+
+
+/***/ },
+/* 4 */
+/***/ function(module, exports) {
+
+
+
+/***/ },
+/* 5 */
+/***/ function(module, exports, __webpack_require__) {
+
+	__webpack_require__(6).polyfill();
+	
+	var server = __webpack_require__(10);
+	var client = __webpack_require__(48);
+	var Regular = __webpack_require__(28);
 	var dom = Regular.dom;
-	var loc = __webpack_require__ (52);
-	var blogConfig = __webpack_require__(53).blog;
+	var loc = __webpack_require__ (53);
+	var blogConfig = __webpack_require__(54).blog;
 	var manager = server(blogConfig);
 	var extend = Regular.util.extend;
 	var localPathname = location.pathname;
@@ -244,18 +666,6 @@
 	
 	describe("Regular extension", function(){
 	    var routeConfig = {
-	      dataProvider: {
-	        "app.blog.edit": function(option){
-	          return {
-	            id: option.param.id
-	          }
-	        },
-	        "app.blog.detail": function(option){
-	          return {
-	            id: option.param.id
-	          }
-	        }
-	      },
 	      routes: {
 	        'app':{
 	          url: "",
@@ -272,13 +682,23 @@
 	          url: ':id/edit',
 	          view: Regular.extend({
 	            template: '<div class="blog_edit"><a r-link="app.blog.detail({id: id})" ></a></div>'
-	          })
+	          }),
+	          data: function(option){
+	            return {
+	              id: option.param.id
+	            }
+	          }
 	        },
 	        'app.blog.detail': {
 	          url: ':id',
 	          view: Regular.extend({
 	            template: '<div class="blog_detail"><a r-link="app.blog.edit({id: id})" ></a></div>'
-	          })
+	          }),
+	          data: function(option){
+	            return {
+	              id: option.param.id
+	            }
+	          }
 	        } 
 	      }
 	    }
@@ -661,12 +1081,43 @@
 	    })
 	    
 	  })
-	  it("实现感兴趣的参数", function(done){
-	    throw new Error('you can this.view = Component to avoding Component')
-	  })
-	  it("自定义State，无法ssr, 并且考虑没有view的默认就是ssr:false", function(done){
-	    
-	  })
+	  // it("实现感兴趣的参数", function(done){
+	  //   var manager =client().state({
+	  //     'a': {
+	  //       view: Regular.extend({
+	  //         config: function( data){
+	  //           data.num = 1
+	  //         },
+	  //         template: '<div class=a >{num}</div>',
+	  //         enter: function(){
+	  //           this.data.num ++;
+	  //         }
+	  //       })
+	  //     },
+	  //     'b':{
+	  //       param: ['id'],
+	  //       view: Regular.extend({
+	  //         config: function( data){
+	  //           data.num = 1
+	  //         },
+	  //         template: '<div class=b >{num}</div>'
+	  //       })
+	  //     }
+	  //   }).start({
+	  //     html5: true,
+	  //     location: loc('/a') ,
+	  //     view: container
+	  //   }, function(){
+	  //     expect($('.a', container).innerHTML).to.equal('2');
+	  //     manager.nav('/b', function(){
+	  //       expect($('.b', container).innerHTML).to.equal('1');
+	  //       manager.nav('/a', function(){
+	  //         expect($('.a', container).innerHTML).to.equal('3');
+	  //         done()
+	  //       })
+	  //     })
+	  //   })
+	  // })
 	  it("mute(false) 失效啊", function(done){
 	    var container = document.createElement('div')
 	    var manager =client().state({
@@ -753,7 +1204,7 @@
 
 
 /***/ },
-/* 3 */
+/* 6 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var require;var __WEBPACK_AMD_DEFINE_RESULT__;/* WEBPACK VAR INJECTION */(function(process, global, module) {/*!
@@ -886,7 +1337,7 @@
 	    function lib$es6$promise$asap$$attemptVertx() {
 	      try {
 	        var r = require;
-	        var vertx = __webpack_require__(6);
+	        var vertx = __webpack_require__(8);
 	        lib$es6$promise$asap$$vertxNext = vertx.runOnLoop || vertx.runOnContext;
 	        return lib$es6$promise$asap$$useVertxTimer();
 	      } catch(e) {
@@ -1704,7 +2155,7 @@
 	    };
 	
 	    /* global define:true module:true window: true */
-	    if ("function" === 'function' && __webpack_require__(7)['amd']) {
+	    if ("function" === 'function' && __webpack_require__(9)['amd']) {
 	      !(__WEBPACK_AMD_DEFINE_RESULT__ = function() { return lib$es6$promise$umd$$ES6Promise; }.call(exports, __webpack_require__, exports, module), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
 	    } else if (typeof module !== 'undefined' && module['exports']) {
 	      module['exports'] = lib$es6$promise$umd$$ES6Promise;
@@ -1716,107 +2167,10 @@
 	}).call(this);
 	
 	
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(4), (function() { return this; }()), __webpack_require__(5)(module)))
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(3), (function() { return this; }()), __webpack_require__(7)(module)))
 
 /***/ },
-/* 4 */
-/***/ function(module, exports) {
-
-	// shim for using process in browser
-	
-	var process = module.exports = {};
-	var queue = [];
-	var draining = false;
-	var currentQueue;
-	var queueIndex = -1;
-	
-	function cleanUpNextTick() {
-	    draining = false;
-	    if (currentQueue.length) {
-	        queue = currentQueue.concat(queue);
-	    } else {
-	        queueIndex = -1;
-	    }
-	    if (queue.length) {
-	        drainQueue();
-	    }
-	}
-	
-	function drainQueue() {
-	    if (draining) {
-	        return;
-	    }
-	    var timeout = setTimeout(cleanUpNextTick);
-	    draining = true;
-	
-	    var len = queue.length;
-	    while(len) {
-	        currentQueue = queue;
-	        queue = [];
-	        while (++queueIndex < len) {
-	            if (currentQueue) {
-	                currentQueue[queueIndex].run();
-	            }
-	        }
-	        queueIndex = -1;
-	        len = queue.length;
-	    }
-	    currentQueue = null;
-	    draining = false;
-	    clearTimeout(timeout);
-	}
-	
-	process.nextTick = function (fun) {
-	    var args = new Array(arguments.length - 1);
-	    if (arguments.length > 1) {
-	        for (var i = 1; i < arguments.length; i++) {
-	            args[i - 1] = arguments[i];
-	        }
-	    }
-	    queue.push(new Item(fun, args));
-	    if (queue.length === 1 && !draining) {
-	        setTimeout(drainQueue, 0);
-	    }
-	};
-	
-	// v8 likes predictible objects
-	function Item(fun, array) {
-	    this.fun = fun;
-	    this.array = array;
-	}
-	Item.prototype.run = function () {
-	    this.fun.apply(null, this.array);
-	};
-	process.title = 'browser';
-	process.browser = true;
-	process.env = {};
-	process.argv = [];
-	process.version = ''; // empty string to avoid regexp issues
-	process.versions = {};
-	
-	function noop() {}
-	
-	process.on = noop;
-	process.addListener = noop;
-	process.once = noop;
-	process.off = noop;
-	process.removeListener = noop;
-	process.removeAllListeners = noop;
-	process.emit = noop;
-	
-	process.binding = function (name) {
-	    throw new Error('process.binding is not supported');
-	};
-	
-	process.cwd = function () { return '/' };
-	process.chdir = function (dir) {
-	    throw new Error('process.chdir is not supported');
-	};
-	process.umask = function() { return 0; };
-
-
-/***/ },
-/* 5 */
+/* 7 */
 /***/ function(module, exports) {
 
 	module.exports = function(module) {
@@ -1832,28 +2186,28 @@
 
 
 /***/ },
-/* 6 */
+/* 8 */
 /***/ function(module, exports) {
 
 	/* (ignored) */
 
 /***/ },
-/* 7 */
+/* 9 */
 /***/ function(module, exports) {
 
 	module.exports = function() { throw new Error("define cannot be used indirect"); };
 
 
 /***/ },
-/* 8 */
+/* 10 */
 /***/ function(module, exports, __webpack_require__) {
 
 	
-	var SSR = __webpack_require__(9);
-	var Stateman = __webpack_require__(22);
-	var u = __webpack_require__(26);
+	var SSR = __webpack_require__(11);
+	var Stateman = __webpack_require__(23);
+	var u = __webpack_require__(27);
 	
-	var createRestate = __webpack_require__(45);
+	var createRestate = __webpack_require__(46);
 	var Restate = createRestate( Stateman );
 	var so = Restate.prototype;
 	
@@ -1876,7 +2230,7 @@
 	    return self.install( installOption ).then( function(installed){
 	      var data = installed.data;
 	      if(!installed.Component){
-	        html = "";
+	        html = '';
 	      }else{
 	        var html = SSR.render( installed.Component, {
 	          data: u.extend({}, data), 
@@ -1922,16 +2276,16 @@
 	module.exports =  Restate;
 
 /***/ },
-/* 9 */
+/* 11 */
 /***/ function(module, exports, __webpack_require__) {
 
 	// server side rendering for regularjs
 	
 	
-	var _ = __webpack_require__(10);
-	var parser = __webpack_require__(15);
-	var diffArray = __webpack_require__(20).diffArray;
-	var shared = __webpack_require__(21);
+	var _ = __webpack_require__(12);
+	var parser = __webpack_require__(16);
+	var diffArray = __webpack_require__(21).diffArray;
+	var shared = __webpack_require__(22);
 	
 	
 	
@@ -2208,19 +2562,19 @@
 
 
 /***/ },
-/* 10 */
+/* 12 */
 /***/ function(module, exports, __webpack_require__) {
 
-	/* WEBPACK VAR INJECTION */(function(global, setImmediate) {__webpack_require__(12)();
+	/* WEBPACK VAR INJECTION */(function(global, setImmediate) {__webpack_require__(13)();
 	
 	
 	
 	var _  = module.exports;
-	var entities = __webpack_require__(13);
+	var entities = __webpack_require__(14);
 	var slice = [].slice;
 	var o2str = ({}).toString;
 	var win = typeof window !=='undefined'? window: global;
-	var config = __webpack_require__(14);
+	var config = __webpack_require__(15);
 	
 	
 	_.noop = function(){};
@@ -2695,92 +3049,10 @@
 	
 	
 	
-	/* WEBPACK VAR INJECTION */}.call(exports, (function() { return this; }()), __webpack_require__(11).setImmediate))
+	/* WEBPACK VAR INJECTION */}.call(exports, (function() { return this; }()), __webpack_require__(2).setImmediate))
 
 /***/ },
-/* 11 */
-/***/ function(module, exports, __webpack_require__) {
-
-	/* WEBPACK VAR INJECTION */(function(setImmediate, clearImmediate) {var nextTick = __webpack_require__(4).nextTick;
-	var apply = Function.prototype.apply;
-	var slice = Array.prototype.slice;
-	var immediateIds = {};
-	var nextImmediateId = 0;
-	
-	// DOM APIs, for completeness
-	
-	exports.setTimeout = function() {
-	  return new Timeout(apply.call(setTimeout, window, arguments), clearTimeout);
-	};
-	exports.setInterval = function() {
-	  return new Timeout(apply.call(setInterval, window, arguments), clearInterval);
-	};
-	exports.clearTimeout =
-	exports.clearInterval = function(timeout) { timeout.close(); };
-	
-	function Timeout(id, clearFn) {
-	  this._id = id;
-	  this._clearFn = clearFn;
-	}
-	Timeout.prototype.unref = Timeout.prototype.ref = function() {};
-	Timeout.prototype.close = function() {
-	  this._clearFn.call(window, this._id);
-	};
-	
-	// Does not start the time, just sets up the members needed.
-	exports.enroll = function(item, msecs) {
-	  clearTimeout(item._idleTimeoutId);
-	  item._idleTimeout = msecs;
-	};
-	
-	exports.unenroll = function(item) {
-	  clearTimeout(item._idleTimeoutId);
-	  item._idleTimeout = -1;
-	};
-	
-	exports._unrefActive = exports.active = function(item) {
-	  clearTimeout(item._idleTimeoutId);
-	
-	  var msecs = item._idleTimeout;
-	  if (msecs >= 0) {
-	    item._idleTimeoutId = setTimeout(function onTimeout() {
-	      if (item._onTimeout)
-	        item._onTimeout();
-	    }, msecs);
-	  }
-	};
-	
-	// That's not how node.js implements it but the exposed api is the same.
-	exports.setImmediate = typeof setImmediate === "function" ? setImmediate : function(fn) {
-	  var id = nextImmediateId++;
-	  var args = arguments.length < 2 ? false : slice.call(arguments, 1);
-	
-	  immediateIds[id] = true;
-	
-	  nextTick(function onNextTick() {
-	    if (immediateIds[id]) {
-	      // fn.call() is faster so we optimize for the common use-case
-	      // @see http://jsperf.com/call-apply-segu
-	      if (args) {
-	        fn.apply(null, args);
-	      } else {
-	        fn.call(null);
-	      }
-	      // Prevent ids from leaking
-	      exports.clearImmediate(id);
-	    }
-	  });
-	
-	  return id;
-	};
-	
-	exports.clearImmediate = typeof clearImmediate === "function" ? clearImmediate : function(id) {
-	  delete immediateIds[id];
-	};
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(11).setImmediate, __webpack_require__(11).clearImmediate))
-
-/***/ },
-/* 12 */
+/* 13 */
 /***/ function(module, exports) {
 
 	// shim for es5
@@ -2888,7 +3160,7 @@
 
 
 /***/ },
-/* 13 */
+/* 14 */
 /***/ function(module, exports) {
 
 	// http://stackoverflow.com/questions/1354064/how-to-convert-characters-to-html-entities-using-plain-javascript
@@ -3153,7 +3425,7 @@
 	module.exports  = entities;
 
 /***/ },
-/* 14 */
+/* 15 */
 /***/ function(module, exports) {
 
 	
@@ -3164,12 +3436,12 @@
 	}
 
 /***/ },
-/* 15 */
+/* 16 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var exprCache = __webpack_require__(16).exprCache;
-	var _ = __webpack_require__(10);
-	var Parser = __webpack_require__(17);
+	var exprCache = __webpack_require__(17).exprCache;
+	var _ = __webpack_require__(12);
+	var Parser = __webpack_require__(18);
 	module.exports = {
 	  expression: function(expr, simple){
 	    // @TODO cache
@@ -3186,12 +3458,12 @@
 
 
 /***/ },
-/* 16 */
+/* 17 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(process) {// some fixture test;
 	// ---------------
-	var _ = __webpack_require__(10);
+	var _ = __webpack_require__(12);
 	exports.svg = (function(){
 	  return typeof document !== "undefined" && document.implementation.hasFeature( "http://www.w3.org/TR/SVG11/feature#BasicStructure", "1.1" );
 	})();
@@ -3203,17 +3475,17 @@
 	exports.node = typeof process !== "undefined" && ( '' + process ) === '[object process]';
 	exports.isRunning = false;
 	
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(4)))
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(3)))
 
 /***/ },
-/* 17 */
+/* 18 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var _ = __webpack_require__(10);
+	var _ = __webpack_require__(12);
 	
-	var config = __webpack_require__(14);
-	var node = __webpack_require__(18);
-	var Lexer = __webpack_require__(19);
+	var config = __webpack_require__(15);
+	var node = __webpack_require__(19);
+	var Lexer = __webpack_require__(20);
 	var varName = _.varName;
 	var ctxName = _.ctxName;
 	var extName = _.extName;
@@ -3923,7 +4195,7 @@
 
 
 /***/ },
-/* 18 */
+/* 19 */
 /***/ function(module, exports) {
 
 	module.exports = {
@@ -3985,11 +4257,11 @@
 
 
 /***/ },
-/* 19 */
+/* 20 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var _ = __webpack_require__(10);
-	var config = __webpack_require__(14);
+	var _ = __webpack_require__(12);
+	var config = __webpack_require__(15);
 	
 	// some custom tag  will conflict with the Lexer progress
 	var conflictTag = {"}": "{", "]": "["}, map1, map2;
@@ -4343,10 +4615,10 @@
 
 
 /***/ },
-/* 20 */
+/* 21 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var _ = __webpack_require__(10);
+	var _ = __webpack_require__(12);
 	
 	function simpleDiff(now, old){
 	  var nlen = now.length;
@@ -4533,13 +4805,13 @@
 	}
 
 /***/ },
-/* 21 */
+/* 22 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var _ = __webpack_require__(10);
-	var config = __webpack_require__(14);
-	var parse = __webpack_require__(15);
-	var node = __webpack_require__(18);
+	var _ = __webpack_require__(12);
+	var config = __webpack_require__(15);
+	var parse = __webpack_require__(16);
+	var node = __webpack_require__(19);
 	
 	
 	function initDefinition(context, definition, beforeConfig){
@@ -4668,12 +4940,12 @@
 	}
 
 /***/ },
-/* 22 */
+/* 23 */
 /***/ function(module, exports, __webpack_require__) {
 
 	
-	var _ = __webpack_require__(23);
-	var Base = __webpack_require__(24);
+	var _ = __webpack_require__(24);
+	var Base = __webpack_require__(25);
 	
 	function ServerManager( options ){
 	  if(this instanceof ServerManager === false){ return new ServerManager(options); }
@@ -4713,7 +4985,7 @@
 	module.exports = ServerManager
 
 /***/ },
-/* 23 */
+/* 24 */
 /***/ function(module, exports) {
 
 	var _ = module.exports = {};
@@ -4916,12 +5188,12 @@
 
 
 /***/ },
-/* 24 */
+/* 25 */
 /***/ function(module, exports, __webpack_require__) {
 
 	
-	var State = __webpack_require__(25),
-	  _ = __webpack_require__(23),
+	var State = __webpack_require__(26),
+	  _ = __webpack_require__(24),
 	  stateFn = State.prototype.state;
 	
 	function BaseMan( options ){
@@ -5062,10 +5334,10 @@
 
 
 /***/ },
-/* 25 */
+/* 26 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var _ = __webpack_require__(23);
+	var _ = __webpack_require__(24);
 	
 	function State(option){
 	  this._states = {};
@@ -5233,11 +5505,11 @@
 
 
 /***/ },
-/* 26 */
+/* 27 */
 /***/ function(module, exports, __webpack_require__) {
 
 	
-	var Regular = __webpack_require__(27);
+	var Regular = __webpack_require__(28);
 	
 	var util = {
 	  isPromiseLike: function (obj){
@@ -5287,23 +5559,23 @@
 	module.exports = util;
 
 /***/ },
-/* 27 */
+/* 28 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var env =  __webpack_require__(16);
-	var config = __webpack_require__(14); 
-	var Regular = module.exports = __webpack_require__(28);
+	var env =  __webpack_require__(17);
+	var config = __webpack_require__(15); 
+	var Regular = module.exports = __webpack_require__(29);
 	var Parser = Regular.Parser;
 	var Lexer = Regular.Lexer;
 	
 	// if(env.browser){
-	    __webpack_require__(40);
-	    __webpack_require__(43);
+	    __webpack_require__(41);
 	    __webpack_require__(44);
-	    Regular.dom = __webpack_require__(30);
+	    __webpack_require__(45);
+	    Regular.dom = __webpack_require__(31);
 	// }
 	Regular.env = env;
-	Regular.util = __webpack_require__(10);
+	Regular.util = __webpack_require__(12);
 	Regular.parse = function(str, options){
 	  options = options || {};
 	
@@ -5315,7 +5587,7 @@
 	  var ast = new Parser(str).parse();
 	  return !options.stringify? ast : JSON.stringify(ast);
 	}
-	Regular.Cursor =__webpack_require__(36) 
+	Regular.Cursor =__webpack_require__(37) 
 	
 	Regular.isServer = env.node;
 	Regular.isRegular = function( Comp ){
@@ -5326,35 +5598,35 @@
 
 
 /***/ },
-/* 28 */
+/* 29 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/**
 	 * render for component in browsers
 	 */
 	
-	var env = __webpack_require__(16);
-	var Lexer = __webpack_require__(19);
-	var Parser = __webpack_require__(17);
-	var config = __webpack_require__(14);
-	var _ = __webpack_require__(10);
-	var extend = __webpack_require__(29);
-	var shared = __webpack_require__(21);
+	var env = __webpack_require__(17);
+	var Lexer = __webpack_require__(20);
+	var Parser = __webpack_require__(18);
+	var config = __webpack_require__(15);
+	var _ = __webpack_require__(12);
+	var extend = __webpack_require__(30);
+	var shared = __webpack_require__(22);
 	var combine = {};
 	if(env.browser){
-	  var dom = __webpack_require__(30);
-	  var walkers = __webpack_require__(32);
-	  var Group = __webpack_require__(35);
+	  var dom = __webpack_require__(31);
+	  var walkers = __webpack_require__(33);
+	  var Group = __webpack_require__(36);
 	  var doc = dom.doc;
-	  combine = __webpack_require__(33);
+	  combine = __webpack_require__(34);
 	}
-	var events = __webpack_require__(37);
-	var Watcher = __webpack_require__(38);
-	var parse = __webpack_require__(15);
-	var filter = __webpack_require__(39);
-	var ERROR = __webpack_require__(31).ERROR;
-	var nodeCursor = __webpack_require__(36);
-	var shared = __webpack_require__(21);
+	var events = __webpack_require__(38);
+	var Watcher = __webpack_require__(39);
+	var parse = __webpack_require__(16);
+	var filter = __webpack_require__(40);
+	var ERROR = __webpack_require__(32).ERROR;
+	var nodeCursor = __webpack_require__(37);
+	var shared = __webpack_require__(22);
 	
 	
 	/**
@@ -5908,7 +6180,7 @@
 
 
 /***/ },
-/* 29 */
+/* 30 */
 /***/ function(module, exports, __webpack_require__) {
 
 	// (c) 2010-2014 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
@@ -5921,7 +6193,7 @@
 	// License MIT (c) Dustin Diaz 2014
 	  
 	// inspired by backbone's extend and klass
-	var _ = __webpack_require__(10),
+	var _ = __webpack_require__(12),
 	  fnTest = /xy/.test(function(){"xy";}) ? /\bsupr\b/:/.*/,
 	  isFn = function(o){return typeof o === "function"};
 	
@@ -5994,7 +6266,7 @@
 
 
 /***/ },
-/* 30 */
+/* 31 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/*jshint -W082 */ 
@@ -6012,9 +6284,9 @@
 	if(typeof window !== 'undefined'){
 	  
 	var dom = module.exports;
-	var env = __webpack_require__(16);
-	var _ = __webpack_require__(10);
-	var consts = __webpack_require__(31);
+	var env = __webpack_require__(17);
+	var _ = __webpack_require__(12);
+	var consts = __webpack_require__(32);
 	var tNode = document.createElement('div')
 	var addEvent, removeEvent;
 	var noop = function(){}
@@ -6393,7 +6665,7 @@
 
 
 /***/ },
-/* 31 */
+/* 32 */
 /***/ function(module, exports) {
 
 	module.exports = {
@@ -6413,23 +6685,23 @@
 
 
 /***/ },
-/* 32 */
+/* 33 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var diffArray = __webpack_require__(20).diffArray;
-	var combine = __webpack_require__(33);
-	var animate = __webpack_require__(34);
-	var Parser = __webpack_require__(17);
-	var node = __webpack_require__(18);
-	var Group = __webpack_require__(35);
-	var dom = __webpack_require__(30);
-	var _ = __webpack_require__(10);
-	var consts =   __webpack_require__(31)
+	var diffArray = __webpack_require__(21).diffArray;
+	var combine = __webpack_require__(34);
+	var animate = __webpack_require__(35);
+	var Parser = __webpack_require__(18);
+	var node = __webpack_require__(19);
+	var Group = __webpack_require__(36);
+	var dom = __webpack_require__(31);
+	var _ = __webpack_require__(12);
+	var consts =   __webpack_require__(32)
 	var ERROR = consts.ERROR;
 	var MSG = consts.MSG;
-	var nodeCursor = __webpack_require__(36);
-	var config = __webpack_require__(14)
-	var shared = __webpack_require__(21);
+	var nodeCursor = __webpack_require__(37);
+	var config = __webpack_require__(15)
+	var shared = __webpack_require__(22);
 	
 	
 	
@@ -7150,14 +7422,14 @@
 
 
 /***/ },
-/* 33 */
+/* 34 */
 /***/ function(module, exports, __webpack_require__) {
 
 	// some nested  operation in ast 
 	// --------------------------------
 	
-	var dom = __webpack_require__(30);
-	var animate = __webpack_require__(34);
+	var dom = __webpack_require__(31);
+	var animate = __webpack_require__(35);
 	
 	var combine = module.exports = {
 	
@@ -7261,13 +7533,13 @@
 
 
 /***/ },
-/* 34 */
+/* 35 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var _ = __webpack_require__(10);
-	var dom  = __webpack_require__(30);
+	var _ = __webpack_require__(12);
+	var dom  = __webpack_require__(31);
 	var animate = {};
-	var env = __webpack_require__(16);
+	var env = __webpack_require__(17);
 	
 	
 	if(typeof window !== 'undefined'){
@@ -7518,11 +7790,11 @@
 	module.exports = animate;
 
 /***/ },
-/* 35 */
+/* 36 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var _ = __webpack_require__(10);
-	var combine = __webpack_require__(33)
+	var _ = __webpack_require__(12);
+	var combine = __webpack_require__(34)
 	
 	function Group(list){
 	  this.children = list || [];
@@ -7552,7 +7824,7 @@
 
 
 /***/ },
-/* 36 */
+/* 37 */
 /***/ function(module, exports) {
 
 	function NodeCursor(node){
@@ -7571,12 +7843,12 @@
 
 
 /***/ },
-/* 37 */
+/* 38 */
 /***/ function(module, exports, __webpack_require__) {
 
 	// simplest event emitter 60 lines
 	// ===============================
-	var slice = [].slice, _ = __webpack_require__(10);
+	var slice = [].slice, _ = __webpack_require__(12);
 	var API = {
 	  $on: function(event, fn) {
 	    if(!event) return this;
@@ -7648,12 +7920,12 @@
 	module.exports = Event;
 
 /***/ },
-/* 38 */
+/* 39 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var _ = __webpack_require__(10);
-	var parseExpression = __webpack_require__(15).expression;
-	var diff = __webpack_require__(20);
+	var _ = __webpack_require__(12);
+	var parseExpression = __webpack_require__(16).expression;
+	var diff = __webpack_require__(21);
 	var diffArray = diff.diffArray;
 	var diffObject = diff.diffObject;
 	
@@ -7906,7 +8178,7 @@
 	module.exports = Watcher;
 
 /***/ },
-/* 39 */
+/* 40 */
 /***/ function(module, exports) {
 
 	
@@ -7974,22 +8246,22 @@
 
 
 /***/ },
-/* 40 */
+/* 41 */
 /***/ function(module, exports, __webpack_require__) {
 
 	// Regular
-	var _ = __webpack_require__(10);
-	var dom = __webpack_require__(30);
-	var animate = __webpack_require__(34);
-	var Regular = __webpack_require__(28);
-	var consts = __webpack_require__(31);
+	var _ = __webpack_require__(12);
+	var dom = __webpack_require__(31);
+	var animate = __webpack_require__(35);
+	var Regular = __webpack_require__(29);
+	var consts = __webpack_require__(32);
 	var namespaces = consts.NAMESPACE;
 	
 	
 	
 	
-	__webpack_require__(41);
 	__webpack_require__(42);
+	__webpack_require__(43);
 	
 	
 	module.exports = {
@@ -8106,16 +8378,16 @@
 
 
 /***/ },
-/* 41 */
+/* 42 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/**
 	 * event directive  bundle
 	 *
 	 */
-	var _ = __webpack_require__(10);
-	var dom = __webpack_require__(30);
-	var Regular = __webpack_require__(28);
+	var _ = __webpack_require__(12);
+	var dom = __webpack_require__(31);
+	var Regular = __webpack_require__(29);
 	
 	Regular._addProtoInheritCache("event");
 	
@@ -8190,13 +8462,13 @@
 	}
 
 /***/ },
-/* 42 */
+/* 43 */
 /***/ function(module, exports, __webpack_require__) {
 
 	// Regular
-	var _ = __webpack_require__(10);
-	var dom = __webpack_require__(30);
-	var Regular = __webpack_require__(28);
+	var _ = __webpack_require__(12);
+	var dom = __webpack_require__(31);
+	var Regular = __webpack_require__(29);
 	
 	var modelHandlers = {
 	  "text": initText,
@@ -8370,14 +8642,14 @@
 
 
 /***/ },
-/* 43 */
+/* 44 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var // packages
-	  _ = __webpack_require__(10),
-	 animate = __webpack_require__(34),
-	 dom = __webpack_require__(30),
-	 Regular = __webpack_require__(28);
+	  _ = __webpack_require__(12),
+	 animate = __webpack_require__(35),
+	 dom = __webpack_require__(31),
+	 Regular = __webpack_require__(29);
 	
 	
 	var // variables
@@ -8609,10 +8881,10 @@
 
 
 /***/ },
-/* 44 */
+/* 45 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var Regular = __webpack_require__(28);
+	var Regular = __webpack_require__(29);
 	
 	/**
 	 * Timeout Module
@@ -8655,14 +8927,15 @@
 	Regular.plugin('$timeout', TimeoutModule);
 
 /***/ },
-/* 45 */
+/* 46 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var Regular = __webpack_require__(27);
-	var u = __webpack_require__(26);
+	var Regular = __webpack_require__(28);
+	var u = __webpack_require__(27);
 	var extend = u.extend;
+	var win = typeof window !== 'undefined' && window;
 	
-	var extension = __webpack_require__(46);
+	var extension = __webpack_require__(47);
 	
 	function createRestate( Stateman ){
 	
@@ -8679,17 +8952,23 @@
 	
 	  extend(so, {
 	    installData: function( option ){
-	      var type = typeof  this.dataProvider, 
-	        ret,  state = option.state;
+	      var ret,  state = option.state;
+	      var firstData = this.firstData;
 	
-	      if( type === 'function' ){
-	        ret = u.proxyMethod(state, this.dataProvider, option);
-	      }else if(type === 'object'){
-	        var dataProvider = this.dataProvider[ state.name];
-	        ret = u.proxyMethod(state, dataProvider, option)
+	      if(option.ssr){ //证明首次服务端渲染后的初始化
+	        var type = typeof firstData;
+	
+	        if( type === 'string' ){
+	          ret = win[ firstData ][ state.name ];
+	        }
+	        if(type === 'function'){
+	          ret = u.proxyMethod( this, 'firstData', option );
+	        }
 	      }
 	
-	      return u.normPromise( ret )
+	      if( ret ) return u.normPromise( ret );
+	
+	      return u.proxyMethod(state, 'data', option)
 	    },
 	    installView: function( option ){
 	      var  state = option.state ,Comp = state.view;
@@ -8722,11 +9001,11 @@
 
 
 /***/ },
-/* 46 */
+/* 47 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var _ = __webpack_require__(26);
-	var Regular = __webpack_require__(27);
+	var _ = __webpack_require__(27);
+	var Regular = __webpack_require__(28);
 	var dom = Regular.dom;
 	
 	
@@ -8824,19 +9103,19 @@
 
 
 /***/ },
-/* 47 */
+/* 48 */
 /***/ function(module, exports, __webpack_require__) {
 
 	
 	
 	
 	
-	var Regular = __webpack_require__(27);
-	var Stateman = __webpack_require__(48);
-	var _ = __webpack_require__(26);
+	var Regular = __webpack_require__(28);
+	var Stateman = __webpack_require__(49);
+	var _ = __webpack_require__(27);
 	var dom =Regular.dom;
 	
-	var createRestate = __webpack_require__(45);
+	var createRestate = __webpack_require__(46);
 	
 	var Restate = createRestate( Stateman );
 	var so = Restate.prototype;
@@ -9005,36 +9284,36 @@
 
 
 /***/ },
-/* 48 */
+/* 49 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var stateman;
 	
 	if( typeof window === 'object' ){
-	  stateman = __webpack_require__(49);
-	  stateman.History = __webpack_require__(50);
-	  stateman.util = __webpack_require__(23);
+	  stateman = __webpack_require__(50);
+	  stateman.History = __webpack_require__(51);
+	  stateman.util = __webpack_require__(24);
 	  stateman.isServer = false;
 	}else{
-	  stateman = __webpack_require__(22);
+	  stateman = __webpack_require__(23);
 	  stateman.isServer = true;
 	}
 	
 	
-	stateman.State = __webpack_require__(25);
+	stateman.State = __webpack_require__(26);
 	
 	module.exports = stateman;
 
 
 /***/ },
-/* 49 */
+/* 50 */
 /***/ function(module, exports, __webpack_require__) {
 
 	
-	var State = __webpack_require__(25),
-	  History = __webpack_require__(50),
-	  Base = __webpack_require__(24),
-	  _ = __webpack_require__(23),
+	var State = __webpack_require__(26),
+	  History = __webpack_require__(51),
+	  Base = __webpack_require__(25),
+	  _ = __webpack_require__(24),
 	  baseTitle = document.title,
 	  stateFn = State.prototype.state;
 	
@@ -9437,7 +9716,7 @@
 
 
 /***/ },
-/* 50 */
+/* 51 */
 /***/ function(module, exports, __webpack_require__) {
 
 	
@@ -9445,8 +9724,8 @@
 	// Thx Backbone.js 1.1.2  and https://github.com/cowboy/jquery-hashchange/blob/master/jquery.ba-hashchange.js
 	// for iframe patches in old ie.
 	
-	var browser = __webpack_require__(51);
-	var _ = __webpack_require__(23);
+	var browser = __webpack_require__(52);
+	var _ = __webpack_require__(24);
 	
 	
 	// the mode const
@@ -9662,7 +9941,7 @@
 
 
 /***/ },
-/* 51 */
+/* 52 */
 /***/ function(module, exports) {
 
 	var win = window,
@@ -9693,11 +9972,11 @@
 
 
 /***/ },
-/* 52 */
+/* 53 */
 /***/ function(module, exports, __webpack_require__) {
 
 	
-	var Regular = __webpack_require__(27);
+	var Regular = __webpack_require__(28);
 	// Backbone.js Trick for mock the location service
 	function loc(href){
 	  var a = document.createElement('a');
@@ -9729,31 +10008,12 @@
 	module.exports = loc;
 
 /***/ },
-/* 53 */
+/* 54 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var Regular = __webpack_require__(27);
+	var Regular = __webpack_require__(28);
 	module.exports = {
 	  "blog": {
-	    dataProvider: {
-	
-	      "app.index": function(option, resolve){
-	        resolve({
-	          title: 'Hello Index'
-	        })
-	      },
-	      "app.blog": function(){
-	        return {
-	          title: 'Hello Blog',
-	        }
-	      },
-	      "app.blog.detail": function(option){
-	        var param = option.param;
-	        return {
-	          content: 'Blog Content Here'+param.rid
-	        }
-	      }
-	    },
 	    routes: {
 	      "login": {
 	        view: Regular.extend({
@@ -9773,7 +10033,12 @@
 	              <h2 class="index">{title}</h2>\
 	              <div r-view ></div>\
 	            </div>'
-	        })
+	        }),
+	        data: function(option, resolve){
+	          resolve({
+	            title: 'Hello Index'
+	          })
+	        }
 	
 	      },
 	      'app.blog': {
@@ -9786,14 +10051,25 @@
 	            enter: function(){
 	              this.data.title='修改后的title'
 	            }
-	        })
+	        }),
+	        data: function(){
+	          return {
+	            title: 'Hello Blog',
+	          }
+	        }
 	      },
 	      'app.blog.detail': {
 	        url: ':id/detail',
 	        view: Regular.extend({
 	          template: 
 	            '<div class="detail">{content}</div>'
-	        })
+	        }),
+	        data: function(option){
+	          var param = option.param;
+	          return {
+	            content: 'Blog Content Here'+param.rid
+	          }
+	        }
 	      },
 	      'app.lazyload': {
 	        view: function(option){

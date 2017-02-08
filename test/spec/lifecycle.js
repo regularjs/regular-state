@@ -185,18 +185,6 @@ describe("Simple Test", function(){
 
 describe("Regular extension", function(){
     var routeConfig = {
-      dataProvider: {
-        "app.blog.edit": function(option){
-          return {
-            id: option.param.id
-          }
-        },
-        "app.blog.detail": function(option){
-          return {
-            id: option.param.id
-          }
-        }
-      },
       routes: {
         'app':{
           url: "",
@@ -213,13 +201,23 @@ describe("Regular extension", function(){
           url: ':id/edit',
           view: Regular.extend({
             template: '<div class="blog_edit"><a r-link="app.blog.detail({id: id})" ></a></div>'
-          })
+          }),
+          data: function(option){
+            return {
+              id: option.param.id
+            }
+          }
         },
         'app.blog.detail': {
           url: ':id',
           view: Regular.extend({
             template: '<div class="blog_detail"><a r-link="app.blog.edit({id: id})" ></a></div>'
-          })
+          }),
+          data: function(option){
+            return {
+              id: option.param.id
+            }
+          }
         } 
       }
     }
@@ -602,12 +600,43 @@ describe("Lifecycle", function(){
     })
     
   })
-  it("实现感兴趣的参数", function(done){
-    throw new Error('you can this.view = Component to avoding Component')
-  })
-  it("自定义State，无法ssr, 并且考虑没有view的默认就是ssr:false", function(done){
-    
-  })
+  // it("实现感兴趣的参数", function(done){
+  //   var manager =client().state({
+  //     'a': {
+  //       view: Regular.extend({
+  //         config: function( data){
+  //           data.num = 1
+  //         },
+  //         template: '<div class=a >{num}</div>',
+  //         enter: function(){
+  //           this.data.num ++;
+  //         }
+  //       })
+  //     },
+  //     'b':{
+  //       param: ['id'],
+  //       view: Regular.extend({
+  //         config: function( data){
+  //           data.num = 1
+  //         },
+  //         template: '<div class=b >{num}</div>'
+  //       })
+  //     }
+  //   }).start({
+  //     html5: true,
+  //     location: loc('/a') ,
+  //     view: container
+  //   }, function(){
+  //     expect($('.a', container).innerHTML).to.equal('2');
+  //     manager.nav('/b', function(){
+  //       expect($('.b', container).innerHTML).to.equal('1');
+  //       manager.nav('/a', function(){
+  //         expect($('.a', container).innerHTML).to.equal('3');
+  //         done()
+  //       })
+  //     })
+  //   })
+  // })
   it("mute(false) 失效啊", function(done){
     var container = document.createElement('div')
     var manager =client().state({
