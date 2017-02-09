@@ -8,5 +8,7 @@ test/coverage/*
 coverage*
 out/*
 .vscode
+test/runner/spec.pack.js
+test/runner/spec.pack.js.map
 
 

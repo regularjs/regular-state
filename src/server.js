@@ -1,5 +1,5 @@
 
-var SSR = require('regularjs/src/render/server.js');
+var SSR = require('regularjs/lib/server');
 var Stateman = require('stateman/src/manager/server');
 var u = require('./util');
 
