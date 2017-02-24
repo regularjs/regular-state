@@ -248,6 +248,48 @@ describe("Regular extension", function(){
       })
 
   })
+  it("r-link with 0", function( done){
+
+    var container = document.createElement('div');
+
+
+    var clientManager = client(extend({ },routeConfig))
+
+    clientManager.state({
+      'app.link': {
+        url: 'link/:id',
+        view: Regular.extend({
+          config: function(){
+            this.data.id = 0
+          },
+          template: '<a id="blog" r-link="app.link({id: id })"></a>'
+
+        })
+      }
+    });
+
+
+      clientManager.start({ 
+        view: container,
+        location: loc('/link/1'),
+        html5: true 
+      }, function(){
+        var link = container.querySelector('#blog')
+        expect(link.pathname).to.equal(
+          '/link/0'
+        )
+        clientManager.go('~', { param: {id: 4} }, function(){
+
+          expect(link.pathname).to.equal(
+            '/link/0'
+          )
+          done()
+          
+          
+        })
+      })
+
+  })
 
   it("r-link should work when no param passed in", function( done){
     var container = document.createElement('div');
@@ -599,6 +641,72 @@ describe("Lifecycle", function(){
       })
     })
     
+  })
+
+
+  it('destroy module at leave will rebuild module when enter', function(done){
+
+    var App = Regular.extend({ })
+
+    var allDone = false;
+    var touched ={
+      blog: 0,
+      chat: 0
+    }
+
+     var Blog = Regular.extend({
+      enter: function(){
+        touched.blog++;
+        if( touched.blog === 2){
+          expect(this.name).to.equal('blog');
+        }
+        this.name = 'blog';
+        
+      }
+     })
+
+     var Chat = Regular.extend({
+       enter(){
+          touched.chat++;
+          if( touched.chat === 2){
+            expect(this.name).to.equal(undefined);
+          }
+          this.name = 'chat'
+       },
+       leave(){
+        this.destroy();
+       }  
+     });
+
+
+    var container = document.createElement('div')
+    var manager = client()
+      //注册路由
+       .state({
+          'app': {
+              view: App
+          },
+          'app.blog':{
+              view: Blog
+          },
+          'app.chat':{
+              view: Chat
+          }
+       }).start({ // 启动路由
+          html5: true,
+          location: loc('/app/blog') ,
+          view:container
+       }, function(){
+          manager.go('app.chat', function(){
+            manager.go('app.blog', function(){
+              manager.go('app.chat', function(){
+                expect(touched).to.eql({blog:2, chat:2})
+                done()
+              })
+            })
+          })
+       }); 
+
   })
   // it("实现感兴趣的参数", function(done){
   //   var manager =client().state({

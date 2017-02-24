@@ -148,6 +148,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	      var self = this;
 	      var ssr = option.ssr = isEnter && option.firstTime && manager.ssr && this.ssr !== false;
 	
+	      if(component && component.$phase === 'destroyed' ){
+	        component = null;
+	      }
+	
 	      var installOption = {
 	        ssr: ssr,
 	        state: this,
@@ -807,13 +811,18 @@ return /******/ (function(modules) { // webpackBootstrap
 	    _.extend(this, _.normalize(this.pattern), true);
 	  },
 	  encode: function(param){
+	
 	    var state = this;
 	    param = param || {};
 	
 	    var matched = "%";
 	
 	    var url = state.matches.replace(/\(([\w-]+)\)/g, function(all, capture){
-	      var sec = param[capture] || "";
+	
+	      var sec = param[capture]; 
+	      var stype = typeof sec;
+	      if(stype === 'boolean' || stype === 'number') sec = ''+sec;
+	      sec = sec || '';
 	      matched+= capture + "%";
 	      return sec;
 	    }) + "?";

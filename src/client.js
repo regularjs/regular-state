@@ -82,6 +82,10 @@ so.state = function(name, config){
       var self = this;
       var ssr = option.ssr = isEnter && option.firstTime && manager.ssr && this.ssr !== false;
 
+      if(component && component.$phase === 'destroyed' ){
+        component = null;
+      }
+
       var installOption = {
         ssr: ssr,
         state: this,
