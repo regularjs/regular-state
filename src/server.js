@@ -13,7 +13,7 @@ so.run = function(path, option){
   var self = this;
   if(!executed){
     return Promise.reject({
-      code: 'notfound',
+      code: 404,
       message: 'NOT FOUND'
     });
   }
