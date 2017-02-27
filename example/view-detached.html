@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Document</title>
+</head>
+<body>
+  
+<div id="app">
+  
+</div>
+<script src='../assets/regular.js'></script>
+<script src='../assets/restate.pack.js'></script>
+<script>
+
+var App = Regular.extend({
+   template: 
+     `<div>
+       <h2>主页</h2>
+       <div>
+         <a href='#/app/detached'>跳转到 游离节点</a>|
+       </div>
+       <div r-view ></div>
+      </div>
+     `
+ })
+ var Blog = Regular.extend({
+   template: `
+     <div> <h3>博客页</h3> </div>
+   `  
+ })
+
+var title = '你进入了一个游离节点。'
+var manager = restate()
+    //注册路由
+     .state({
+        'app': {
+            view: App
+        },
+        'app.blog':{
+            view: Blog
+        },
+        'app.detached':{
+            view: Regular.extend({
+
+              enter(){
+                this.oldTitle = document.title;
+                var i = 0;
+                this.tid = setInterval( function(){
+                  
+                  document.title = title[i++]
+                  if( i >= title.length) i = 0;
+
+                }.bind(this), 500)
+              },
+              
+              leave(){
+                document.title = this.oldTitle;
+                clearInterval(this.tid);
+              }
+            }) 
+        }
+     }).start({ // 启动路由
+       view: document.getElementById('app') //顶层容器节点
+     }); 
+
+
+</script>
+</body>
+</html>

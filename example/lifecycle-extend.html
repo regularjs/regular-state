@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Document</title>
+</head>
+<body>
+  
+<div id="app">
+  
+</div>
+<script src='../assets/regular.js'></script>
+<script src='../assets/restate.pack.js'></script>
+<script>
+
+// CreateRoute
+function createRoute(name){
+  return {
+    title: name,
+    view: Regular.extend({
+      enter(option){
+        console.log(name + '#enter' )
+      },
+      mount(option){
+        console.log(name + '#mount' )
+      },
+      leave(option){
+        console.log(name + '#leave' )
+      },
+      canLeave(option){
+        console.log(name + '#canLeave' )
+      },
+      canEnter(option){
+        console.log(name + '#canEnter' )
+      }
+    })
+  }
+}
+
+var manager = restate()
+  //注册路由
+  .state({
+
+    'app': createRoute('App'),
+
+    'app.blog': createRoute('Blog'),        
+
+    'app.blog.detail': createRoute('BlogDetail'),
+
+    'app.blog.edit': createRoute('BlogEdit')
+
+  }).start({ // 启动路由
+    view: document.getElementById('app') //顶层容器节点
+  }); 
+
+
+  manager
+</script>
+</body>
+</html>

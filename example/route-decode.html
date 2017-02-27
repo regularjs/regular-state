@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Document</title>
+  <style>
+    input, textarea{
+      width: 400px;
+      border: 1px solid #aaa;
+    }
+  </style>
+</head>
+<body>
+  
+<script src='../assets/regular.js'></script>
+<script src='../assets/restate.pack.js'></script>
+<script>
+
+var App = Regular.extend({
+   template: 
+     `<div>
+       <h2>URL匹配测试</h2>
+       <div> 模式:<input r-model='pattern' /> </div>
+       <div> url:<input r-model='url' /> </div>
+       <p> <button on-click={this.check()}>测试匹配结果</button></p>
+       <textarea r-model={param|json} disabled ></textarea>
+      </div>
+     `,
+    config(data){
+      data.pattern = '/blog/:id'
+      data.url = '/blog/1?name=1'
+    },
+    check(){
+      var ret = restate().state({
+        test: {
+          url: this.data.pattern
+        }
+      }).decode(this.data.url)
+      this.data.param = ret && ret.param;
+    }
+ })
+
+new App().$inject('body')
+
+</script>
+</body>
+</html>

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Document</title>
+</head>
+<body>
+  
+<div id="app">
+  
+</div>
+<script src='../assets/regular.js'></script>
+<script src='../assets/restate.pack.js'></script>
+<script>
+
+var App = Regular.extend({
+   template: 
+     `<div>
+       <h2>主页</h2>
+       <div>
+         <a href='#/app/chat'>跳转到 Chat</a>|
+         <a href='#/app/blog'>跳转到 Blog</a>
+       </div>
+       <div r-view ></div>
+      </div>
+     `
+ })
+ var Blog = Regular.extend({
+   template: `
+     <div> <h3>博客页</h3> </div>
+   `  
+ })
+ var Chat = Regular.extend({
+   template: `
+     <div>
+       <h3>聊天室</h3>
+     </div>
+   `  
+ });
+
+ var manager = restate()
+    //注册路由
+     .state({
+        'app': {
+            view: App
+        },
+        'app.blog':{
+            view: Blog
+        },
+        'app.chat':{
+            view: Chat
+        }
+     }).start({ // 启动路由
+        html5: true,
+        base: '/rule',
+        view: document.getElementById('app') //顶层容器节点
+     }); 
+
+
+  manager
+</script>
+</body>
+</html>

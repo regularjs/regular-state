@@ -1,0 +1,694 @@
+<!DOCTYPE HTML>
+<html lang="en" >
+    
+    <head>
+        
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <title>入门范例 | regular-state介绍</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="generator" content="GitBook 2.2.0">
+        
+        
+        <meta name="HandheldFriendly" content="true"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="black">
+        <link rel="apple-touch-icon-precomposed" sizes="152x152" href="../../gitbook/images/apple-touch-icon-precomposed-152.png">
+        <link rel="shortcut icon" href="../../gitbook/images/favicon.ico" type="image/x-icon">
+        
+    <link rel="stylesheet" href="../../gitbook/style.css">
+    
+    
+
+        
+    
+    
+    <link rel="next" href="../../docs/ssr/lifecycle.html" />
+    
+    
+    <link rel="prev" href="../../docs/ssr/index.html" />
+    
+
+        
+    </head>
+    <body>
+        
+        
+    <div class="book" data-level="3.1" data-basepath="../.." data-revision="Mon Feb 27 2017 10:14:52 GMT+0800 (CST)">
+    
+
+<div class="book-summary">
+    <div class="book-search">
+        <input type="text" placeholder="Type to search" class="form-control" />
+    </div>
+    <ul class="summary">
+        
+        
+        
+        
+
+        
+
+        
+    
+        <li class="chapter " data-level="0" data-path="index.html">
+            
+                
+                    <a href="../../index.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                        介绍
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="1" data-path="docs/start.html">
+            
+                
+                    <a href="../../docs/start.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>1.</b>
+                        
+                        起步
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="2" data-path="docs/core/index.html">
+            
+                
+                    <a href="../../docs/core/index.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>2.</b>
+                        
+                        核心概念
+                    </a>
+            
+            
+            <ul class="articles">
+                
+    
+        <li class="chapter " data-level="2.1" data-path="docs/core/route.html">
+            
+                
+                    <a href="../../docs/core/route.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>2.1.</b>
+                        
+                        配置路由
+                    </a>
+            
+            
+            <ul class="articles">
+                
+    
+        <li class="chapter " data-level="2.1.1" data-path="docs/core/view.html">
+            
+                
+                    <a href="../../docs/core/view.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>2.1.1.</b>
+                        
+                        路由模块
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="2.1.2" data-path="docs/core/option.html">
+            
+                
+                    <a href="../../docs/core/option.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>2.1.2.</b>
+                        
+                        跳转参数及路由匹配
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="2.1.3" data-path="docs/core/nav.html">
+            
+                
+                    <a href="../../docs/core/nav.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>2.1.3.</b>
+                        
+                        跳转控制
+                    </a>
+            
+            
+        </li>
+    
+
+            </ul>
+            
+        </li>
+    
+        <li class="chapter " data-level="2.2" data-path="docs/core/lifecycle.html">
+            
+                
+                    <a href="../../docs/core/lifecycle.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>2.2.</b>
+                        
+                        路由生命周期
+                    </a>
+            
+            
+            <ul class="articles">
+                
+    
+        <li class="chapter " data-level="2.2.1" data-path="docs/core/event.html">
+            
+                
+                    <a href="../../docs/core/event.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>2.2.1.</b>
+                        
+                        路由事件
+                    </a>
+            
+            
+        </li>
+    
+
+            </ul>
+            
+        </li>
+    
+        <li class="chapter " data-level="2.3" data-path="docs/core/boot.html">
+            
+                
+                    <a href="../../docs/core/boot.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>2.3.</b>
+                        
+                        启动路由
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="2.4" data-path="docs/core/summary.html">
+            
+                
+                    <a href="../../docs/core/summary.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>2.4.</b>
+                        
+                        总结
+                    </a>
+            
+            
+        </li>
+    
+
+            </ul>
+            
+        </li>
+    
+        <li class="chapter " data-level="3" data-path="docs/ssr/index.html">
+            
+                
+                    <a href="../../docs/ssr/index.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>3.</b>
+                        
+                        服务端渲染
+                    </a>
+            
+            
+            <ul class="articles">
+                
+    
+        <li class="chapter active" data-level="3.1" data-path="docs/ssr/start.html">
+            
+                
+                    <a href="../../docs/ssr/start.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>3.1.</b>
+                        
+                        入门范例
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="3.2" data-path="docs/ssr/lifecycle.html">
+            
+                
+                    <a href="../../docs/ssr/lifecycle.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>3.2.</b>
+                        
+                        生命周期
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="3.3" data-path="docs/ssr/summary.html">
+            
+                
+                    <a href="../../docs/ssr/summary.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>3.3.</b>
+                        
+                        总结
+                    </a>
+            
+            
+        </li>
+    
+
+            </ul>
+            
+        </li>
+    
+        <li class="chapter " data-level="4" data-path="docs/api.html">
+            
+                
+                    <a href="../../docs/api.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>4.</b>
+                        
+                        API清单
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="5" data-path="docs/words.html">
+            
+                
+                    <a href="../../docs/words.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>5.</b>
+                        
+                        概念词汇索引
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="6" data-path="docs/qa.html">
+            
+                
+                    <a href="../../docs/qa.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>6.</b>
+                        
+                        常见问题QA
+                    </a>
+            
+            
+        </li>
+    
+
+
+        
+        <li class="divider"></li>
+        <li>
+            <a href="https://www.gitbook.com" target="blank" class="gitbook-link">
+                Published with GitBook
+            </a>
+        </li>
+        
+    </ul>
+</div>
+
+    <div class="book-body">
+        <div class="body-inner">
+            <div class="book-header">
+    <!-- Actions Left -->
+    <a href="#" class="btn pull-left toggle-summary" aria-label="Table of Contents"><i class="fa fa-align-justify"></i></a>
+    <a href="#" class="btn pull-left toggle-search" aria-label="Search"><i class="fa fa-search"></i></a>
+    
+    <div id="font-settings-wrapper" class="dropdown pull-left">
+        <a href="#" class="btn toggle-dropdown" aria-label="Font Settings"><i class="fa fa-font"></i>
+        </a>
+        <div class="dropdown-menu font-settings">
+    <div class="dropdown-caret">
+        <span class="caret-outer"></span>
+        <span class="caret-inner"></span>
+    </div>
+
+    <div class="buttons">
+        <button type="button" id="reduce-font-size" class="button size-2">A</button>
+        <button type="button" id="enlarge-font-size" class="button size-2">A</button>
+    </div>
+
+    <div class="buttons font-family-list">
+        <button type="button" data-font="0" class="button">Serif</button>
+        <button type="button" data-font="1" class="button">Sans</button>
+    </div>
+
+    <div class="buttons color-theme-list">
+        <button type="button" id="color-theme-preview-0" class="button size-3" data-theme="0">White</button>
+        <button type="button" id="color-theme-preview-1" class="button size-3" data-theme="1">Sepia</button>
+        <button type="button" id="color-theme-preview-2" class="button size-3" data-theme="2">Night</button>
+    </div>
+</div>
+
+    </div>
+
+    <!-- Actions Right -->
+    
+    <div class="dropdown pull-right">
+        <a href="#" class="btn toggle-dropdown" aria-label="Share"><i class="fa fa-share-alt"></i>
+        </a>
+        <div class="dropdown-menu font-settings dropdown-left">
+            <div class="dropdown-caret">
+                <span class="caret-outer"></span>
+                <span class="caret-inner"></span>
+            </div>
+            <div class="buttons">
+                <button type="button" data-sharing="twitter" class="button">
+                    Share on Twitter
+                </button>
+                <button type="button" data-sharing="google-plus" class="button">
+                    Share on Google
+                </button>
+                <button type="button" data-sharing="facebook" class="button">
+                    Share on Facebook
+                </button>
+                <button type="button" data-sharing="weibo" class="button">
+                    Share on Weibo
+                </button>
+                <button type="button" data-sharing="instapaper" class="button">
+                    Share on Instapaper
+                </button>
+            </div>
+        </div>
+    </div>
+    
+
+    
+    <a href="#" target="_blank" class="btn pull-right google-plus-sharing-link sharing-link" data-sharing="google-plus" aria-label="Google"><i class="fa fa-google-plus"></i></a>
+    
+    
+    <a href="#" target="_blank" class="btn pull-right facebook-sharing-link sharing-link" data-sharing="facebook" aria-label="Facebook"><i class="fa fa-facebook"></i></a>
+    
+    
+    <a href="#" target="_blank" class="btn pull-right twitter-sharing-link sharing-link" data-sharing="twitter" aria-label="Twitter"><i class="fa fa-twitter"></i></a>
+    
+    
+    
+
+
+    <!-- Title -->
+    <h1>
+        <i class="fa fa-circle-o-notch fa-spin"></i>
+        <a href="../../" >regular-state介绍</a>
+    </h1>
+</div>
+
+            <div class="page-wrapper" tabindex="-1">
+                <div class="page-inner">
+                
+                
+                    <section class="normal" id="section-">
+                    
+                        <h1 id="%E5%85%A5%E9%97%A8%E8%8C%83%E4%BE%8B">&#x5165;&#x95E8;&#x8303;&#x4F8B;</h1>
+<blockquote>
+<p><em>&#x5982;&#x679C;&#x4F60;&#x6CA1;&#x6709;&#x63A5;&#x89E6;&#x8FC7;node, &#x5C31;&#x627E;&#x4E2A;&#x7565;&#x61C2;&#x7684;&#x540C;&#x4E8B;&#x966A;&#x4F60;&#x5171;&#x540C;&#x9605;&#x8BFB;&#x4EE5;&#x4E0B;&#x5185;&#x5BB9;</em></p>
+</blockquote>
+<p><strong>regular-state</strong>&#x6846;&#x67B6;&#x8981;&#x5B8C;&#x6210;&#x670D;&#x52A1;&#x7AEF;&#x6E32;&#x67D3;(&#x4EE5;&#x4E0B;&#x7B80;&#x79F0;SSR)&#x9700;&#x8981;&#x5B8C;&#x6210;&#x4E09;&#x6B65;&#x5DE5;&#x4F5C;</p>
+<ol>
+<li>&#x670D;&#x52A1;&#x7AEF;: &#x5355;&#x9875;&#x7CFB;&#x7EDF;&#x6839;&#x636E;&#x300E;&#x8BF7;&#x6C42;&#x8DEF;&#x5F84;&#x300F;&#x6309;&#x8DEF;&#x7531;&#x8282;&#x70B9;&#x6536;&#x96C6;&#x300E;&#x9996;&#x5C4F;&#x6570;&#x636E;data&#x300F;&#x5E76;&#x6784;&#x5EFA;&#x51FA;&#x300E;&#x9996;&#x5C4F;html&#x5B57;&#x7B26;&#x4E32;&#x300F;,</li>
+<li>&#x9996;&#x5C4F;&#x6570;&#x636E;data&#x4E0E;&#x9996;&#x5C4F;html&#x4E00;&#x8D77;&#x53D1;&#x9001;&#x5230;&#x6D4F;&#x89C8;&#x5668;&#x7AEF;</li>
+<li>&#x9996;&#x5C4F;html&#x88AB;&#x6D4F;&#x89C8;&#x5668;&#x6E32;&#x67D3;&#x6210;&#x9759;&#x6001;DOM&#x7ED3;&#x6784;, &#x5E76;&#x5728;&#x524D;&#x7AEF;&#x6839;&#x636E;&#x9996;&#x5C4F;&#x6570;&#x636E;data&#x5C06;&#x9759;&#x6001;DOM&#x91CD;&#x65B0;&#x6FC0;&#x6D3B;&#xFF0C;&#x4F7F;&#x5176;&#x53EF;&#x4EE5;&#x88AB;&#x6570;&#x636E;&#x9A71;&#x52A8;&#x548C;&#x54CD;&#x5E94;&#x4E8B;&#x4EF6;</li>
+</ol>
+<h2 id="1-%E6%9C%8D%E5%8A%A1%E7%AB%AF%E6%9E%84%E5%BB%BA%E9%A6%96%E5%B1%8F%E6%95%B0%E6%8D%AE%E5%92%8C%E9%A6%96%E5%B1%8Fhtml">1. &#x670D;&#x52A1;&#x7AEF;&#x6784;&#x5EFA;&#x9996;&#x5C4F;&#x6570;&#x636E;&#x548C;&#x9996;&#x5C4F;html</h2>
+<p>&#x670D;&#x52A1;&#x7AEF;&#x914D;&#x7F6E;route&#x548C;&#x5BA2;&#x6237;&#x7AEF;&#x4E00;&#x81F4;(&#x5B83;&#x4EEC;&#x662F;&#x4E00;&#x4E2A;&#x57FA;&#x7C7B;&#x7684;&#x4E0D;&#x540C;&#x5B50;&#x7C7B;) , &#x4F46;&#x662F;&#x6A21;&#x5757;&#x5F15;&#x5165;&#x8981;&#x4FEE;&#x6539;&#x4E3A; <code>regular-state/server</code></p>
+<pre><code class="lang-js"><span class="hljs-keyword">const</span> restate = <span class="hljs-built_in">require</span>(<span class="hljs-string">&apos;regular-state/server&apos;</span>);
+</code></pre>
+<h3 id="manager-run-url">manager.run(url)</h3>
+<p><strong>&#x53C2;&#x6570;</strong></p>
+<ul>
+<li>url: &#x5373;&#x88AB;&#x89E3;&#x6790;&#x7684;&#x5355;&#x9875;&#x8DEF;&#x5F84;</li>
+</ul>
+<p><strong>&#x8FD4;&#x56DE;</strong> Promise</p>
+<ul>
+<li>resolve(option): &#x5982;&#x679C;&#x6210;&#x529F;&#x5339;&#x914D;&#x4F1A;resolve&#x5BF9;&#x5E94;&#x7684;html&#x548C;&#x9996;&#x5C4F;&#x6570;&#x636E;<ul>
+<li>option.html: &#x9996;&#x5C4F;html</li>
+<li>option.data: &#x9996;&#x5C4F;&#x6570;&#x636E;&#xFF0C;&#x540E;&#x7EED;<a href="#data">&#x5173;&#x4E8E;data&#x65B9;&#x6CD5;&#x5C0F;&#x8282;</a>&#x4F1A;&#x63D0;&#x5230;</li>
+</ul>
+</li>
+<li>reject(err): &#x5982;&#x679C;err.code === 404 &#x5219;&#x8BC1;&#x660E;&#x8FD9;&#x4E2A;&#x8DEF;&#x5F84;&#x548C;&#x5355;&#x9875;&#x7CFB;&#x7EDF;&#x4E0D;&#x5339;&#x914D;</li>
+</ul>
+<p>&#x505A;&#x4E2A;&#x7B80;&#x5355;&#x7684;&#x5C0F;&#x4F8B;&#x5B50;&#x5427;. &#x65B0;&#x5EFA;&#x4E00;&#x4E2A;app.js&#x5185;&#x5BB9;&#x5982;&#x4E0B;</p>
+<pre><code class="lang-js">
+<span class="hljs-comment">// app.js</span>
+
+<span class="hljs-keyword">const</span> restate = <span class="hljs-built_in">require</span>(<span class="hljs-string">&apos;regular-state/server&apos;</span>);
+<span class="hljs-keyword">const</span> Regular = <span class="hljs-built_in">require</span>(<span class="hljs-string">&apos;regularjs&apos;</span>);
+
+<span class="hljs-keyword">const</span> App = Regular.extend({
+   template: 
+     <span class="hljs-string">`&lt;div&gt;
+       &lt;h2&gt;&#x4E3B;&#x9875;&lt;/h2&gt;
+       &lt;div r-view &gt;&lt;/div&gt;
+      &lt;/div&gt;
+     `</span>
+ })
+ <span class="hljs-keyword">const</span> Blog = Regular.extend({
+   template: <span class="hljs-string">`
+      &lt;h3&gt;&#x535A;&#x5BA2;&#x9875;&lt;/h3&gt; 
+      &lt;div r-view &gt;&lt;/div&gt;
+   `</span>  
+ })
+ <span class="hljs-keyword">const</span> Detail = Regular.extend({
+   template: <span class="hljs-string">`
+     &lt;h4&gt;&#x8BE6;&#x60C5;:{name}&lt;/h4&gt;
+   `</span>,
+   enter(option){
+      <span class="hljs-keyword">this</span>.data.name = option.param.id 
+   }
+ });
+
+
+<span class="hljs-keyword">const</span> routes = {
+  <span class="hljs-string">&apos;app&apos;</span>: {
+    view: App
+  },
+  <span class="hljs-string">&apos;app.blog&apos;</span>: {
+    url: <span class="hljs-string">&apos;blog/:id&apos;</span>,
+    view: Blog
+  },
+  <span class="hljs-string">&apos;app.blog.detail&apos;</span>: {
+    view: Detail
+  }
+}
+
+
+<span class="hljs-keyword">const</span> manager = restate( { routes: routes });
+
+<span class="hljs-comment">// MATCH</span>
+manager.run(<span class="hljs-string">&apos;/app/blog/1/detail&apos;</span>).then( <span class="hljs-function"><span class="hljs-keyword">function</span>(<span class="hljs-params"> ret </span>)</span>{
+  <span class="hljs-built_in">console</span>.log(ret.html)
+})
+
+<span class="hljs-comment">// NOT_FOUND</span>
+manager.run(<span class="hljs-string">&apos;/path/not/found&apos;</span>).catch( <span class="hljs-function"><span class="hljs-keyword">function</span>(<span class="hljs-params">err</span>)</span>{
+  <span class="hljs-built_in">console</span>.log(err)
+})
+</code></pre>
+<p>&#x547D;&#x4EE4;&#x884C;&#x6309;&#x6B65;&#x9AA4;&#x8FD0;&#x884C;</p>
+<pre><code class="lang-shell">npm install regular-state regularjs
+node app.js
+</code></pre>
+<p>&#x8F93;&#x51FA;&#x7684;<code>ret.html</code>&#x5982;&#x4E0B;</p>
+<pre><code class="lang-html">
+<span class="hljs-tag">&lt;<span class="hljs-title">div</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-title">h2</span>&gt;</span>&#x4E3B;&#x9875;<span class="hljs-tag">&lt;/<span class="hljs-title">h2</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-title">div</span> &gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-title">h3</span>&gt;</span>&#x535A;&#x5BA2;&#x9875;<span class="hljs-tag">&lt;/<span class="hljs-title">h3</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-title">div</span> &gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-title">h4</span>&gt;</span>&#x8BE6;&#x60C5;:<span class="hljs-tag">&lt;/<span class="hljs-title">h4</span>&gt;</span>
+    <span class="hljs-tag">&lt;/<span class="hljs-title">div</span>&gt;</span>
+  <span class="hljs-tag">&lt;/<span class="hljs-title">div</span>&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-title">div</span>&gt;</span>
+</code></pre>
+<p>&#x540C;&#x65F6;&#x8F93;&#x51FA;&#x7684;<code>ret.data</code> &#x5982;&#x4E0B;</p>
+<pre><code>{
+    &apos;app&apos;: undefined,
+    &apos;app.blog&apos;: undefined,
+    &apos;app.blog.detail&apos;: undefined
+}
+</code></pre><p>&#x800C;&#x7B2C;&#x4E8C;&#x6B21;&#x8C03;&#x7528;&#x7531;&#x4E8E;&#x65E0;&#x6CD5;&#x5339;&#x914D;&#x8DEF;&#x7531;&#xFF0C;&#x5C06;&#x4F1A;&#x88AB;reject</p>
+<pre><code class="lang-js">{code: <span class="hljs-number">400</span>, message: <span class="hljs-string">&apos;NOT FOUND&apos;</span>}
+</code></pre>
+<p>&#x4F46;&#x662F;&#x4F3C;&#x4E4E;&#x7ED3;&#x679C;&#x4E0E;&#x6211;&#x4EEC;&#x9884;&#x671F;&#x5E76;&#x4E0D;&#x4E00;&#x6837;&#xFF0C;&#x56E0;&#x4E3A;Detail&#x7EC4;&#x4EF6;&#x5728;enter&#x4FEE;&#x6539;&#x4E86;name&#x6570;&#x636E;&#x5374;&#x6CA1;&#x6709;&#x51FA;&#x73B0;&#x5728;&#x9996;&#x5C4F;&#x4E86;<code>&lt;h4&gt;&#x8BE6;&#x60C5;:{name}&lt;/h4&gt;</code>, &#x8FD9;&#x662F;&#x56E0;&#x4E3A;</p>
+<blockquote>
+<p><strong> &#x6240;&#x6709;&#x4E0A;&#x4E00;&#x7AE0;&#x8282;&#x63D0;&#x5230;&#x7684;<code>mount</code>&#x3001;<code>enter</code>&#x548C;<code>leave</code>&#x4E8B;&#x4EF6;&#x90FD;&#x4E0D;&#x4F1A;&#x5728;&#x670D;&#x52A1;&#x7AEF;&#x88AB;&#x8C03;&#x7528;, &#x800C;&#x662F;&#x5EF6;&#x8FDF;&#x5230;&#x6D4F;&#x89C8;&#x5668;&#x7AEF;&#x518D;&#x8FD0;&#x884C;&#xFF0C;</strong></p>
+</blockquote>
+<p>&#x90A3;&#x5982;&#x4F55;&#x7EC4;&#x7EC7;&#x9996;&#x5C4F;&#x6570;&#x636E;&#x5462;&#xFF1F;</p>
+<p>&#x9488;&#x5BF9;SSR&#xFF0C;Regular-state&#x5F15;&#x5165;&#x4E86;&#x4E00;&#x4E2A;&#x4E0E;view&#x540C;&#x7EA7;&#x7684;&#x65B0;&#x7684;<strong>&#x8282;&#x70B9;&#x914D;&#x7F6E;&#x9879;<code>data</code></strong> , &#x5B83;&#x5FC5;&#x987B;&#x662F;&#x4E00;&#x4E2A;&#x51FD;&#x6570;</p>
+<h2 id="-data-option-resolve">- data(option [, resolve]):</h2>
+<p><strong>&#x53C2;&#x6570;</strong></p>
+<ul>
+<li>option&#x5373;&#x8DF3;&#x8F6C;&#x53C2;&#x6570;</li>
+<li>resolve(obj): &#x5982;&#x679C;&#x4F20;&#x5165;&#x4E86;&#x7B2C;&#x4E8C;&#x4E2A;&#x53C2;&#x6570;&#xFF0C;&#x5219;data&#x88AB;&#x89C6;&#x4E3A;&#x5F02;&#x6B65;(&#x4E0E;view&#x51FD;&#x6570;&#x5904;&#x7406;&#x65B9;&#x5F0F;&#x4E00;&#x81F4;)</li>
+</ul>
+<p>&#x5F53;&#x58F0;&#x660E;resolve&#x65F6;&#xFF0C; &#x4F20;&#x5165;resolve&#x7684;&#x6570;&#x636E;&#x4F1A;&#x8BA4;&#x4E3A;&#x662F;&#x9996;&#x5C4F;&#x6570;&#x636E;, &#x53CD;&#x4E4B;&#x5219;&#x4F1A;&#x76F4;&#x63A5;&#x4F7F;&#x7528;data&#x51FD;&#x6570;&#x7684;&#x8FD4;&#x56DE;&#x503C;</p>
+<p>&#x5C11;&#x8BF4;&#x591A;&#x505A;&#xFF0C;&#x6211;&#x4EEC;&#x76F4;&#x63A5;&#x4FEE;&#x6539;&#x4E00;&#x4E0B;&#x4E0A;&#x4F8B;&#x7684;&#x4EE3;&#x7801;&#x5427;</p>
+<pre><code class="lang-js">
+<span class="hljs-keyword">const</span> routes = {
+  <span class="hljs-string">&apos;app&apos;</span>: {
+    view: App
+  },
+  <span class="hljs-string">&apos;app.blog&apos;</span>: {
+    url: <span class="hljs-string">&apos;blog/:id&apos;</span>,
+    view: Blog
+  },
+  <span class="hljs-string">&apos;app.blog.detail&apos;</span>: {
+    data(option, resolve){
+
+      setTimeout(<span class="hljs-function"><span class="hljs-keyword">function</span>(<span class="hljs-params"></span>)</span>{
+        resolve({
+          name: <span class="hljs-string">&apos;leeluolee&apos;</span>
+        })
+      },<span class="hljs-number">50</span>)
+    },
+    view: Detail
+  }
+
+}
+</code></pre>
+<p>&#x91CD;&#x65B0;&#x8FD0;&#x884C;</p>
+<p><code>html</code>&#x53D8;&#x6210;&#x4E86;</p>
+<pre><code class="lang-html"><span class="hljs-tag">&lt;<span class="hljs-title">div</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-title">h2</span>&gt;</span>&#x4E3B;&#x9875;<span class="hljs-tag">&lt;/<span class="hljs-title">h2</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-title">div</span> &gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-title">h3</span>&gt;</span>&#x535A;&#x5BA2;&#x9875;<span class="hljs-tag">&lt;/<span class="hljs-title">h3</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-title">div</span> &gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-title">h4</span>&gt;</span>&#x8BE6;&#x60C5;:leeluolee<span class="hljs-tag">&lt;/<span class="hljs-title">h4</span>&gt;</span>
+    <span class="hljs-tag">&lt;/<span class="hljs-title">div</span>&gt;</span>
+  <span class="hljs-tag">&lt;/<span class="hljs-title">div</span>&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-title">div</span>&gt;</span>
+</code></pre>
+<p><code>data</code>&#x5219;&#x53D8;&#x6210;&#x4E86;</p>
+<pre><code class="lang-js">{ 
+    <span class="hljs-string">&apos;app&apos;</span>: <span class="hljs-literal">undefined</span>,
+    <span class="hljs-string">&apos;app.blog&apos;</span>: <span class="hljs-literal">undefined</span>,
+    <span class="hljs-string">&apos;app.blog.detail&apos;</span>: { name: <span class="hljs-string">&apos;leeluolee&apos;</span> } 
+}
+</code></pre>
+<p><em>&#x7531;&#x4E8E;Regular&#x7684;&#x670D;&#x52A1;&#x7AEF;&#x6E32;&#x67D3;&#x57FA;&#x4E8E;&#x6A21;&#x677F;&#x5B9E;&#x73B0;&#xFF0C;&#x6240;&#x4EE5;&#x8F93;&#x51FA;&#x5E72;&#x51C0;&#x548C;&#x4E00;&#x822C;&#x5B57;&#x7B26;&#x4E32;&#x6A21;&#x677F;&#x65E0;&#x5F02;&#xFF0C; &#x4E0D;&#x9700;&#x8981;&#x865A;&#x62DF;DOM&#x90A3;&#x79CD;xx-id&#x7684;&#x5360;&#x4F4D;&#x7B26;.</em></p>
+<h2 id="%E4%BC%A0%E8%BE%93">&#x4F20;&#x8F93;</h2>
+<p>&#x7B2C;&#x4E8C;&#x6B65;&#x662F;&#x4F20;&#x9012;&#x9996;&#x5C4F;data&#x548C;html&#x5230;&#x6D4F;&#x89C8;&#x5668;&#x7AEF;, &#x6211;&#x4EEC;&#x5BF9;&#x4F8B;&#x5B50;&#x505A;&#x9002;&#x5F53;&#x4FEE;&#x6539;&#xFF0C;&#x4F7F;&#x5F97;&#x516C;&#x7528;&#x90E8;&#x5206;(&#x5982;&#x8DEF;&#x7531;&#x914D;&#x7F6E;&#x548C;&#x7EC4;&#x4EF6;&#x5B9A;&#x4E49;&#x53EF;&#x4EE5;)&#x5728;&#x6D4F;&#x89C8;&#x5668;&#x7AEF;&#x548C;&#x524D;&#x7AEF;&#x540C;&#x65F6;&#x4F7F;&#x7528;&#x3002;</p>
+<p>&#x4E3A;&#x7B80;&#x5355;&#x8D77;&#x89C1;&#xFF0C;&#x6211;&#x4EEC;&#x4E0D;&#x518D;&#x5F15;&#x5165;webpack&#x8FD9;&#x79CD;&#x5927;&#x578B;&#x6A21;&#x5757;&#x7CFB;&#x7EDF;&#xFF0C;&#x800C;&#x662F;&#x624B;&#x52A8;&#x5C06;&#x6A21;&#x5757;&#x5199;&#x6210;<a href="https://github.com/umdjs/umd" target="_blank">UMD&#x683C;&#x5F0F;</a> &#x4F7F;&#x5176;&#x53EF;&#x4EE5;&#x540C;&#x65F6;&#x5728;&#x6D4F;&#x89C8;&#x5668;&#x548C;&#x670D;&#x52A1;&#x7AEF;&#x88AB;&#x5F15;&#x7528;.</p>
+<p><code>route.js</code></p>
+<pre><code class="lang-js">
+(<span class="hljs-function"><span class="hljs-keyword">function</span> (<span class="hljs-params">root, factory</span>) </span>{
+    <span class="hljs-keyword">if</span> (<span class="hljs-keyword">typeof</span> <span class="hljs-built_in">module</span> === <span class="hljs-string">&apos;object&apos;</span> &amp;&amp; <span class="hljs-built_in">module</span>.exports) {
+        <span class="hljs-built_in">module</span>.exports = factory();
+    } <span class="hljs-keyword">else</span> {
+        root.routes = factory();
+  }
+}(<span class="hljs-keyword">this</span>, <span class="hljs-function"><span class="hljs-keyword">function</span> (<span class="hljs-params"></span>) </span>{
+
+
+
+    <span class="hljs-keyword">return</span> routes
+}));
+</code></pre>
+<p><code>server.js</code></p>
+<pre><code class="lang-js"><span class="hljs-keyword">var</span> http = <span class="hljs-built_in">require</span>(<span class="hljs-string">&apos;http&apos;</span>);
+<span class="hljs-keyword">var</span> routes = <span class="hljs-built_in">require</span>(<span class="hljs-string">&apos;./routes&apos;</span>);
+
+<span class="hljs-comment">// </span>
+http.createServer( <span class="hljs-function"><span class="hljs-keyword">function</span>(<span class="hljs-params">request, response</span>)</span>{
+
+  response.set()
+
+})
+</code></pre>
+<p><code>client.js</code></p>
+<pre><code class="lang-js">
+restate(routes).start({
+  view: <span class="hljs-built_in">document</span>.querySelector(<span class="hljs-string">&apos;#app&apos;</span>),
+  ssr: <span class="hljs-literal">true</span> <span class="hljs-comment">// &#x6CE8;&#x610F;ssr&#x5F00;&#x542F;&#x9ED8;&#x8BA4;&#x5C31;&#x662F;html5&#x6A21;&#x5F0F;&#xFF0C; &#x6211;&#x4EEC;&#x9700;&#x8981;&#x91CD;&#x65B0;&#x8BBE;&#x7F6E;html5</span>
+})
+</code></pre>
+<h3 id="%E4%BA%9F%E9%9C%80%E6%94%B9%E8%BF%9B%E7%9A%84%E5%9C%B0%E6%96%B9">&#x4E9F;&#x9700;&#x6539;&#x8FDB;&#x7684;&#x5730;&#x65B9;</h3>
+<ul>
+<li>&#x5F15;&#x5165;webpack&#xFF0C; &#x907F;&#x514D;&#x9700;&#x8981;&#x624B;&#x52A8;&#x53BB;&#x6784;&#x5EFA;umd&#x6A21;&#x5757;</li>
+<li>&#x5F15;&#x5165;koa&#x7B49;web&#x6846;&#x67B6;&#xFF0C; &#x51CF;&#x5C11;&#x91CD;&#x590D;&#x4EE3;&#x7801;</li>
+<li>&#x5F15;&#x5165;ejs&#x7B49;&#x540E;&#x7AEF;&#x6A21;&#x677F;&#xFF0C; &#x907F;&#x514D;&#x540E;&#x53F0;&#x903B;&#x8F91;&#x4EE3;&#x7801;&#x548C;&#x7ED3;&#x6784;&#x6DF7;&#x6742;</li>
+</ul>
+<p>&#x8FD9;&#x4E9B;&#x90FD;&#x5728;&#x8FD9;&#x4E2A;&#x66F4;&#x5B8C;&#x6574;&#x7684;<a href="https://github.com/regularjs/spa-example" target="_blank">SSR&#x7248;&#x672C;&#x535A;&#x5BA2;&#x7CFB;&#x7EDF;&#x7684;&#x4F8B;&#x5B50;&#x91CC;</a>&#x8FDB;&#x884C;&#x4E86;&#x6539;&#x8FDB;. </p>
+
+                    
+                    </section>
+                
+                
+                </div>
+            </div>
+        </div>
+
+        
+        <a href="../../docs/ssr/index.html" class="navigation navigation-prev " aria-label="Previous page: 服务端渲染"><i class="fa fa-angle-left"></i></a>
+        
+        
+        <a href="../../docs/ssr/lifecycle.html" class="navigation navigation-next " aria-label="Next page: 生命周期"><i class="fa fa-angle-right"></i></a>
+        
+    </div>
+</div>
+
+        
+<script src="../../gitbook/app.js"></script>
+
+<script>
+require(["gitbook"], function(gitbook) {
+    var config = {"fontSettings":{"theme":null,"family":"sans","size":2}};
+    gitbook.start(config);
+});
+</script>
+
+        
+    </body>
+    
+</html>
