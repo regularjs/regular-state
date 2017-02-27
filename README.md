@@ -2,6 +2,9 @@
 
 regular-state是基于[stateman](https://github.com/leeluolee/stateman) 和 Regular的单页应用框架.
 
+## 指南
+
+[文档指南](http://regularjs.github.io/regular-state/)
 
 ## 特性
 
