@@ -248,6 +248,44 @@ describe("Regular extension", function(){
       })
 
   })
+
+  it("r-link with nested dom", function(done){
+    var container = document.createElement('div');
+
+
+    var clientManager = client(extend({ },routeConfig))
+
+    clientManager.state({
+      'app.link': {
+        url: 'link/:id',
+        view: Regular.extend({
+          config: function(){
+            this.data.id = 0
+          },
+          template: '<a id="blog" r-link="app.link({id: id })"><h2 ref=h2>Hello</h2></a>'
+
+        })
+      }
+    });
+
+
+
+
+
+    clientManager.start({ 
+      view: container,
+      location: loc('/link/1'),
+      html5: true 
+    }, function(){
+      var link =$('#blog h2', container);
+      dispatchMockEvent(link, 'click');
+      setTimeout(function(){
+        expect(clientManager.history.location.pathname).to.equal('/link/0')
+        done()
+      },0)
+    })
+  })
+
   it("r-link with 0", function( done){
 
     var container = document.createElement('div');

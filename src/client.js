@@ -35,14 +35,14 @@ so.start = function(options, callback){
   delete options.view;
   if( options.html5 && window.history && "onpopstate" in window ){
     this.ssr = ssr;
-    dom.on( document.body, "click", function(ev){
-      var target = ev.target, href;
-      if(target.getAttribute('data-autolink') != null){
-        ev.preventDefault();
-        href = dom.attr(target, 'href');
-        self.nav(href);
-      }
-    });
+    // dom.on( document.body, "click", function(ev){
+    //   var target = ev.target, href;
+    //   if(target.getAttribute('data-autolink') != null){
+    //     ev.preventDefault();
+    //     href = dom.attr(target, 'href');
+    //     self.nav(href);
+    //   }
+    // });
   }
   oldStart.call(this, options, callback)
   return this;

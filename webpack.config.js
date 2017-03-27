@@ -8,12 +8,24 @@ var config =  {
         library: "restate",
         libraryTarget: "umd"
     },
-    externals: {
-        "regularjs": "Regular"
+    module: {
+        rules: [{
+          test: /\.js$/,
+          exclude: /(node_modules)/,
+          loader: 'babel-loader',
+          options: {
+            cacheDirectory: true,
+            presets: [
+              ["es2015", { "modules": false }]
+            ],
+          }
+        }]
     },
     plugins: [ ],
     devtool:'source-map'
 };
+
+
 
 
 

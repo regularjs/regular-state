@@ -31,12 +31,21 @@ module.exports = function( stateman  ){
       link: function(element, value){
 
         // use html5 history
+        var currentLink;
         if(stateman.history.mode === 2){
           dom.attr(element, 'data-autolink', 'data-autolink');
+          if(stateman.history.mode === 2){
+            dom.on(element, 'click', (ev)=>{
+              ev.preventDefault();
+              stateman.nav(currentLink)
+            })
+          }
         }
+        //  r-link = {Expression}
         if(value && value.type === 'expression'){
           
           this.$watch( value, function( val){
+            currentLink = val;
             dom.attr(element, 'href', 
               handleUrl(
                 val,
@@ -46,25 +55,29 @@ module.exports = function( stateman  ){
           })
           return;
         }
+        // link='String'
         var parsedLinkExpr = _.extractState(value);
 
-        if(parsedLinkExpr){
+        if(parsedLinkExpr){ // r-link = 'app.blog(...arg)'
 
           var param = parsedLinkExpr.param;
-          if(param.trim() === '' ){
+          if(param.trim() === '' ){ //r-link = 'app.blog()'
             value = stateman.encode(parsedLinkExpr.name)
-          }else{
+            currentLink = value;
+          }else{ // r-link = 'app.blog({name:1})'
             this.$watch( parsedLinkExpr.param, function(param){
+              currentLink = stateman.encode(parsedLinkExpr.name, param);
               dom.attr(element, 'href', 
                 handleUrl(
-                  stateman.encode(parsedLinkExpr.name, param),
+                  currentLink,
                   stateman.history
                 )
-                
               )
             } , {deep: true} )
             return ;
           }
+        }else{
+          currentLink = value;
         }
 
         dom.attr(element, 'href', 
@@ -73,8 +86,6 @@ module.exports = function( stateman  ){
             stateman.history
           )
         )
-
-          
       },
       ssr: function( value, tag ){
 

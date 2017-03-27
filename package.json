@@ -1,6 +1,6 @@
 {
   "name": "regular-state",
-  "version": "0.6.0-beta.3",
+  "version": "0.6.0-beta.4",
   "description": "an SPA(single page application) foundation for regularjs that powerd by stateman",
   "keywords": [
     "stateman",
@@ -24,9 +24,6 @@
   "homepage": "https://github.com/regularjs/regular-state",
   "dependencies": {
     "stateman": "^0.3.0-beta.2"
-  },
-  "peerDependencies": {
-    "regularjs": "*"
   },
   "devDependencies": {
     "es6-promise": "^3.1.2",

@@ -3,7 +3,7 @@ var Regular = require('regularjs');
 // Backbone.js Trick for mock the location service
 function loc(href){
   var a = document.createElement('a');
-  return ({
+  var self = {
     replace: function(href) {
       a.href = href;
       Regular.util.extend(this, {
@@ -19,13 +19,16 @@ function loc(href){
     },
     history: {
       replaceState: function(obj, title, path){
-        a.href = path
+
+        self.replace(path)
+        // a.href = path
       },
       pushState: function(obj, title, path){
-        a.href = path
+        self.replace(path)
       }
     }
-  }).replace(href)
+  }
+  return (self).replace(href)
 }
 
 module.exports = loc;
