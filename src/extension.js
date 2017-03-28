@@ -35,7 +35,7 @@ module.exports = function( stateman  ){
         if(stateman.history.mode === 2){
           dom.attr(element, 'data-autolink', 'data-autolink');
           if(stateman.history.mode === 2){
-            dom.on(element, 'click', (ev)=>{
+            dom.on(element, 'click', function(ev){
               ev.preventDefault();
               stateman.nav(currentLink)
             })
