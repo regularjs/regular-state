@@ -5,6 +5,12 @@ var win = typeof window !== 'undefined' && window;
 
 var extension = require('./extension');
 
+if(!Regular.isRegular){
+  Regular.isRegular = function( Comp ){
+    return  Comp.prototype instanceof Regular;
+  }
+}
+
 function createRestate( Stateman ){
 
   function Restate( options ){

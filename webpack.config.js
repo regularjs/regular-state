@@ -8,6 +8,12 @@ var config =  {
         library: "restate",
         libraryTarget: "umd"
     },
+    externals: {
+        // require("jquery") 是引用自外部模块的
+        // 对应全局变量 jQuery
+        "regularjs": "Regular"
+    },
+
     module: {
         rules: [{
           test: /\.js$/,
