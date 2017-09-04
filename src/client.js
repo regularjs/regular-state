@@ -146,7 +146,7 @@ so.state = function(name, config){
         return _.proxyMethod(this, oldConfig.canEnter, option )
       },
       canLeave: function(option){
-        return _.proxyMethod(this.component, 'canEnter', option)
+        return _.proxyMethod(this.component, 'canLeave', option)
       },
       update: function(option){
         return this.install(option, false);
