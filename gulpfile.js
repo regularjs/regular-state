@@ -8,7 +8,6 @@ var through = require('through2');
 var shell = require("gulp-shell");
 var mocha = require('gulp-mocha');
 var gulp = require('gulp');
-var git = require('gulp-git');
 var istanbul = require('browserify-istanbul');
 
 

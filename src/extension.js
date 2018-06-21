@@ -20,7 +20,7 @@ module.exports = function( stateman  ){
   Regular.directive({
     'r-view': {
       link: function(element){
-        this.$viewport = element;
+        this.$root.$viewport = element;
       },
       ssr: function( attr ){
         return 'r-view'
