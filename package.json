@@ -26,6 +26,7 @@
     "stateman": "^0.3.0-beta.2"
   },
   "devDependencies": {
+    "browserify-istanbul": "^0.2.1",
     "es6-promise": "^3.1.2",
     "expect.js": "^0.3.1",
     "gulp": "^3.8.10",
@@ -36,7 +37,6 @@
     "gulp-util": "~2.2.14",
     "gulp-webpack": "^0.3.0",
     "karma": "^0.12.31",
-    "browserify-istanbul": "^0.2.1",
     "karma-browserify": "^4.4.2",
     "karma-commonjs": "0.0.13",
     "karma-commonjs-alias": "^0.2.2",
@@ -45,8 +45,8 @@
     "karma-phantomjs-launcher": "~0.1.4",
     "mocha": "~1.18.2",
     "promise-polyfill": "^6.0.2",
+    "regularjs": "^0.6.0-beta.8",
     "through2": "~0.4.1",
-    "webpack": "^1.13.1",
-    "regularjs": "^0.3.0-beta.1"
+    "webpack": "^1.13.1"
   }
 }
