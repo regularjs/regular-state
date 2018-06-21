@@ -1,6 +1,7 @@
 # regular-state
 
-regular-state是基于[stateman](https://github.com/leeluolee/stateman) 和 Regular的单页应用框架.
+**regular-state**是整合了 [Regularjs(MVVM组件框架)](https://github.com/regularjs/regular)和 [Stateman(基于状态抽象的路由库)](https://github.com/leeluolee/stateman)的单页系统框架，它支持**服务端渲染(Server side Rendering)**
+
 
 ## 指南
 
@@ -21,6 +22,15 @@ regular-state是基于[stateman](https://github.com/leeluolee/stateman) 和 Regu
 
 **regular-state**可运行在支持ES5的浏览器，并且需要Promise的支持. 低级浏览器请使用类似[promise-polyfill](https://github.com/taylorhakes/promise-polyfill)的垫片脚本
 
+## TODO
+
+# 低版本IE的fallback
+# Promise 
+# default 
+# notfound
+# 单双引号， 属性设置有坑
+# isRunning 有坑
+# run 需要try 太白痴了
 
 ## 贡献
 

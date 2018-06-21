@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>restate single Page Application</title>
+  <script src='../restate.pack.js'></script>
+</head>
+<body>
+
+<script>
+
+var Regular = restate.Regular;
+
+
+var Blog = Regular.extend({
+  template: `
+    <div class='blog'>{content}</div>
+  `,
+  config(){
+    this.data.content = 'Blog Content'
+  }
+})
+
+var User = Regular.extend({
+  template: `
+    <div class='user'>User: {id}</div>
+  `,
+  enter (option){
+    this.data.id = option.param.id;
+  }
+})
+
+var Application = Regular.extend({
+  template: `
+    <div class='main-page'>
+      <h2>Single application</h2>
+      <a r-link='app.blog({})'>Blog Page</a>
+      <a r-link='app.user({id:2})'>User page</a>
+      <div class='container' r-view></div>
+    </div>
+  `
+})
+
+var stateman = restate({
+
+  routes: {
+    'app': {
+      url: '',
+      view: Application
+    },
+    'app.blog': {
+      view: Blog
+    },
+    'app.user': {
+      url: 'user/:id',
+      view: User
+    }
+  }
+})
+
+stateman.start({
+  view: document.body
+});
+
+
+</script>
+  
+</body>
+</html>

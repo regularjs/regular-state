@@ -1,6 +1,6 @@
 {
   "name": "regular-state",
-  "version": "0.2.1",
+  "version": "0.6.0-beta.9",
   "description": "an SPA(single page application) foundation for regularjs that powerd by stateman",
   "keywords": [
     "stateman",
@@ -8,7 +8,7 @@
     "state",
     "spa"
   ],
-  "main": "restate.js",
+  "main": "src/index.js",
   "repository": {
     "type": "git",
     "url": "git@github.com:regularjs/regular-state"
@@ -23,18 +23,30 @@
   },
   "homepage": "https://github.com/regularjs/regular-state",
   "dependencies": {
-    "stateman": "^0.2.0"
+    "stateman": "^0.3.0-beta.2"
   },
   "devDependencies": {
+    "browserify-istanbul": "^0.2.1",
+    "es6-promise": "^3.1.2",
+    "expect.js": "^0.3.1",
+    "gulp": "^3.8.10",
     "gulp-gh-pages": "^0.4.0",
-    "regularjs": "^0.4.3",
-    "requirejs": "^2.1.15",
-    "puer": "^1.0.8",
-    "gulp-webpack": "^0.3.0",
     "gulp-jshint": "~1.5.3",
+    "gulp-mocha": "^2.2.0",
     "gulp-shell": "^0.2.4",
     "gulp-util": "~2.2.14",
+    "gulp-webpack": "^0.3.0",
+    "karma": "^0.12.31",
+    "karma-browserify": "^4.4.2",
+    "karma-commonjs": "0.0.13",
+    "karma-commonjs-alias": "^0.2.2",
+    "karma-coverage": "~0.2.4",
+    "karma-mocha": "~0.1.3",
+    "karma-phantomjs-launcher": "~0.1.4",
+    "mocha": "~1.18.2",
+    "promise-polyfill": "^6.0.2",
+    "regularjs": "^0.6.0-beta.8",
     "through2": "~0.4.1",
-    "gulp": "^3.8.10"
+    "webpack": "^1.13.1"
   }
 }

@@ -1,3 +1,4 @@
+test/runner/spec.pack.js
 *node_modules*
 bower_components
 *sublime*
@@ -7,5 +8,8 @@ test/tmp/*
 test/coverage/*
 coverage*
 out/*
+.vscode
+test/runner/spec.pack.js
+test/runner/spec.pack.js.map
 
 
