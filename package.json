@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "deploy": "gulp deploy"
+    "deploy": "gulp deploy",
+    "start": "gitbook serve .",
+    "build": "gitbook build ."
   },
   "author": "@leeluolee",
   "license": "MIT",
