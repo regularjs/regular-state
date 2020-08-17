@@ -13,33 +13,33 @@ var oldStateFn = so.state;
 var oldStart = so.start;
 
 function destroyState(manager) {
-    manager.stop();
-    walkState(manager, (state) => {
-        if (state.component &&
-            typeof state.component.destroy === 'function' &&
-            state.component.$phase !== 'destroyed'
-        ) {
-            state.component.destroy();
-        }
-    });
+  manager.stop();
+  walkState(manager, (state) => {
+    if (state.component &&
+        typeof state.component.destroy === 'function' &&
+        state.component.$phase !== 'destroyed'
+    ) {
+      state.component.destroy();
+    }
+  });
 }
 
 function walkState(state, fn) {
-    let states = state._states;
+  let states = state._states;
 
-    if (state.hasNext) {
-        for (let i in states) {
-            if (states.hasOwnProperty(i)) {
-                walkState(states[i], fn);
-            }
-        }
+  if (state.hasNext) {
+    for (let i in states) {
+      if (states.hasOwnProperty(i)) {
+        walkState(states[i], fn);
+      }
     }
+  }
 
-    fn(state);
+  fn(state);
 }
 
 so.destroy = function() {
-    destroyState(this);
+  destroyState(this);
 }
 
 so.start = function(options, callback){
@@ -69,7 +69,7 @@ so.start = function(options, callback){
     //   }
     // });
   }
-    oldStart.call(this, options, callback)
+  oldStart.call(this, options, callback)
   return this;
 }
 
