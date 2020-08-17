@@ -939,3 +939,80 @@ describe("Bugfix", function() {
 
   })
 })
+
+describe("Regular destroy", function() {
+  const ary = [];
+  var app = Regular.extend({
+    template: '<div class="app" r-view></div>',
+    destroy: function () {
+      this.supr();
+      ary.push('app');
+    }
+  });
+
+  var blog = Regular.extend({
+    template: '<div class="blog" r-view></div>',
+    destroy: function() {
+      this.supr();
+      ary.push('blog');
+    }
+  });
+
+  var edit = Regular.extend({
+    template: '<div class="blog_edit"><a r-link="app.blog.detail({id: id})" ></a></div>',
+    destroy: function() {
+      this.supr();
+      ary.push('edit');
+    }
+  });
+
+
+  var routeConfig = {
+    routes: {
+      'app': {
+        url: "",
+        view: app
+      },
+      'app.blog': {
+        view: blog
+      },
+      'app.blog.edit': {
+        url: ':id/edit',
+        view: edit,
+        data: function(option) {
+          return {
+            id: option.param.id
+          }
+        }
+      },
+      'app.blog.detail': {
+        url: ':id',
+        view: Regular.extend({
+          template: '<div class="blog_detail"><a r-link="app.blog.edit({id: id})" ></a></div>'
+        }),
+        data: function(option) {
+          return {
+            id: option.param.id
+          }
+        }
+      }
+    }
+  }
+  it("destroy should work as expect", function(done) {
+
+    var container = document.createElement('div');
+
+    var clientManager = client(extend({}, routeConfig))
+      .start({
+        view: container,
+        location: loc('/blog/1/edit'),
+        html5: true
+      });
+
+    setTimeout(() => {
+      clientManager.destroy();
+      expect(ary).to.eql(['edit', 'blog', 'app']);
+      done();
+    }, 0);
+  })
+})
