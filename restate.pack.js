@@ -64,10 +64,6 @@ return /******/ (function(modules) { // webpackBootstrap
 /* 1 */
 /***/ (function(module, exports, __webpack_require__) {
 
-	
-	
-	
-	
 	var Regular = __webpack_require__(2);
 	var Stateman = __webpack_require__(3);
 	var _ = __webpack_require__(11);
@@ -82,6 +78,35 @@ return /******/ (function(modules) { // webpackBootstrap
 	var oldStateFn = so.state;
 	var oldStart = so.start;
 	
+	function destroyState(manager) {
+	  manager.stop();
+	  walkState(manager, (state) => {
+	    if (state.component &&
+	        typeof state.component.destroy === 'function' &&
+	        state.component.$phase !== 'destroyed'
+	    ) {
+	      state.component.destroy();
+	    }
+	  });
+	}
+	
+	function walkState(state, fn) {
+	  let states = state._states;
+	
+	  if (state.hasNext) {
+	    for (let i in states) {
+	      if (states.hasOwnProperty(i)) {
+	        walkState(states[i], fn);
+	      }
+	    }
+	  }
+	
+	  fn(state);
+	}
+	
+	so.destroy = function() {
+	  destroyState(this);
+	}
 	
 	so.start = function(options, callback){
 	  var self = this;
@@ -89,7 +114,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  var ssr = options.ssr;
 	  var view = options.view;
 	  this.view = view;
-	  // prevent default stateman autoLink feature 
+	  // prevent default stateman autoLink feature
 	  options.autolink = false;
 	  if(ssr) {
 	    // wont fix .
@@ -123,23 +148,23 @@ return /******/ (function(modules) { // webpackBootstrap
 	
 	    // 不代理canEnter事件, 因为此时component还不存在
 	    // mount (if not installed, install first)
-	    
+	
 	    // 1. .Null => a.b.c
-	    // canEnter a  -> canEnter a.b -> canEnter a.b.c -> 
-	    //  -> install a ->enter a -> mount a 
-	    //  -> install a.b -> enter a.b -> mount a.b 
+	    // canEnter a  -> canEnter a.b -> canEnter a.b.c ->
+	    //  -> install a ->enter a -> mount a
+	    //  -> install a.b -> enter a.b -> mount a.b
 	    //  -> install a.b.c -> enter a.b.c -> mount a.b.c
 	
 	
 	    // 2. update a.b.c
-	    // -> install a -> mount a 
-	    // -> install a.b -> mount a.b 
+	    // -> install a -> mount a
+	    // -> install a.b -> mount a.b
 	    // -> install a.b.c -> mount a.b.c
 	
 	    // 3. a.b.c -> a.b.d
-	    // canLeave c -> canEnter d -> leave c 
-	    //  -> install a -> mount a -> 
-	    //  -> install b -> mount b -> 
+	    // canLeave c -> canEnter d -> leave c
+	    //  -> install a -> mount a ->
+	    //  -> install b -> mount b ->
 	    //  -> install d -> enter d -> mount d
 	
 	    function install( option , isEnter){
@@ -233,16 +258,14 @@ return /******/ (function(modules) { // webpackBootstrap
 	      }
 	    }
 	    _.extend(config, oldConfig, true)
-	    
+	
 	  }
-	  return oldStateFn.call(this, name, config)    
+	  return oldStateFn.call(this, name, config)
 	}
 	
 	
 	
 	module.exports = Restate;
-	
-	
 
 
 /***/ }),
